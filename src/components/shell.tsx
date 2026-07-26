@@ -64,7 +64,7 @@ function btn(primary: boolean): React.CSSProperties {
 }
 
 function Footer() {
-  const { quote, loading, currency, helpers, available, submit } =
+  const { quote, loading, currency, helpers, available, actionLabels, submit } =
     useProductForm();
   const total = quote?.totalCost;
   const unit = quote?.costPerUnit;
@@ -113,17 +113,17 @@ function Footer() {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {available.getQuote ? (
           <button type="button" style={btn(false)} onClick={() => submit('getQuote')}>
-            Get quote
+            {actionLabels.getQuote || 'Get quote'}
           </button>
         ) : null}
         {available.buyNow ? (
           <button type="button" style={btn(false)} onClick={() => submit('buyNow')}>
-            Buy now
+            {actionLabels.buyNow || 'Buy now'}
           </button>
         ) : null}
         {available.addToCart ? (
           <button type="button" style={btn(true)} onClick={() => submit('addToCart')}>
-            Add to cart
+            {actionLabels.addToCart || 'Add to cart'}
           </button>
         ) : null}
       </div>
@@ -142,6 +142,8 @@ export function ProductFormShell({
   actions,
   helpers,
   children,
+  initialJob,
+  actionLabels,
 }: ProductFormProviderProps) {
   return (
     <ProductFormProvider
@@ -149,6 +151,8 @@ export function ProductFormShell({
       pricing={pricing}
       actions={actions}
       helpers={helpers}
+      initialJob={initialJob}
+      actionLabels={actionLabels}
     >
       <div
         style={{

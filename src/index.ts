@@ -16,9 +16,14 @@ export {
 } from './helpers/product';
 export {
   buildProductFormJob,
+  jobToFormState,
   selectionsToVariations,
 } from './helpers/buildJob';
-export type { GroupRow, ProductFormJobState } from './helpers/buildJob';
+export type {
+  GroupRow,
+  HydratedProductFormState,
+  ProductFormJobState,
+} from './helpers/buildJob';
 export { OPTION_FIELD_TYPES } from './helpers/constants';
 
 export { createPricing } from './runtime/pricing';
