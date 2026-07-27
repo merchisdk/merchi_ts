@@ -135,6 +135,11 @@ function Footer() {
  * Wraps a custom form: provides the form context (state + live pricing) and
  * renders a quantity control above and a total + submit footer below the form's
  * own content. Hosts render this around the form's default export.
+ *
+ * If `product` is omitted, render children only. AI-built forms sometimes nest
+ * `<ProductFormShell>` without props; the host already provided the real shell,
+ * so a second Provider with undefined product would crash and fall back to the
+ * default GroupRows form.
  */
 export function ProductFormShell({
   product,
@@ -144,7 +149,12 @@ export function ProductFormShell({
   children,
   initialJob,
   actionLabels,
-}: ProductFormProviderProps) {
+}: Partial<Omit<ProductFormProviderProps, 'children'>> & {
+  children?: React.ReactNode;
+}) {
+  if (product == null || pricing == null || actions == null || helpers == null) {
+    return <>{children}</>;
+  }
   return (
     <ProductFormProvider
       product={product}
