@@ -64,7 +64,7 @@ function btn(primary: boolean): React.CSSProperties {
 }
 
 function Footer() {
-  const { quote, loading, currency, helpers, available, submit } =
+  const { quote, loading, currency, helpers, available, actionLabels, submit } =
     useProductForm();
   const total = quote?.totalCost;
   const unit = quote?.costPerUnit;
@@ -113,17 +113,17 @@ function Footer() {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {available.getQuote ? (
           <button type="button" style={btn(false)} onClick={() => submit('getQuote')}>
-            Get quote
+            {actionLabels.getQuote || 'Get quote'}
           </button>
         ) : null}
         {available.buyNow ? (
           <button type="button" style={btn(false)} onClick={() => submit('buyNow')}>
-            Buy now
+            {actionLabels.buyNow || 'Buy now'}
           </button>
         ) : null}
         {available.addToCart ? (
           <button type="button" style={btn(true)} onClick={() => submit('addToCart')}>
-            Add to cart
+            {actionLabels.addToCart || 'Add to cart'}
           </button>
         ) : null}
       </div>
@@ -135,6 +135,11 @@ function Footer() {
  * Wraps a custom form: provides the form context (state + live pricing) and
  * renders a quantity control above and a total + submit footer below the form's
  * own content. Hosts render this around the form's default export.
+ *
+ * If `product` is omitted, render children only. AI-built forms sometimes nest
+ * `<ProductFormShell>` without props; the host already provided the real shell,
+ * so a second Provider with undefined product would crash and fall back to the
+ * default GroupRows form.
  */
 export function ProductFormShell({
   product,
@@ -142,13 +147,22 @@ export function ProductFormShell({
   actions,
   helpers,
   children,
-}: ProductFormProviderProps) {
+  initialJob,
+  actionLabels,
+}: Partial<Omit<ProductFormProviderProps, 'children'>> & {
+  children?: React.ReactNode;
+}) {
+  if (product == null || pricing == null || actions == null || helpers == null) {
+    return <>{children}</>;
+  }
   return (
     <ProductFormProvider
       product={product}
       pricing={pricing}
       actions={actions}
       helpers={helpers}
+      initialJob={initialJob}
+      actionLabels={actionLabels}
     >
       <div
         style={{

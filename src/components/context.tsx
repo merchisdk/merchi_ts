@@ -16,6 +16,7 @@ import { Actions, Helpers } from '../runtime/runtime';
 import {
   buildProductFormJob,
   GroupRow,
+  jobToFormState,
 } from '../helpers/buildJob';
 import { OPTION_FIELD_TYPES } from '../helpers/constants';
 import {
@@ -66,6 +67,8 @@ export interface ProductFormContextValue {
   helpers: Helpers;
   /** Which submit actions the host enabled. */
   available: { addToCart: boolean; buyNow: boolean; getQuote: boolean };
+  /** Optional overrides for footer button labels. */
+  actionLabels: Partial<Record<SubmitAction, string>>;
   /** Build the current job and invoke the given host action. */
   submit: (action: SubmitAction) => void;
 }
@@ -88,6 +91,10 @@ export interface ProductFormProviderProps {
   actions: Actions;
   helpers: Helpers;
   children: React.ReactNode;
+  /** Optional cart-item / quote job used to hydrate quantity and selections. */
+  initialJob?: JobJson | null;
+  /** Override footer button labels (e.g. cart edit: addToCart → "Save"). */
+  actionLabels?: Partial<Record<SubmitAction, string>>;
 }
 
 function initialSelectionsForFields(
@@ -122,22 +129,35 @@ export function ProductFormProvider({
   actions,
   helpers,
   children,
+  initialJob = null,
+  actionLabels,
 }: ProductFormProviderProps) {
   const hasGroups = productHasGroups(product);
   const optionQuantityGrid = hasGroups && isOptionQuantityGridProduct(product);
   const groupFields = groupFieldsOf(product);
   const independentFields = independentFieldsOf(product);
   const minQty = Number(product.minOrderQuantity ?? product.minimum) || 1;
+  const hydrated = jobToFormState(product, initialJob);
 
-  const [quantity, setQuantity] = useState<number>(minQty);
+  const [quantity, setQuantity] = useState<number>(
+    () => (initialJob ? hydrated.quantity : minQty),
+  );
   const [selections, setSelections] = useState<Record<number, FieldSelection>>(
-    () => initialSelectionsForFields(independentFields),
+    () =>
+      initialJob
+        ? hydrated.selections
+        : initialSelectionsForFields(independentFields),
   );
   const [groups, setGroups] = useState<GroupRow[]>(() =>
-    hasGroups && !optionQuantityGrid ? [initialGroupRow(product)] : [],
+    initialJob
+      ? hydrated.groups
+      : hasGroups && !optionQuantityGrid
+        ? [initialGroupRow(product)]
+        : [],
   );
   const [optionQuantities, setOptionQuantities] = useState<Record<number, number>>(
     () => {
+      if (initialJob) return hydrated.optionQuantities;
       if (!optionQuantityGrid) return {};
       const field = groupFields[0];
       const out: Record<number, number> = {};
@@ -264,6 +284,7 @@ export function ProductFormProvider({
         buyNow: !!actions.buyNow,
         getQuote: !!actions.getQuote,
       },
+      actionLabels: actionLabels || {},
       submit,
     }),
     [
@@ -280,6 +301,7 @@ export function ProductFormProvider({
       loading,
       helpers,
       actions,
+      actionLabels,
       submit,
       setQuantity,
       setFieldSelection,
