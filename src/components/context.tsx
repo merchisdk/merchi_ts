@@ -32,6 +32,15 @@ export interface FieldSelection {
   /** Comma-separated option ids (selectable fields) or the raw text/number. */
   value: string;
   selectedOptionIds: number[];
+  /** Uploaded files for file / colour-extract fields. */
+  variationFiles?: Array<{ id?: string; name?: string; viewUrl?: string }>;
+  /** Selected option rows (used by colour-extract for colour/value edits). */
+  selectedOptions?: Array<{
+    id?: number;
+    value?: string;
+    colour?: string;
+    isExtracted?: boolean;
+  }>;
 }
 
 export type SubmitAction = 'addToCart' | 'buyNow' | 'getQuote';

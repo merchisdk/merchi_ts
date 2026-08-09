@@ -3,6 +3,7 @@ export interface OptionJson {
   id?: number;
   value?: string;
   colour?: string;
+  isExtracted?: boolean;
   isVisible?: boolean;
   available?: boolean;
   linkedFile?: { id?: string; viewUrl?: string };
@@ -15,6 +16,10 @@ export interface VariationFieldJson {
   fieldType?: number;
   required?: boolean;
   options?: OptionJson[];
+  maxColours?: number;
+  simplifyColours?: boolean;
+  colourVariationCost?: number;
+  colourVariationUnitCost?: number;
 }
 
 /** A variation selection within a job (one chosen field value). */

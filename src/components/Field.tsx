@@ -16,6 +16,7 @@ const FIELD = {
   COLOUR_PICKER: 10,
   COLOUR_SELECT: 11,
   TURNAROUND_TIME: 12,
+  COLOUR_EXTRACT: 13,
 } as const;
 
 function Label({ field }: { field: VariationFieldJson }) {
@@ -381,15 +382,54 @@ export function Field({
   }
 
   // TEXT_INPUT (default) + unsupported-in-preview types fall back to a text box.
-  if (fieldType === FIELD.FILE_UPLOAD || fieldType === FIELD.TURNAROUND_TIME) {
+  if (
+    fieldType === FIELD.FILE_UPLOAD ||
+    fieldType === FIELD.TURNAROUND_TIME ||
+    fieldType === FIELD.COLOUR_EXTRACT
+  ) {
+    const message =
+      fieldType === FIELD.FILE_UPLOAD
+        ? 'File upload is available on the live store.'
+        : fieldType === FIELD.COLOUR_EXTRACT
+          ? 'Colour extract (upload artwork and edit extracted colours) is available on the live store.'
+          : 'Turnaround options are available on the live store.';
+    const selectedColours = (current?.selectedOptions || []).filter(
+      (option) => option.colour || option.value,
+    );
     return (
       <div>
         <Label field={field} />
         <p style={{ fontFamily: theme.font, fontSize: 13, color: theme.muted, margin: 0 }}>
-          {fieldType === FIELD.FILE_UPLOAD
-            ? 'File upload is available on the live store.'
-            : 'Turnaround options are available on the live store.'}
+          {message}
         </p>
+        {fieldType === FIELD.COLOUR_EXTRACT && selectedColours.length > 0 ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
+            {selectedColours.map((option, index) => (
+              <span
+                key={option.id ?? index}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontFamily: theme.font,
+                  fontSize: 12,
+                  color: theme.text,
+                }}
+              >
+                <span
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 4,
+                    background: option.colour || option.value || '#ccc',
+                    border: `1px solid ${theme.border}`,
+                  }}
+                />
+                {(option.colour || option.value || '').toUpperCase()}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
     );
   }
