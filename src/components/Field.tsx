@@ -1,7 +1,20 @@
 import * as React from 'react';
+import { useMemo, useState } from 'react';
 import { useProductForm, FieldSelection } from './context';
 import { theme } from './layout';
 import { VariationFieldJson, OptionJson } from '../types/variation';
+import {
+  AreaUnit,
+  DisplayModality,
+  clampWithAspectRatio,
+  displayToMm,
+  formatAreaSummary,
+  formatAreaValue,
+  localePrefersImperial,
+  mmToDisplay,
+  parseAreaValue,
+  unitLabel,
+} from '../helpers/area';
 
 const FIELD = {
   TEXT_INPUT: 1,
@@ -17,6 +30,7 @@ const FIELD = {
   COLOUR_SELECT: 11,
   TURNAROUND_TIME: 12,
   COLOUR_EXTRACT: 13,
+  AREA: 14,
 } as const;
 
 function Label({ field }: { field: VariationFieldJson }) {
@@ -55,6 +69,192 @@ function inputStyle(): React.CSSProperties {
 
 function visibleOptions(field: VariationFieldJson): OptionJson[] {
   return (field.options || []).filter((o) => o?.isVisible !== false);
+}
+
+type AreaFieldConfig = VariationFieldJson & {
+  areaUnit?: AreaUnit;
+  aspectRatioLock?: boolean;
+  aspectRatio?: number;
+  heightFieldMin?: number | null;
+  heightFieldMax?: number | null;
+  widthFieldMin?: number | null;
+  widthFieldMax?: number | null;
+};
+
+function AreaFieldControl({
+  field,
+  value,
+  onChange,
+}: {
+  field: AreaFieldConfig;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const areaUnit = (field.areaUnit || 'mm') as AreaUnit;
+  const aspectLocked = Boolean(field.aspectRatioLock && field.aspectRatio);
+  const aspectRatio = Number(field.aspectRatio) || 0;
+  const [modality, setModality] = useState<DisplayModality>(() =>
+    localePrefersImperial() ? 'imperial' : 'metric'
+  );
+
+  const parsed = parseAreaValue(value);
+  const heightMm = parsed?.heightMm ?? 0;
+  const widthMm = parsed?.widthMm ?? 0;
+  const heightDisplay = heightMm ? mmToDisplay(heightMm, modality, areaUnit) : '';
+  const widthDisplay = widthMm ? mmToDisplay(widthMm, modality, areaUnit) : '';
+  const label = unitLabel(modality, areaUnit);
+  const summary = useMemo(
+    () => formatAreaSummary(value, modality, areaUnit),
+    [value, modality, areaUnit]
+  );
+
+  const commitMm = (
+    nextHeightMm: number,
+    nextWidthMm: number,
+    changed: 'height' | 'width'
+  ) => {
+    let h = nextHeightMm;
+    let w = nextWidthMm;
+    if (aspectLocked && aspectRatio > 0) {
+      const clamped = clampWithAspectRatio({
+        heightMm: h,
+        widthMm: w,
+        changed,
+        aspectRatio,
+        heightMin: field.heightFieldMin ?? null,
+        heightMax: field.heightFieldMax ?? null,
+        widthMin: field.widthFieldMin ?? null,
+        widthMax: field.widthFieldMax ?? null,
+      });
+      h = clamped.heightMm;
+      w = clamped.widthMm;
+    }
+    if (!Number.isFinite(h) || !Number.isFinite(w) || h <= 0 || w <= 0) {
+      onChange('');
+      return;
+    }
+    onChange(formatAreaValue(h, w));
+  };
+
+  const updateHeight = (raw: string) => {
+    if (raw === '') {
+      onChange('');
+      return;
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return;
+    const mm = displayToMm(n, modality, areaUnit);
+    commitMm(mm, widthMm > 0 ? widthMm : mm * (aspectRatio || 1), 'height');
+  };
+
+  const updateWidth = (raw: string) => {
+    if (raw === '') {
+      onChange('');
+      return;
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) return;
+    const mm = displayToMm(n, modality, areaUnit);
+    commitMm(heightMm > 0 ? heightMm : mm / (aspectRatio || 1), mm, 'width');
+  };
+
+  const step =
+    modality === 'imperial'
+      ? 0.125
+      : areaUnit === 'm'
+        ? 0.001
+        : areaUnit === 'cm'
+          ? 0.1
+          : 1;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+        <button
+          type="button"
+          onClick={() => setModality('metric')}
+          style={{
+            fontFamily: theme.font,
+            fontSize: 13,
+            fontWeight: modality === 'metric' ? 700 : 400,
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            color: theme.text,
+          }}
+        >
+          Metric
+        </button>
+        <button
+          type="button"
+          onClick={() => setModality('imperial')}
+          style={{
+            fontFamily: theme.font,
+            fontSize: 13,
+            fontWeight: modality === 'imperial' ? 700 : 400,
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            color: theme.text,
+          }}
+        >
+          Imperial
+        </button>
+        {aspectLocked ? (
+          <span
+            style={{
+              marginLeft: 'auto',
+              fontFamily: theme.font,
+              fontSize: 12,
+              color: theme.muted,
+            }}
+          >
+            Aspect ratio locked
+          </span>
+        ) : null}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontFamily: theme.font, fontSize: 13, color: theme.muted }}>
+            Height ({label})
+          </span>
+          <input
+            type="number"
+            value={heightDisplay === '' ? '' : heightDisplay}
+            onChange={(e) => updateHeight(e.target.value)}
+            step={step}
+            style={inputStyle()}
+            aria-label={`${field.name || 'Area'} height`}
+          />
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontFamily: theme.font, fontSize: 13, color: theme.muted }}>
+            Width ({label})
+          </span>
+          <input
+            type="number"
+            value={widthDisplay === '' ? '' : widthDisplay}
+            onChange={(e) => updateWidth(e.target.value)}
+            step={step}
+            style={inputStyle()}
+            aria-label={`${field.name || 'Area'} width`}
+          />
+        </label>
+      </div>
+      {summary ? (
+        <p
+          style={{
+            fontFamily: theme.font,
+            fontSize: 13,
+            color: theme.muted,
+            margin: '8px 0 0',
+          }}
+        >
+          {summary}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function Field({
@@ -354,6 +554,19 @@ export function Field({
           value={current?.value ?? ''}
           onChange={(e) => setText(e.target.value)}
           style={inputStyle()}
+        />
+      </div>
+    );
+  }
+
+  if (fieldType === FIELD.AREA) {
+    return (
+      <div>
+        <Label field={field} />
+        <AreaFieldControl
+          field={field as AreaFieldConfig}
+          value={current?.value ?? ''}
+          onChange={setText}
         />
       </div>
     );
