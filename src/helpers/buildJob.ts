@@ -29,10 +29,22 @@ export interface ProductFormJobState {
 export function selectionsToVariations(
   selections: Record<number, FieldSelection>,
 ): VariationJson[] {
-  return Object.entries(selections).map(([fieldId, sel]) => ({
-    variationField: { id: Number(fieldId) },
-    value: sel.value,
-  }));
+  return Object.entries(selections).map(([fieldId, sel]) => {
+    const variation: VariationJson = {
+      variationField: { id: Number(fieldId) },
+      value: sel.value,
+    };
+    if (sel.variationFiles?.length) {
+      variation.variationFiles = sel.variationFiles.map((file) => ({
+        id: file.id,
+      }));
+    }
+    // Prefer explicit option rows (colour-extract colour/value edits).
+    if (sel.selectedOptions?.length) {
+      variation.selectedOptions = sel.selectedOptions;
+    }
+    return variation;
+  });
 }
 
 /** Build the job JSON the API expects from provider/form state. */
@@ -108,20 +120,37 @@ function selectionFromVariation(
   field?: VariationFieldJson,
 ): FieldSelection {
   const value = variation.value != null ? String(variation.value) : '';
-  const fromOptions = (variation.selectedOptions || [])
+  const selectedOptions = variation.selectedOptions || [];
+  const fromOptions = selectedOptions
     .map((o) => o.id)
     .filter((id): id is number => id !== undefined);
+  const variationFiles = (variation.variationFiles || [])
+    .filter((file) => file?.id)
+    .map((file) => ({ id: file.id }));
   if (fromOptions.length) {
-    return { value: value || fromOptions.join(','), selectedOptionIds: fromOptions };
+    return {
+      value: value || fromOptions.join(','),
+      selectedOptionIds: fromOptions,
+      selectedOptions,
+      variationFiles: variationFiles.length ? variationFiles : undefined,
+    };
   }
   if (field && OPTION_FIELD_TYPES.has(Number(field.fieldType)) && value) {
     const ids = value
       .split(',')
       .map((part) => parseInt(part.trim(), 10))
       .filter((n) => !Number.isNaN(n));
-    return { value, selectedOptionIds: ids };
+    return {
+      value,
+      selectedOptionIds: ids,
+      variationFiles: variationFiles.length ? variationFiles : undefined,
+    };
   }
-  return { value, selectedOptionIds: [] };
+  return {
+    value,
+    selectedOptionIds: [],
+    variationFiles: variationFiles.length ? variationFiles : undefined,
+  };
 }
 
 function variationsToSelections(

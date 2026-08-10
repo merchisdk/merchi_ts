@@ -24,7 +24,12 @@ export type {
   HydratedProductFormState,
   ProductFormJobState,
 } from './helpers/buildJob';
-export { OPTION_FIELD_TYPES } from './helpers/constants';
+export {
+  OPTION_FIELD_TYPES,
+  COLOUR_EXTRACT,
+  FILE_FIELD_TYPES,
+  AREA,
+} from './helpers/constants';
 
 export { createPricing } from './runtime/pricing';
 export type { Pricing } from './runtime/pricing';
