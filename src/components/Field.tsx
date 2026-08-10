@@ -7,14 +7,17 @@ import {
   AreaUnit,
   DisplayModality,
   clampWithAspectRatio,
+  defaultModalityForAreaUnit,
   displayToMm,
+  estimateAreaCosts,
   formatAreaSummary,
   formatAreaValue,
-  localePrefersImperial,
   mmToDisplay,
   parseAreaValue,
+  stepInDisplayUnit,
   unitLabel,
 } from '../helpers/area';
+import { formatCurrency } from '../helpers/format';
 
 const FIELD = {
   TEXT_INPUT: 1,
@@ -73,6 +76,7 @@ function visibleOptions(field: VariationFieldJson): OptionJson[] {
 
 type AreaFieldConfig = VariationFieldJson & {
   areaUnit?: AreaUnit;
+  areaStep?: number | null;
   aspectRatioLock?: boolean;
   aspectRatio?: number;
   heightFieldMin?: number | null;
@@ -94,7 +98,7 @@ function AreaFieldControl({
   const aspectLocked = Boolean(field.aspectRatioLock && field.aspectRatio);
   const aspectRatio = Number(field.aspectRatio) || 0;
   const [modality, setModality] = useState<DisplayModality>(() =>
-    localePrefersImperial() ? 'imperial' : 'metric'
+    defaultModalityForAreaUnit(areaUnit)
   );
 
   const parsed = parseAreaValue(value);
@@ -107,6 +111,19 @@ function AreaFieldControl({
     () => formatAreaSummary(value, modality, areaUnit),
     [value, modality, areaUnit]
   );
+  const costDetail = useMemo(() => {
+    const estimated = estimateAreaCosts(field, value);
+    if (!estimated) return '';
+    const currency = field.currency || 'AUD';
+    const parts: string[] = [];
+    if (estimated.onceOffCost > 0) {
+      parts.push(`${formatCurrency(estimated.onceOffCost, currency)} once off`);
+    }
+    if (estimated.unitCost > 0) {
+      parts.push(`${formatCurrency(estimated.unitCost, currency)} per unit`);
+    }
+    return parts.length ? `+ ${parts.join(', ')}` : '';
+  }, [field, value]);
 
   const commitMm = (
     nextHeightMm: number,
@@ -158,48 +175,73 @@ function AreaFieldControl({
     commitMm(heightMm > 0 ? heightMm : mm / (aspectRatio || 1), mm, 'width');
   };
 
-  const step =
-    modality === 'imperial'
-      ? 0.125
-      : areaUnit === 'm'
-        ? 0.001
-        : areaUnit === 'cm'
-          ? 0.1
-          : 1;
+  const step = stepInDisplayUnit(field.areaStep, modality, areaUnit);
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <button
-          type="button"
-          onClick={() => setModality('metric')}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <span
           style={{
             fontFamily: theme.font,
             fontSize: 13,
-            fontWeight: modality === 'metric' ? 700 : 400,
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: theme.text,
+            fontWeight: modality === 'metric' ? 600 : 400,
+            color: modality === 'metric' ? theme.text : theme.muted,
           }}
         >
           Metric
-        </button>
+        </span>
         <button
           type="button"
-          onClick={() => setModality('imperial')}
+          role="switch"
+          aria-checked={modality === 'imperial'}
+          aria-label="Use imperial units"
+          onClick={() =>
+            setModality(modality === 'metric' ? 'imperial' : 'metric')
+          }
+          style={{
+            position: 'relative',
+            width: 36,
+            height: 20,
+            padding: 0,
+            border: 'none',
+            borderRadius: 999,
+            background: modality === 'imperial' ? theme.primary || '#0d6efd' : '#ced4da',
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute',
+              top: 2,
+              left: modality === 'imperial' ? 18 : 2,
+              width: 16,
+              height: 16,
+              borderRadius: '50%',
+              background: '#fff',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+              transition: 'left 0.15s ease',
+            }}
+          />
+        </button>
+        <span
           style={{
             fontFamily: theme.font,
             fontSize: 13,
-            fontWeight: modality === 'imperial' ? 700 : 400,
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            color: theme.text,
+            fontWeight: modality === 'imperial' ? 600 : 400,
+            color: modality === 'imperial' ? theme.text : theme.muted,
           }}
         >
           Imperial
-        </button>
+        </span>
         {aspectLocked ? (
           <span
             style={{
@@ -242,16 +284,30 @@ function AreaFieldControl({
         </label>
       </div>
       {summary ? (
-        <p
-          style={{
-            fontFamily: theme.font,
-            fontSize: 13,
-            color: theme.muted,
-            margin: '8px 0 0',
-          }}
-        >
-          {summary}
-        </p>
+        <div style={{ marginTop: 8 }}>
+          <p
+            style={{
+              fontFamily: theme.font,
+              fontSize: 13,
+              color: theme.muted,
+              margin: 0,
+            }}
+          >
+            {summary}
+          </p>
+          {costDetail ? (
+            <p
+              style={{
+                fontFamily: theme.font,
+                fontSize: 12,
+                color: theme.muted,
+                margin: '4px 0 0',
+              }}
+            >
+              {costDetail}
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
