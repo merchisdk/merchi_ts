@@ -15,6 +15,7 @@ export interface VariationFieldJson {
   name?: string;
   fieldType?: number;
   required?: boolean;
+  currency?: string;
   options?: OptionJson[];
   maxColours?: number;
   simplifyColours?: boolean;
