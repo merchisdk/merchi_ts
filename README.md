@@ -1,4 +1,4 @@
-# merchi_frontend_errors
+# merchi_sdk_error_catch
 
 Small, dependency-light browser error capture for Merchi frontends.
 
@@ -24,7 +24,7 @@ npm run build
 Then, in the consuming repository:
 
 ```bash
-npm install ../merchi_frontend_errors
+npm install ../merchi_sdk_error_catch
 ```
 
 Once the package distribution method is selected, consumers can replace the
@@ -36,8 +36,8 @@ Configure one reporter near application startup. Reporting is opt-in and does
 nothing unless `enabled` is explicitly `true`.
 
 ```ts
-import { configureFrontendErrors } from "merchi_frontend_errors";
-import { installGlobalErrorHandlers } from "merchi_frontend_errors/browser";
+import { configureFrontendErrors } from "merchi_sdk_error_catch";
+import { installGlobalErrorHandlers } from "merchi_sdk_error_catch/browser";
 
 const reporter = configureFrontendErrors({
   endpoint: "https://api.merchi.co/v6/frontend-errors",
@@ -55,7 +55,7 @@ runs before hydration.
 ## Capture an error explicitly
 
 ```ts
-import { captureException } from "merchi_frontend_errors";
+import { captureException } from "merchi_sdk_error_catch";
 
 captureException(error, {
   source: "manual",
@@ -69,7 +69,7 @@ application's original failure.
 ## React boundary
 
 ```tsx
-import { MerchiErrorBoundary } from "merchi_frontend_errors/react";
+import { MerchiErrorBoundary } from "merchi_sdk_error_catch/react";
 
 <MerchiErrorBoundary
   fallback={({ reset }) => (
