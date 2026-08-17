@@ -9,26 +9,14 @@ Agent and never contains an ingestion secret.
 
 ## Status
 
-The package is private while the first dashboard integration is validated. It
-is intentionally limited to error capture; collection, storage, source-map
-processing, alerting, and remediation belong to Merchi services.
+The package is intentionally limited to error capture; collection, storage,
+source-map processing, alerting, and remediation belong to Merchi services.
 
-## Install during initial development
-
-In this repository:
+## Install
 
 ```bash
-npm run build
+npm install merchi_sdk_error_catch
 ```
-
-Then, in the consuming repository:
-
-```bash
-npm install ../merchi_sdk_error_catch
-```
-
-Once the package distribution method is selected, consumers can replace the
-local path with the published package version.
 
 ## Configure
 

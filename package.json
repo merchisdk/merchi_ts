@@ -2,7 +2,6 @@
   "name": "merchi_sdk_error_catch",
   "version": "0.1.1",
   "description": "Privacy-conscious browser and React error capture for Merchi frontends",
-  "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
