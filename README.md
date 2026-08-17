@@ -1,4 +1,4 @@
-# merchi_frontend_errors
+# merchi_sdk_error_catch
 
 Small, dependency-light browser error capture for Merchi frontends.
 
@@ -9,26 +9,14 @@ Agent and never contains an ingestion secret.
 
 ## Status
 
-The package is private while the first dashboard integration is validated. It
-is intentionally limited to error capture; collection, storage, source-map
-processing, alerting, and remediation belong to Merchi services.
+The package is intentionally limited to error capture; collection, storage,
+source-map processing, alerting, and remediation belong to Merchi services.
 
-## Install during initial development
-
-In this repository:
+## Install
 
 ```bash
-npm run build
+npm install merchi_sdk_error_catch
 ```
-
-Then, in the consuming repository:
-
-```bash
-npm install ../merchi_frontend_errors
-```
-
-Once the package distribution method is selected, consumers can replace the
-local path with the published package version.
 
 ## Configure
 
@@ -36,8 +24,8 @@ Configure one reporter near application startup. Reporting is opt-in and does
 nothing unless `enabled` is explicitly `true`.
 
 ```ts
-import { configureFrontendErrors } from "merchi_frontend_errors";
-import { installGlobalErrorHandlers } from "merchi_frontend_errors/browser";
+import { configureFrontendErrors } from "merchi_sdk_error_catch";
+import { installGlobalErrorHandlers } from "merchi_sdk_error_catch/browser";
 
 const reporter = configureFrontendErrors({
   endpoint: "https://api.merchi.co/v6/frontend-errors",
@@ -55,7 +43,7 @@ runs before hydration.
 ## Capture an error explicitly
 
 ```ts
-import { captureException } from "merchi_frontend_errors";
+import { captureException } from "merchi_sdk_error_catch";
 
 captureException(error, {
   source: "manual",
@@ -69,7 +57,7 @@ application's original failure.
 ## React boundary
 
 ```tsx
-import { MerchiErrorBoundary } from "merchi_frontend_errors/react";
+import { MerchiErrorBoundary } from "merchi_sdk_error_catch/react";
 
 <MerchiErrorBoundary
   fallback={({ reset }) => (
