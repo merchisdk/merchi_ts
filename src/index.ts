@@ -55,6 +55,7 @@ export {
   OptionQuantityGrid,
   ProductFormProvider,
   ProductFormShell,
+  ProductFormActions,
   useProductForm,
   theme,
 } from './components';
@@ -63,4 +64,5 @@ export type {
   ProductFormProviderProps,
   FieldSelection,
   SubmitAction,
+  FooterAction,
 } from './components';

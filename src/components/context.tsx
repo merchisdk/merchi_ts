@@ -26,7 +26,14 @@ import {
   productHasGroups,
 } from '../helpers/product';
 
+import {
+  FooterAction,
+  normalizeFooterActions,
+  type SubmitAction,
+} from './footerActions';
+
 export { OPTION_FIELD_TYPES };
+export type { FooterAction, SubmitAction } from './footerActions';
 
 export interface FieldSelection {
   /** Comma-separated option ids (selectable fields) or the raw text/number. */
@@ -42,8 +49,6 @@ export interface FieldSelection {
     isExtracted?: boolean;
   }>;
 }
-
-export type SubmitAction = 'addToCart' | 'buyNow' | 'getQuote';
 
 export interface ProductFormContextValue {
   product: ProductJson;
@@ -78,6 +83,10 @@ export interface ProductFormContextValue {
   available: { addToCart: boolean; buyNow: boolean; getQuote: boolean };
   /** Optional overrides for footer button labels. */
   actionLabels: Partial<Record<SubmitAction, string>>;
+  /** Form-configured footer buttons; null uses the default Get quote / Buy now / Add to cart set. */
+  footerActions: FooterAction[] | null;
+  /** Replace or clear the host footer buttons from form source. */
+  setFooterActions: (actions: FooterAction[] | null) => void;
   /** Build the current job and invoke the given host action. */
   submit: (action: SubmitAction) => void;
 }
@@ -104,6 +113,8 @@ export interface ProductFormProviderProps {
   initialJob?: JobJson | null;
   /** Override footer button labels (e.g. cart edit: addToCart → "Save"). */
   actionLabels?: Partial<Record<SubmitAction, string>>;
+  /** Restrict / relabel host footer buttons. Host labels still win when set. */
+  footerActions?: FooterAction[] | null;
 }
 
 function initialSelectionsForFields(
@@ -140,6 +151,7 @@ export function ProductFormProvider({
   children,
   initialJob = null,
   actionLabels,
+  footerActions: footerActionsProp = null,
 }: ProductFormProviderProps) {
   const hasGroups = productHasGroups(product);
   const optionQuantityGrid = hasGroups && isOptionQuantityGridProduct(product);
@@ -178,6 +190,9 @@ export function ProductFormProvider({
   );
   const [quote, setQuote] = useState<JobJson | null>(null);
   const [loading, setLoading] = useState(false);
+  const [footerActionsOverride, setFooterActionsState] = useState<
+    FooterAction[] | null
+  >(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqIdRef = useRef(0);
 
@@ -266,6 +281,13 @@ export function ProductFormProvider({
     [actions, buildJob],
   );
 
+  const setFooterActions = useCallback((next: FooterAction[] | null) => {
+    setFooterActionsState(normalizeFooterActions(next));
+  }, []);
+
+  const footerActions =
+    footerActionsOverride ?? normalizeFooterActions(footerActionsProp);
+
   const value = useMemo<ProductFormContextValue>(
     () => ({
       product,
@@ -294,6 +316,8 @@ export function ProductFormProvider({
         getQuote: !!actions.getQuote,
       },
       actionLabels: actionLabels || {},
+      footerActions,
+      setFooterActions,
       submit,
     }),
     [
@@ -311,6 +335,8 @@ export function ProductFormProvider({
       helpers,
       actions,
       actionLabels,
+      footerActions,
+      setFooterActions,
       submit,
       setQuantity,
       setFieldSelection,
