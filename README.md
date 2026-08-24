@@ -77,9 +77,9 @@ See `examples/colour-grid-form.tsx` for a per-colour quantity grid (wristbands, 
 1. **Authoring** — Form source is stored as TSX on a `ProductForm` in Merchi.
 2. **Gate** — Only imports from `react` and `merchi_sdk_product_form` are allowed (legacy `@merchi/product-form-sdk` is still accepted for older drafts).
 3. **Compile** — esbuild bundles the form to an IIFE; `react` → `window.React`, `merchi_sdk_product_form` → `window.MerchiProductFormSdk`.
-4. **Host** — The dashboard or embed loads the bundle, provides `createProductFormRuntime`, and wraps the form in `ProductFormShell` (quantity control, live quote footer, add-to-cart / buy-now).
+4. **Host** — The dashboard or embed loads the bundle, provides `createProductFormRuntime`, and wraps the form in `ProductFormShell` (quantity control, live quote footer, submit buttons).
 
-Form authors should **not** reimplement quantity controls, pricing footers, or checkout buttons — the shell provides those.
+Form authors should **not** reimplement quantity controls or pricing footers. To replace Get quote / Buy now / Add to cart, use `ProductFormActions` (or `Form.footerActions`) — do not hand-roll checkout buttons.
 
 ## Form component contract
 
@@ -108,6 +108,24 @@ Inside composed UI, prefer `useProductForm()` from a `ProductFormProvider` / `Pr
 Loop `product.independentVariationFields` for options that apply to the **whole order** (`job.variations`).
 
 There is **no** `TextInput`, `Select`, `Button`, or `ColorSwatches` — use `Field` and layout components only.
+
+To change the host footer (for example one **Place order** button that opens the Get quote modal):
+
+```tsx
+import { ProductFormActions } from 'merchi_sdk_product_form';
+
+export default function Form({ product }) {
+  return (
+    <Stack gap={24}>
+      <ProductFormActions
+        actions={[{ action: 'getQuote', label: 'Place order', primary: true }]}
+      />
+      {/* layout */}
+    </Stack>
+  );
+}
+Form.footerActions = [{ action: 'getQuote', label: 'Place order', primary: true }];
+```
 
 ## Group variations
 
@@ -138,7 +156,7 @@ When groups exist, each batch has its own `quantity` in `job.variationsGroups`. 
 
 The compile gate allowlists these **runtime** named imports (type-only imports are erased and not checked):
 
-`SDK_VERSION`, `serializeJob`, `nonEmptyGroups`, `formatCurrency`, `urlFor`, `createPricing`, `createProductFormRuntime`, `productHasGroups`, `groupFieldsOf`, `independentFieldsOf`, `isOptionQuantityGridProduct`, `buildProductFormJob`, `selectionsToVariations`, `Section`, `Stack`, `Card`, `Heading`, `Text`, `Divider`, `Field`, `GroupRows`, `OptionQuantityGrid`, `ProductFormProvider`, `ProductFormShell`, `useProductForm`, `OPTION_FIELD_TYPES`, `theme`
+`SDK_VERSION`, `serializeJob`, `nonEmptyGroups`, `formatCurrency`, `urlFor`, `createPricing`, `createProductFormRuntime`, `productHasGroups`, `groupFieldsOf`, `independentFieldsOf`, `isOptionQuantityGridProduct`, `buildProductFormJob`, `selectionsToVariations`, `Section`, `Stack`, `Card`, `Heading`, `Text`, `Divider`, `Field`, `GroupRows`, `OptionQuantityGrid`, `ProductFormProvider`, `ProductFormShell`, `ProductFormActions`, `useProductForm`, `OPTION_FIELD_TYPES`, `theme`
 
 Keep this list in sync with `src/index.ts` and `merchi_api/common/js/product_form_gate.cjs`.
 

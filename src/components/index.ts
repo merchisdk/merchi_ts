@@ -11,6 +11,13 @@ export type {
   ProductFormProviderProps,
   FieldSelection,
   SubmitAction,
+  FooterAction,
   GroupRow,
 } from './context';
 export { ProductFormShell } from './shell';
+export { ProductFormActions } from './ProductFormActions';
+export {
+  normalizeFooterActions,
+  resolveFooterActions,
+  footerActionsFromComponent,
+} from './footerActions';

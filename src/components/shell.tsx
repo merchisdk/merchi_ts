@@ -6,6 +6,11 @@ import {
 } from './context';
 import { theme } from './layout';
 import { productHasGroups } from '../helpers/product';
+import {
+  footerActionsFromComponent,
+  resolveFooterActions,
+  type FooterAction,
+} from './footerActions';
 
 function QuantityControl() {
   const { product, quantity, setQuantity } = useProductForm();
@@ -64,12 +69,25 @@ function btn(primary: boolean): React.CSSProperties {
 }
 
 function Footer() {
-  const { quote, loading, currency, helpers, available, actionLabels, submit } =
-    useProductForm();
+  const {
+    quote,
+    loading,
+    currency,
+    helpers,
+    available,
+    actionLabels,
+    footerActions,
+    submit,
+  } = useProductForm();
   const total = quote?.totalCost;
   const unit = quote?.costPerUnit;
   const fmt = (n: unknown) =>
     typeof n === 'number' ? helpers.formatCurrency(n, currency) : '—';
+  const buttons = resolveFooterActions({
+    available,
+    actionLabels,
+    footerActions,
+  });
   return (
     <div
       style={{
@@ -111,21 +129,16 @@ function Footer() {
         ) : null}
       </div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        {available.getQuote ? (
-          <button type="button" style={btn(false)} onClick={() => submit('getQuote')}>
-            {actionLabels.getQuote || 'Get quote'}
+        {buttons.map((item) => (
+          <button
+            key={item.action}
+            type="button"
+            style={btn(!!item.primary)}
+            onClick={() => submit(item.action)}
+          >
+            {item.label}
           </button>
-        ) : null}
-        {available.buyNow ? (
-          <button type="button" style={btn(false)} onClick={() => submit('buyNow')}>
-            {actionLabels.buyNow || 'Buy now'}
-          </button>
-        ) : null}
-        {available.addToCart ? (
-          <button type="button" style={btn(true)} onClick={() => submit('addToCart')}>
-            {actionLabels.addToCart || 'Add to cart'}
-          </button>
-        ) : null}
+        ))}
       </div>
     </div>
   );
@@ -149,12 +162,19 @@ export function ProductFormShell({
   children,
   initialJob,
   actionLabels,
+  footerActions: footerActionsProp,
 }: Partial<Omit<ProductFormProviderProps, 'children'>> & {
   children?: React.ReactNode;
 }) {
   if (product == null || pricing == null || actions == null || helpers == null) {
     return <>{children}</>;
   }
+  const childFooterActions =
+    React.Children.count(children) === 1 && React.isValidElement(children)
+      ? footerActionsFromComponent(children.type)
+      : null;
+  const footerActions: FooterAction[] | null =
+    footerActionsProp ?? childFooterActions;
   return (
     <ProductFormProvider
       product={product}
@@ -163,6 +183,7 @@ export function ProductFormShell({
       helpers={helpers}
       initialJob={initialJob}
       actionLabels={actionLabels}
+      footerActions={footerActions}
     >
       <div
         style={{

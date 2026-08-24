@@ -3,6 +3,7 @@ import { ProductJson } from './product';
 import { JobJson } from './job';
 import { Pricing } from '../runtime/pricing';
 import { Actions, Helpers } from '../runtime/runtime';
+import type { FooterAction } from '../components/footerActions';
 
 /** Props every custom product form receives. This is the ONLY surface a form
  * may rely on; the static-analysis gate (Plan 3) rejects anything else. */
@@ -20,6 +21,9 @@ export interface ProductFormProps {
 }
 
 /** A custom product form is a default-exported React component of this type. */
-export type ProductFormComponent = ComponentType<ProductFormProps>;
+export type ProductFormComponent = ComponentType<ProductFormProps> & {
+  /** Optional host-footer config (Get quote / Buy now / Add to cart). */
+  footerActions?: FooterAction[];
+};
 
 export type { JobJson, ProductJson };
