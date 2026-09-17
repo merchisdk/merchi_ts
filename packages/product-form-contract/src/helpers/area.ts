@@ -273,6 +273,19 @@ export function clamp(n: number, min?: number | null, max?: number | null): numb
   return v;
 }
 
+interface AreaCostVariationField {
+  areaUnit?: AreaUnit | string | null;
+  area_unit?: AreaUnit | string | null;
+  heightVariationCost?: number | string | null;
+  height_variation_cost?: number | string | null;
+  widthVariationCost?: number | string | null;
+  width_variation_cost?: number | string | null;
+  heightVariationUnitCost?: number | string | null;
+  height_variation_unit_cost?: number | string | null;
+  widthVariationUnitCost?: number | string | null;
+  width_variation_unit_cost?: number | string | null;
+}
+
 /**
  * Client-side Area cost estimate (pre-discount), matching API formula:
  * onceOff = heightCost × widthCost × height_u × width_u
@@ -280,7 +293,7 @@ export function clamp(n: number, min?: number | null, max?: number | null): numb
  * (dimensions expressed in the field's areaUnit)
  */
 export function estimateAreaCosts(
-  variationField: any,
+  variationField: AreaCostVariationField,
   value: string | null | undefined
 ): { onceOffCost: number; unitCost: number } | null {
   const parsed = parseAreaValue(value);
