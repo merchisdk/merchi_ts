@@ -1,0 +1,41 @@
+.floating-toolbar {
+  position: absolute;
+  z-index: 1000;
+  background-color: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+  width: 70px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.floating-toolbar:active {
+  cursor: grabbing;
+}
+
+.floating-toolbar .toolbar-content,
+.floating-toolbar .grid-toggle,
+.floating-toolbar .preview-toggle {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.floating-toolbar .toolbar-button {
+  padding: 0.3rem 0.2rem 0.5rem 0.2rem;
+  border-bottom: none;
+}
+
+.floating-toolbar .toolbar-button span {
+  font-size: 11px;
+  margin-top: 0.15rem;
+}
+
+.floating-toolbar .toolbar-button:last-child {
+  margin-bottom: 0;
+}
+
+.floating-toolbar .toolbar-button {
+  cursor: pointer;
+}

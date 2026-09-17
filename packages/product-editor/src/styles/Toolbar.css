@@ -1,0 +1,125 @@
+.toolbar-content,
+.grid-toggle,
+.preview-toggle {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.toolbar-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: 0.3rem 0.2rem 0.5rem 0.2rem;
+  border-radius: 4px;
+  box-sizing: border-box;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.toolbar-button span {
+  font-size: 11px;
+  margin-top: 0.15rem;
+}
+
+.toolbar-button:hover {
+  background-color: transparent;
+  color: #303DBF;
+}
+
+.toolbar-button:hover svg {
+  stroke: #303DBF;
+  fill: #303DBF;
+}
+
+.toolbar-button.active {
+  background-color: #e6f7ff;
+  color: #303DBF;
+}
+
+.toolbar-button.active svg {
+  stroke: #303DBF;
+}
+
+.toolbar-button:hover svg,
+.toolbar-button.active svg {
+  stroke: #303DBF;
+  fill: #303DBF;
+}
+
+.preview-toggle .toolbar-button {
+  border-bottom: none;
+}
+
+.grid-toggle+.preview-toggle .toolbar-button {
+  border-bottom: none;
+}
+
+.grid-toggle+.toolbar-content .toolbar-button {
+  border-bottom: none;
+}
+
+/* mobile toolbar */
+.mobile-bottom-toolbar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+  padding: 5px 0;
+}
+
+.mobile-bottom-toolbar .grid-toggle,
+.mobile-bottom-toolbar .preview-toggle,
+.mobile-bottom-toolbar .toolbar-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: auto;
+  margin-bottom: 0;
+  gap: 15px;
+  flex: none;
+}
+
+.mobile-bottom-toolbar .toolbar-button {
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 8px;
+  width: auto;
+  border: none;
+  background-color: transparent;
+}
+
+.mobile-bottom-toolbar .toolbar-button span {
+  font-size: 14px;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.mobile-bottom-toolbar .toolbar-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.mobile-bottom-toolbar .toolbar-button.active {
+  background-color: #e6f7ff;
+  border-radius: 4px;
+}
+
+.mobile-bottom-toolbar .grid-toggle .toolbar-button,
+.mobile-bottom-toolbar .preview-toggle .toolbar-button,
+.mobile-bottom-toolbar .toolbar-content .toolbar-button {
+  border: none;
+}
+
+.toolbar-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  background-color: transparent !important;
+  color: #8F8E8E !important;
+}
+
+.toolbar-button.disabled svg {
+  stroke: #8F8E8E !important;
+  fill: none !important;
+}
