@@ -1,0 +1,50 @@
+import { Entity } from '../entity.js';
+import { DiscountGroup } from './discount_group.js';
+import { User } from './user.js';
+
+export class Discount extends Entity {
+  protected static resourceName = 'discounts';
+  protected static singularName = 'discount';
+  protected static pluralName = 'discounts';
+
+  @Discount.property({type: Date})
+  public archived?: Date | null;
+
+  @Discount.property()
+  public id?: number;
+
+  @Discount.property()
+  public lowerLimit?: number;
+
+  @Discount.property()
+  public amount?: number;
+
+  @Discount.property()
+  public usageLimit?: number;
+
+  @Discount.property()
+  public isPercentage?: boolean;
+
+  @Discount.property()
+  public code?: string;
+
+  @Discount.property({arrayType: 'User'})
+  public assignedUsers?: User[];
+
+  @Discount.property({type: User})
+  public referrer?: User | null;
+
+  @Discount.property({type: DiscountGroup})
+  public discountGroup?: DiscountGroup | null;
+
+  public discountedUnitCost = (unitPrice: number | undefined) => {
+    if (unitPrice === undefined) {
+      throw 'unitPrice is undefined, did you forget to embed it?';
+    }
+    if (this.amount === undefined) {
+      throw 'amount is undefined, did you forget to embed it?';
+    }
+    const discount = 100 - this.amount;
+    return (unitPrice * discount / 100).toFixed(3);
+  };
+}
