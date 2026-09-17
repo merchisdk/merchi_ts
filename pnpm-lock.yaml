@@ -163,6 +163,127 @@ importers:
         specifier: ^5.1.6
         version: 5.1.6
 
+  packages/checkout:
+    dependencies:
+      '@fortawesome/fontawesome-free':
+        specifier: 6.4.2
+        version: 6.4.2
+      '@fortawesome/fontawesome-svg-core':
+        specifier: 6.4.2
+        version: 6.4.2
+      '@fortawesome/free-solid-svg-icons':
+        specifier: 6.4.2
+        version: 6.4.2
+      '@fortawesome/react-fontawesome':
+        specifier: ^0.2.0
+        version: 0.2.6(@fortawesome/fontawesome-svg-core@6.4.2)(react@18.2.0)
+      '@pqina/pintura':
+        specifier: ^8.71.1
+        version: 8.100.2
+      '@pqina/react-pintura':
+        specifier: ^9.0.3
+        version: 9.0.4(@pqina/pintura@8.100.2)
+      '@types/node':
+        specifier: 20.5.0
+        version: 20.5.0
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.3.0(@types/react@19.3.0)
+      eslint:
+        specifier: 8.47.0
+        version: 8.47.0(supports-color@8.1.1)
+      eslint-config-next:
+        specifier: 13.4.16
+        version: 13.4.16(eslint@8.47.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.1.6)
+      js-cookie:
+        specifier: ^3.0.5
+        version: 3.0.8
+      lodash:
+        specifier: ^4.17.21
+        version: 4.18.1
+      merchi_invoice:
+        specifier: workspace:^
+        version: link:../invoice
+      merchi_sdk_ts:
+        specifier: workspace:^
+        version: link:../sdk
+      react:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 18.2.0
+      react-addons-css-transition-group:
+        specifier: ^15.6.2
+        version: 15.6.2(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      react-country-region-selector:
+        specifier: ^3.6.1
+        version: 3.7.0(prop-types@15.8.1)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      react-dom:
+        specifier: ^18.0.0 || ^19.0.0
+        version: 18.2.0(react@18.2.0)
+      react-dropzone:
+        specifier: ^14.2.3
+        version: 14.4.1(react@18.2.0)
+      react-hook-form:
+        specifier: 7.45.4
+        version: 7.45.4(react@18.2.0)
+      react-icons:
+        specifier: ^4.10.1
+        version: 4.12.0(react@18.2.0)
+      react-medium-image-zoom:
+        specifier: ^5.1.8
+        version: 5.4.9(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      react-transition:
+        specifier: ^1.0.3
+        version: 1.0.3
+      react-transition-group:
+        specifier: ^4.4.5
+        version: 4.4.5(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
+      typescript:
+        specifier: 5.1.6
+        version: 5.1.6
+      uuid:
+        specifier: ^9.0.0
+        version: 9.0.1
+    devDependencies:
+      '@babel/cli':
+        specifier: ^7.23.0
+        version: 7.29.7(@babel/core@7.29.7(supports-color@8.1.1))
+      '@babel/core':
+        specifier: ^7.23.0
+        version: 7.29.7(supports-color@8.1.1)
+      '@babel/plugin-transform-react-jsx':
+        specifier: ^7.22.15
+        version: 7.29.7(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
+      '@babel/plugin-transform-runtime':
+        specifier: ^7.23.3
+        version: 7.29.7(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
+      '@babel/preset-env':
+        specifier: ^7.23.3
+        version: 7.29.7(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
+      '@babel/preset-react':
+        specifier: ^7.23.3
+        version: 7.29.7(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
+      '@babel/preset-typescript':
+        specifier: ^7.23.3
+        version: 7.29.7(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
+      '@types/lodash':
+        specifier: ^4.14.199
+        version: 4.17.25
+      '@types/uuid':
+        specifier: ^9.0.5
+        version: 9.0.8
+      compile-sass:
+        specifier: ^2.0.0
+        version: 2.0.0(express@4.22.3(supports-color@8.1.1))(sass@1.99.0)
+      copyfiles:
+        specifier: ^2.4.1
+        version: 2.4.1
+      sass:
+        specifier: ^1.70.0
+        version: 1.99.0
+
   packages/invoice:
     dependencies:
       '@stripe/react-stripe-js':
@@ -1427,6 +1548,10 @@ packages:
     resolution: {integrity: sha512-1DgP7f+XQIJbLFCTX1V2QnxVmpLdKdzzo2k8EmvDOePfchaIGQ9eCHj2up3/jNEbZuBqel5OxiaOJf37TWauRA==}
     engines: {node: '>=6'}
 
+  '@fortawesome/fontawesome-free@6.4.2':
+    resolution: {integrity: sha512-m5cPn3e2+FDCOgi1mz0RexTUvvQibBebOUlUlW0+YrMjDTPkiJ6VTKukA1GRsvRw+12KyJndNjj0O4AgTxm2Pg==}
+    engines: {node: '>=6'}
+
   '@fortawesome/fontawesome-svg-core@6.4.2':
     resolution: {integrity: sha512-gjYDSKv3TrM2sLTOKBc5rH9ckje8Wrwgx1CxAPbN5N3Fm4prfi7NsJVWd1jklp7i5uSCVwhZS5qlhMXqLrpAIg==}
     engines: {node: '>=6'}
@@ -1745,6 +1870,14 @@ packages:
 
   '@popperjs/core@2.11.8':
     resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
+
+  '@pqina/pintura@8.100.2':
+    resolution: {integrity: sha512-rezYNzuoziuISBw4kTRa/CmaEkY09xGRzzTi7VKk8PjCvDY1sq82zUzGMdkilq82l/QmDGiLt1zOtH2VE6w9Xg==}
+
+  '@pqina/react-pintura@9.0.4':
+    resolution: {integrity: sha512-KTJ6cXRGw59fgyxis63FyHzMR6kOf4P/sxIoaoHLkEyKX5plPTX5CXW6z9joMX23pZUutYAIXKUm0y61ITX6ZQ==}
+    peerDependencies:
+      '@pqina/pintura': ^8.x
 
   '@rollup/rollup-android-arm-eabi@4.63.3':
     resolution: {integrity: sha512-w3Jnvi1ocaVm/c7yVPpfB98XeSRBMyzp6njL5MVVbGyXjpmUkN+s6Hp4t0PqhGCCaI1ZHMKXt/w0lA1RCaLVcw==}
@@ -6775,6 +6908,8 @@ snapshots:
 
   '@fortawesome/fontawesome-common-types@6.4.2': {}
 
+  '@fortawesome/fontawesome-free@6.4.2': {}
+
   '@fortawesome/fontawesome-svg-core@6.4.2':
     dependencies:
       '@fortawesome/fontawesome-common-types': 6.4.2
@@ -6831,7 +6966,7 @@ snapshots:
   '@jest/console@28.1.3':
     dependencies:
       '@jest/types': 28.1.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       jest-message-util: 28.1.3
       jest-util: 28.1.3
@@ -6840,7 +6975,7 @@ snapshots:
   '@jest/console@29.7.0':
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       jest-message-util: 29.7.0
       jest-util: 29.7.0
@@ -6853,14 +6988,14 @@ snapshots:
       '@jest/test-result': 28.1.3
       '@jest/transform': 28.1.3(supports-color@8.1.1)
       '@jest/types': 28.1.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       ci-info: 3.9.0
       exit: 0.1.2
       graceful-fs: 4.2.11
       jest-changed-files: 28.1.3
-      jest-config: 28.1.3(@types/node@20.5.0)(supports-color@8.1.1)
+      jest-config: 28.1.3(@types/node@20.19.43)(supports-color@8.1.1)
       jest-haste-map: 28.1.3
       jest-message-util: 28.1.3
       jest-regex-util: 28.0.2
@@ -6888,14 +7023,14 @@ snapshots:
       '@jest/test-result': 29.7.0
       '@jest/transform': 29.7.0(supports-color@8.1.1)
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       ci-info: 3.9.0
       exit: 0.1.2
       graceful-fs: 4.2.11
       jest-changed-files: 29.7.0
-      jest-config: 29.7.0(@types/node@20.5.0)(supports-color@8.1.1)
+      jest-config: 29.7.0(@types/node@20.19.43)(supports-color@8.1.1)
       jest-haste-map: 29.7.0
       jest-message-util: 29.7.0
       jest-regex-util: 29.6.3
@@ -6920,14 +7055,14 @@ snapshots:
     dependencies:
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-mock: 28.1.3
 
   '@jest/environment@29.7.0':
     dependencies:
       '@jest/fake-timers': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-mock: 29.7.0
 
   '@jest/expect-utils@28.1.3':
@@ -6956,7 +7091,7 @@ snapshots:
     dependencies:
       '@jest/types': 28.1.3
       '@sinonjs/fake-timers': 9.1.2
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-message-util: 28.1.3
       jest-mock: 28.1.3
       jest-util: 28.1.3
@@ -6965,7 +7100,7 @@ snapshots:
     dependencies:
       '@jest/types': 29.6.3
       '@sinonjs/fake-timers': 10.3.0
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-message-util: 29.7.0
       jest-mock: 29.7.0
       jest-util: 29.7.0
@@ -6995,7 +7130,7 @@ snapshots:
       '@jest/transform': 28.1.3(supports-color@8.1.1)
       '@jest/types': 28.1.3
       '@jridgewell/trace-mapping': 0.3.31
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       collect-v8-coverage: 1.0.3
       exit: 0.1.2
@@ -7025,7 +7160,7 @@ snapshots:
       '@jest/transform': 29.7.0(supports-color@8.1.1)
       '@jest/types': 29.6.3
       '@jridgewell/trace-mapping': 0.3.31
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       collect-v8-coverage: 1.0.3
       exit: 0.1.2
@@ -7139,7 +7274,7 @@ snapshots:
       '@jest/schemas': 28.1.3
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -7148,7 +7283,7 @@ snapshots:
       '@jest/schemas': 29.6.3
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -7260,6 +7395,12 @@ snapshots:
     optional: true
 
   '@popperjs/core@2.11.8': {}
+
+  '@pqina/pintura@8.100.2': {}
+
+  '@pqina/react-pintura@9.0.4(@pqina/pintura@8.100.2)':
+    dependencies:
+      '@pqina/pintura': 8.100.2
 
   '@rollup/rollup-android-arm-eabi@4.63.3':
     optional: true
@@ -7468,7 +7609,7 @@ snapshots:
 
   '@types/graceful-fs@4.1.9':
     dependencies:
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
 
   '@types/istanbul-lib-coverage@2.0.6': {}
 
@@ -7492,13 +7633,13 @@ snapshots:
 
   '@types/jsdom@16.2.15':
     dependencies:
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       '@types/parse5': 6.0.3
       '@types/tough-cookie': 4.0.5
 
   '@types/jsdom@20.0.1':
     dependencies:
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       '@types/tough-cookie': 4.0.5
       parse5: 7.3.0
 
@@ -9831,7 +9972,7 @@ snapshots:
       '@jest/expect': 28.1.3(supports-color@8.1.1)
       '@jest/test-result': 28.1.3
       '@jest/types': 28.1.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       co: 4.6.0
       dedent: 0.7.0
@@ -9855,7 +9996,7 @@ snapshots:
       '@jest/expect': 29.7.0(supports-color@8.1.1)
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       co: 4.6.0
       dedent: 1.7.2
@@ -9942,7 +10083,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  jest-config@28.1.3(@types/node@20.5.0)(supports-color@8.1.1):
+  jest-config@28.1.3(@types/node@20.19.43)(supports-color@8.1.1):
     dependencies:
       '@babel/core': 7.29.7(supports-color@8.1.1)
       '@jest/test-sequencer': 28.1.3
@@ -9967,8 +10108,38 @@ snapshots:
       slash: 3.0.0
       strip-json-comments: 3.1.1
     optionalDependencies:
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
     transitivePeerDependencies:
+      - supports-color
+
+  jest-config@29.7.0(@types/node@20.19.43)(supports-color@8.1.1):
+    dependencies:
+      '@babel/core': 7.29.7(supports-color@8.1.1)
+      '@jest/test-sequencer': 29.7.0
+      '@jest/types': 29.6.3
+      babel-jest: 29.7.0(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1)
+      chalk: 4.1.2
+      ci-info: 3.9.0
+      deepmerge: 4.3.1
+      glob: 7.2.3
+      graceful-fs: 4.2.11
+      jest-circus: 29.7.0(supports-color@8.1.1)
+      jest-environment-node: 29.7.0
+      jest-get-type: 29.6.3
+      jest-regex-util: 29.6.3
+      jest-resolve: 29.7.0
+      jest-runner: 29.7.0(supports-color@8.1.1)
+      jest-util: 29.7.0
+      jest-validate: 29.7.0
+      micromatch: 4.0.8
+      parse-json: 5.2.0
+      pretty-format: 29.7.0
+      slash: 3.0.0
+      strip-json-comments: 3.1.1
+    optionalDependencies:
+      '@types/node': 20.19.43
+    transitivePeerDependencies:
+      - babel-plugin-macros
       - supports-color
 
   jest-config@29.7.0(@types/node@20.5.0)(supports-color@8.1.1):
@@ -10045,7 +10216,7 @@ snapshots:
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
       '@types/jsdom': 16.2.15
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-mock: 28.1.3
       jest-util: 28.1.3
       jsdom: 19.0.0(supports-color@8.1.1)
@@ -10061,7 +10232,7 @@ snapshots:
       '@jest/fake-timers': 29.7.0
       '@jest/types': 29.6.3
       '@types/jsdom': 20.0.1
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-mock: 29.7.0
       jest-util: 29.7.0
       jsdom: 20.0.3(supports-color@8.1.1)
@@ -10075,7 +10246,7 @@ snapshots:
       '@jest/environment': 28.1.3
       '@jest/fake-timers': 28.1.3
       '@jest/types': 28.1.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-mock: 28.1.3
       jest-util: 28.1.3
 
@@ -10084,7 +10255,7 @@ snapshots:
       '@jest/environment': 29.7.0
       '@jest/fake-timers': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-mock: 29.7.0
       jest-util: 29.7.0
 
@@ -10096,7 +10267,7 @@ snapshots:
     dependencies:
       '@jest/types': 28.1.3
       '@types/graceful-fs': 4.1.9
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       anymatch: 3.1.3
       fb-watchman: 2.0.2
       graceful-fs: 4.2.11
@@ -10112,7 +10283,7 @@ snapshots:
     dependencies:
       '@jest/types': 29.6.3
       '@types/graceful-fs': 4.1.9
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       anymatch: 3.1.3
       fb-watchman: 2.0.2
       graceful-fs: 4.2.11
@@ -10175,12 +10346,12 @@ snapshots:
   jest-mock@28.1.3:
     dependencies:
       '@jest/types': 28.1.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
 
   jest-mock@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-util: 29.7.0
 
   jest-pnp-resolver@1.2.3(jest-resolve@28.1.3):
@@ -10240,7 +10411,7 @@ snapshots:
       '@jest/test-result': 28.1.3
       '@jest/transform': 28.1.3(supports-color@8.1.1)
       '@jest/types': 28.1.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       emittery: 0.10.2
       graceful-fs: 4.2.11
@@ -10266,7 +10437,7 @@ snapshots:
       '@jest/test-result': 29.7.0
       '@jest/transform': 29.7.0(supports-color@8.1.1)
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       emittery: 0.13.1
       graceful-fs: 4.2.11
@@ -10321,7 +10492,7 @@ snapshots:
       '@jest/test-result': 29.7.0
       '@jest/transform': 29.7.0(supports-color@8.1.1)
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       cjs-module-lexer: 1.4.3
       collect-v8-coverage: 1.0.3
@@ -10395,7 +10566,7 @@ snapshots:
   jest-util@28.1.3:
     dependencies:
       '@jest/types': 28.1.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
@@ -10404,7 +10575,7 @@ snapshots:
   jest-util@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
@@ -10432,7 +10603,7 @@ snapshots:
     dependencies:
       '@jest/test-result': 28.1.3
       '@jest/types': 28.1.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       emittery: 0.10.2
@@ -10443,7 +10614,7 @@ snapshots:
     dependencies:
       '@jest/test-result': 29.7.0
       '@jest/types': 29.6.3
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       emittery: 0.13.1
@@ -10452,13 +10623,13 @@ snapshots:
 
   jest-worker@28.1.3:
     dependencies:
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
   jest-worker@29.7.0:
     dependencies:
-      '@types/node': 20.5.0
+      '@types/node': 20.19.43
       jest-util: 29.7.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
@@ -11108,6 +11279,13 @@ snapshots:
     dependencies:
       react: 19.3.0
       scheduler: 0.28.0
+
+  react-dropzone@14.4.1(react@18.2.0):
+    dependencies:
+      attr-accept: 2.2.5
+      file-selector: 2.1.2
+      prop-types: 15.8.1
+      react: 18.2.0
 
   react-dropzone@14.4.1(react@19.3.0):
     dependencies:
