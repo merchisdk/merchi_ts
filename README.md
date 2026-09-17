@@ -8,6 +8,7 @@ Monorepo for Merchi's TypeScript SDK and related reusable libraries.
 | --- | --- | --- |
 | `merchi_sdk_ts` | `packages/sdk` | TypeScript client for the Merchi API |
 | `merchi_sdk_product_form` | `packages/product-form-contract` | Contracts and runtime helpers for custom product forms |
+| `merchi_product_form` | `packages/product-form` | React components for configuring Merchi products |
 
 ## Development
 
