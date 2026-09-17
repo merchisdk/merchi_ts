@@ -1,0 +1,179 @@
+import * as React from 'react';
+import { useForm } from 'react-hook-form';
+import InputAcceptUserTermsAndConditions from './InputAcceptUserTermsAndConditions';
+import { Button } from '../buttons';
+import InputSelect from './InputSelect';
+import InputText from './InputText';
+import { useCartContext } from '../CartProvider';
+import { cartEmbed, phoneOptions } from '../utilities/helpers';
+import InputError from './InputError';
+import { createNewCustomer, makeUser } from '../utilities/user';
+import { makeCart } from '../utilities/cart';
+import { getCartCookieToken } from '../utilities/cookie';
+import {
+  getSavedCheckoutCustomer,
+  saveCheckoutCustomer,
+} from '../utilities/local_storage';
+import { emailValidation } from './FormNewCustomer';
+
+function FormWhatsappCustomer() {
+  const {
+    cart,
+    classNameBtnPrimary,
+    classNameCartFormGroup,
+    classNameCartFormGroupButton,
+    domainId,
+    setCart,
+    setCartClient,
+    showUserTermsAndConditions,
+  } = useCartContext();
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState(({} as any));
+  const [acceptConditions, setAcceptConditions] = React.useState(true);
+  const savedCustomer = getSavedCheckoutCustomer(domainId);
+
+  async function actionWhatsappCheckout(customerJson: any) {
+    setError({});
+    setLoading(true);
+    try {
+      const r = await createNewCustomer({
+        ...customerJson,
+        registeredUnderDomains: [{ id: domainId }],
+      });
+      const { user } = r;
+      if (!user?.id) {
+        throw new Error('Unable to create customer.');
+      }
+
+      const cartToken = await getCartCookieToken((domainId as number));
+      const clientEnt = makeUser({ id: user.id }, true);
+      const cartEnt = makeCart({ ...cart }, false, cartToken);
+      cartEnt.sendWhatsapp = true;
+      cartEnt.client = clientEnt;
+      const _cart = await cartEnt.save({ embed: cartEmbed });
+      const cartJson = _cart.toJson();
+      if (!cartJson?.client?.id) {
+        throw new Error('Unable to attach client to cart.');
+      }
+      saveCheckoutCustomer(domainId, {
+        id: user.id,
+        name: customerJson.name,
+        emailAddress: customerJson.emailAddresses?.[0]?.emailAddress,
+        phoneNumbers: customerJson.phoneNumbers,
+      });
+      setCartClient(cartJson.client);
+      setCart(cartJson);
+    } catch (e: any) {
+      setError({
+        message:
+          e.errorMessage || e.message || 'Unable to attach client to cart.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const { control, handleSubmit, watch } = useForm({
+    defaultValues: {
+      emailAddresses: [{
+        emailAddress: savedCustomer?.emailAddress || '',
+      }],
+      name: savedCustomer?.name || '',
+      phoneNumbers: [{
+        code: savedCustomer?.phoneNumbers?.[0]?.code || 'AU',
+        number: savedCustomer?.phoneNumbers?.[0]?.number || '',
+      }],
+    },
+  });
+
+  async function onSubmit(values: any) {
+    if (showUserTermsAndConditions && !acceptConditions) {
+      return;
+    }
+    await actionWhatsappCheckout({ ...values });
+  }
+
+  function validatePhone() {
+    const phone = watch('phoneNumbers.0.number');
+    if (!phone) return 'Phone number is required for WhatsApp checkout';
+    if (isNaN(phone as any)) return 'Phone number must be a number';
+    return true;
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <InputText
+        control={control}
+        label='Full Name'
+        name='name'
+        placeholder='John Smith'
+        rules={{ required: 'Full name is required.' }}
+      />
+      <InputText
+        control={control}
+        label='Email'
+        name='emailAddresses[0].emailAddress'
+        placeholder='john@example.com'
+        rules={{
+          required: 'Email is required.',
+          validate: emailValidation,
+        }}
+      />
+      <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ flexGrow: 1 }}>
+          <InputSelect
+            control={control}
+            label='Country Code'
+            name='phoneNumbers[0].code'
+            options={phoneOptions}
+          />
+        </div>
+        <div style={{ flexGrow: 1 }}>
+          <InputText
+            control={control}
+            label='WhatsApp Number'
+            name='phoneNumbers[0].number'
+            placeholder='0400 000 000'
+            rules={{
+              required: 'WhatsApp number is required',
+              validate: validatePhone,
+            }}
+            type='phone'
+          />
+        </div>
+      </div>
+      <small className={classNameCartFormGroup}>
+        By continuing, you agree to receive order updates via WhatsApp at this
+        number.
+      </small>
+      {showUserTermsAndConditions && (
+        <div className={classNameCartFormGroup}>
+          <InputAcceptUserTermsAndConditions
+            isChecked={acceptConditions}
+            setIsChecked={setAcceptConditions}
+          />
+          {!acceptConditions && (
+            <InputError
+              error={{
+                message:
+                  'You must agree to the user profile terms and conditions to proceed.',
+              }}
+            />
+          )}
+        </div>
+      )}
+      <InputError error={error || {}} />
+      <div className={classNameCartFormGroupButton}>
+        <Button
+          className={classNameBtnPrimary}
+          disabled={loading}
+          type='submit'
+        >
+          {loading ? 'Loading...' : 'Continue with WhatsApp'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export default FormWhatsappCustomer;

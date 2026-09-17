@@ -1,0 +1,102 @@
+import { tabIdCheckout } from '../utilities/tabs';
+import {
+  CheckoutContainer,
+  InnerContainer,
+} from '../components/containers';
+import CartClient from '../components/CartClient';
+import CartShipment from '../components/CartShipment';
+import {
+  CartBody,
+  CartTabPanel,
+  CustomerCheckoutMethodTabs,
+  Title,
+} from '../components';
+import FormSquarePayment from '../forms/FormSquarePayment';
+import FormStripePayment from '../forms/FormStripePayment';
+import { faCoins, faCreditCard } from '@fortawesome/free-solid-svg-icons';
+import { useCartContext } from '../CartProvider';
+import DiscountInputGroup from '../components/DiscountInputGroup';
+import CartTotalsListGroup from '../components/CartTotalsListGroup';
+import { cartItemsNeedShipment } from '../utilities/shipment';
+
+function PanelClientCheckout() {
+  const { cart, cartClient, showDiscountCode } = useCartContext();
+  const needsShipping = cartItemsNeedShipment(cart);
+  const { domain } = cart;
+  const company = domain && domain.company;
+  const whatsappEnabled = Boolean(domain?.enableWhatsappNotifications);
+  return (
+    <CartTabPanel tabId={tabIdCheckout}>
+      <CartBody style={{ paddingTop: '2rem' }}>
+        {cartClient && cartClient.id > -1 ?
+          <>
+            <CheckoutContainer>
+              <InnerContainer paddingBottom='3rem'>
+                <CartClient />
+              </InnerContainer>
+            </CheckoutContainer>
+            {needsShipping &&
+              <CheckoutContainer>
+                <InnerContainer
+                  paddingBottom='3rem'
+                >
+                  <CartShipment cart={cart} />
+                </InnerContainer>
+              </CheckoutContainer>
+            }
+            {showDiscountCode && (
+              <CheckoutContainer>
+                <InnerContainer
+                  paddingBottom='3rem'
+                >
+                  <DiscountInputGroup />
+                </InnerContainer>
+              </CheckoutContainer>
+            )}
+            {Boolean(company) && company.acceptSquare &&
+              <CheckoutContainer>
+                <InnerContainer
+                  paddingTop='3rem'
+                  paddingBottom='3rem'
+                >
+                  <FormSquarePayment />
+                </InnerContainer>
+              </CheckoutContainer>
+            }
+            <CheckoutContainer>
+              <InnerContainer
+                paddingBottom='3rem'
+              >
+                <Title
+                  icon={faCoins}
+                  title='Cart total'
+                />
+                <CartTotalsListGroup />
+              </InnerContainer>
+            </CheckoutContainer>
+            <CheckoutContainer>
+              <InnerContainer
+                paddingBottom='3rem'
+              >
+               <Title
+                  icon={faCreditCard}
+                  title='Credit card payment'
+                />
+                <FormStripePayment />
+              </InnerContainer>
+            </CheckoutContainer>
+
+          </>
+        :
+          <CheckoutContainer>
+            <InnerContainer paddingBottom='0px'>
+              <CustomerCheckoutMethodTabs whatsappEnabled={whatsappEnabled} />
+            </InnerContainer>
+          </CheckoutContainer>
+        }
+      </CartBody>
+    </CartTabPanel>
+  );
+}
+
+export default PanelClientCheckout;
