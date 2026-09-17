@@ -4,4 +4,5 @@ packages:
 allowBuilds:
   "@parcel/watcher": true
   "core-js": false
+  esbuild: true
   "unrs-resolver": true
