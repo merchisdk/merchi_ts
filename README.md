@@ -10,6 +10,7 @@ Monorepo for Merchi's TypeScript SDK and related reusable libraries.
 | `merchi_sdk_product_form` | `packages/product-form-sdk` | Contracts and runtime helpers for custom product forms |
 | `merchi_product_form` | `packages/product-form` | React components for configuring Merchi products |
 | `merchi_invoice` | `packages/invoice` | React components for displaying and paying Merchi invoices |
+| `merchi_cart` | `packages/cart` | React components for the Merchi shopping cart |
 
 ## Development
 
