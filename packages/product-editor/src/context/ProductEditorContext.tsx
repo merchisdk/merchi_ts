@@ -53,7 +53,7 @@ interface ProductEditorContextType {
   deleteObject: (obj: fabric.Object) => void;
 
   // Props
-  canvasRef: React.RefObject<HTMLCanvasElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
   groupIndex: number;
   height: number;
   inputName: string;

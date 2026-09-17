@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Close, FormPrevious, FormNext } from "grommet-icons";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import { useSwipeNavigate } from "../hooks/useSwipeNavigate";
 
 const MODAL_BODY_CLASS = 'has-preview-modal-open';
@@ -76,7 +76,7 @@ const ImageZoomModal = ({
     onSwipeRight: handlePrevious,
   });
 
-  const slideVariants = {
+  const slideVariants: Variants = {
     enter: (direction: 'left' | 'right') => ({
       x: direction === 'right' ? 1000 : -1000,
       opacity: 0

@@ -50,7 +50,7 @@ const LayerPanel: React.FC = () => {
     }
   }, [canvas]);
 
-  const getLayerInfo = (object: fabric.Object): { name: string; icon: JSX.Element } => {
+  const getLayerInfo = (object: fabric.Object): { name: string; icon: React.ReactElement } => {
     if (object.type === 'i-text') {
       return {
         name: (object as fabric.IText).text?.substring(0, 20) || 'Text',

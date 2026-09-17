@@ -13,6 +13,7 @@ Monorepo for Merchi's TypeScript SDK and related reusable libraries.
 | `merchi_cart` | `packages/cart` | React components for the Merchi shopping cart |
 | `merchi_checkout` | `packages/checkout` | React components for custom Merchi checkout flows |
 | `merchi_sdk_error_catch` | `packages/error-catch-sdk` | Browser and React error capture SDK |
+| `merchi_product_editor` | `packages/product-editor` | Fabric.js-based React product image editor |
 
 ## Development
 
