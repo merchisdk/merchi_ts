@@ -317,6 +317,34 @@ importers:
         specifier: ^4.1.10
         version: 4.1.11(@types/node@20.19.43)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0(supports-color@8.1.1))(vite@8.3.0(@types/node@20.19.43)(sass@1.99.0))
 
+  packages/image-editor:
+    dependencies:
+      '@pqina/pintura':
+        specifier: ^8.71.1
+        version: 8.100.2
+      '@pqina/react-pintura':
+        specifier: ^9.0.3
+        version: 9.0.4(@pqina/pintura@8.100.2)
+    devDependencies:
+      '@types/node':
+        specifier: 20.5.0
+        version: 20.5.0
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.3.0(@types/react@19.3.0)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.3
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.3(react@19.2.3)
+      typescript:
+        specifier: ^5.1.6
+        version: 5.9.3
+
   packages/invoice:
     dependencies:
       '@stripe/react-stripe-js':
