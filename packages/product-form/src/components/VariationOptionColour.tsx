@@ -1,0 +1,51 @@
+'use client';
+import * as React from 'react';
+import TooltipElement from './TooltipElement';
+import { variationFieldOptionCostDetail } from './utils';
+import IconCheckedOrNoStock from './icons/IconCheckedOrNoStock';
+import { useMerchiFormContext } from '../context/MerchiProductFormProvider';
+
+interface Props {
+  doClick: () => void;
+  isChecked: boolean;
+  option: any;
+}
+
+function VariationOptionColour({
+  doClick,
+  isChecked,
+  option,
+}: Props) {
+  const {
+    classNameOptionColour,
+    classNameOptionColourContainer,
+    hideCost,
+  } = useMerchiFormContext();
+  const { available, colour: color, isVisible, optionId, value } = option;
+  const isActive = available && isVisible;
+  const optionCost = variationFieldOptionCostDetail(option);
+  return (
+    <div
+      className={classNameOptionColourContainer}
+      onClick={isActive ? doClick : undefined}
+    >
+      <div
+        className={`${classNameOptionColour} ${isChecked ? 'image-checked' : ''} ${isActive ? 'cursor-pointer' : 'option-no-inventory'}`}
+        style={{ backgroundColor: color || value || undefined }}
+      >
+        <IconCheckedOrNoStock isChecked={isChecked} noStock={!isActive} />
+      </div>
+      <TooltipElement
+        id={`variation-option-${optionId}-tooltip`}
+        tooltip={`${value}${!isVisible ? ' - disabled' : !available ? ' - insufficient stock' : ''}`}
+      >
+        <p className='merchi-embed-form_color-select-description'>{value}</p>
+      </TooltipElement>
+      {!hideCost && optionCost && (
+        <small className='merchi-embed-form_option-cost-detail'>{optionCost}</small>
+      )}
+    </div>
+  );
+}
+
+export default VariationOptionColour;

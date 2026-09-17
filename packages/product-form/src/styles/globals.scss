@@ -1,0 +1,1698 @@
+/* **********
+ Embed form
+ ********** */
+ .merchi-embed-form {
+
+  /* buttons */
+  &_button {
+    &-submit {
+      margin: 4px !important;
+      flex: 1 1 0;
+      min-width: 0;
+      white-space: nowrap;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      line-height: 1.25;
+      padding: 0.4rem 0.75rem;
+      min-height: 2.25rem;
+    }
+  }
+
+  /* variant container */
+  &_variantion-container {
+    gap: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+
+  fieldset.merchi-embed-form_product-group-container,
+  fieldset.merchi-embed-form_product-group-variation-container,
+  &_variantion-container > fieldset {
+    border: none;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+  }
+
+  /* information */
+  &_information-container {
+    margin-top: 1rem;
+
+    @media(min-width: 992px) {
+      padding: 0;
+    }
+
+    ul {
+      gap: 1rem;
+    }
+
+    .nav-item {
+      padding: 0 !important;
+    }
+
+    &-list-group-item {
+      padding: 0.5rem !important;
+      list-style-type: none;
+    }
+  }
+
+  /* images */
+  &_img {
+    &-container {}
+
+    &-product-pic {
+      img {
+        max-width: 100%;
+        border-radius: 0.5rem;
+      }
+    }
+
+    &-preview-container {
+      flex-direction: column;
+    }
+
+    &-preview-container-main-image {
+      align-items: center;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+    }
+
+    &-thumbnails {
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 0.5rem;
+    }
+  }
+
+  /* react zoom package */
+  &_zoom {
+    &-img button {
+      font-size: 1.5rem;
+      display: flex;
+    }
+  }
+
+  /* cost summary */
+  &_summary {
+    &-product-cost {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      width: 100%;
+      margin: 1rem 0;
+      flex-direction: wrap;
+    }
+
+    &-product-cost-container {
+      display: flex;
+      flex-direction: column;
+      font-size: 1.2rem;
+      margin-top: 1.5rem
+    }
+
+    &-button-submit-container {
+      display: flex;
+    }
+  }
+
+  /* variation dropzone */
+  &_dropzone {
+    padding: 0;
+    border: none;
+    color: inherit;
+    padding: 2rem 1rem;
+    background-color: #fff;
+    border: 1px dashed #dee2e6;
+    border-radius: 0.375rem;
+    text-align: center;
+    color: #8898aa;
+    order: -1;
+    cursor: pointer;
+    z-index: 999;
+    transition: all .2s ease-in-out;
+
+    &:hover {
+      box-shadow: 0 0.5em 0.75em #00000014;
+      scale: 1.002;
+    }
+
+    &-text-container {
+      display: flex;
+    }
+
+    &-icon-container {
+      display: inline-block;
+      width: 50px;
+      height: 50px;
+      background: #dfdfdf;
+      border-radius: 100%;
+      position: relative;
+      margin-right: 1rem;
+    }
+
+    &-icon {
+      position: absolute;
+      display: block;
+      top: 50%;
+      height: 24px;
+      left: 50%;
+      transform: translate(-50%, -50%)
+    }
+
+    &-icon-plus {
+      transition: all .15s ease-in-out;
+      position: absolute;
+      background: white;
+      height: 30px;
+      width: 30px !important;
+      border-radius: 100%;
+      border: 1px solid #dfdfdf;
+      padding: 5px;
+      display: block;
+      right: -8px;
+      bottom: -14px;
+      top: initial;
+      left: initial;
+
+      &:hover {
+        scale: 1.2;
+      }
+    }
+  }
+
+  /* variation image select */
+  &_image-select-option {
+    &-container {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    &-item-container {
+      flex-grow: 1;
+      flex: 0 0 calc(50% - 0.50rem);
+
+      @media(min-width: 782px) {
+        flex: 0 0 calc(33.33% - 0.67rem);
+      }
+    }
+
+    &-item {
+      background: #fff;
+      border-radius: 0.5em;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition-duration: 0.15s;
+      position: relative;
+      text-align: center;
+      padding: 1rem 0.5rem;
+
+      &:hover {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transition-duration: 0.25s;
+      }
+
+      &-img {
+        display: block;
+        height: 150px;
+        margin: auto;
+        max-width: 150px;
+        width: 100%;
+        background-repeat: no-repeat;
+        background-size: contain;
+      }
+
+      svg {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        background: #fff;
+        padding: 2px;
+        padding-bottom: 1px;
+        border-radius: 0.4rem;
+        font-size: 28px !important;
+        -webkit-animation-name: fadeInOpacity;
+        -webkit-animation-iteration-count: 1;
+        -webkit-animation-duration: 0.2s;
+        animation-name: fadeInOpacity;
+        animation-iteration-count: 1;
+        animation-duration: 0.2s;
+      }
+    }
+  }
+
+  /* variation color select */
+  &_color-select {
+    &-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+
+      @media (max-width: 768px) {
+        justify-content: center;
+      }
+    }
+
+    &-indicator {
+      border-radius: 100%;
+      height: 65px;
+      width: 65px;
+    }
+
+    &-item {
+      align-items: center;
+      display: flex;
+      flex-direction: column;
+      position: relative
+    }
+
+    &-description {
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: clip;
+      max-width: 125px;
+      text-transform: capitalize;
+      background-color: white;
+      padding: 0 0.4rem;
+      margin: 6px 0 0 0;
+      cursor: pointer;
+      border-radius: 5px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    &-option {
+      border: 4px solid #fff;
+      border-radius: 100%;
+      box-shadow: 0 2px 2px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease-in-out;
+      z-index: 1;
+      height: 50px;
+      width: 50px;
+
+      &:hover {
+        box-shadow: 0 5px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      i,
+      svg {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background: #fff;
+        border-radius: 100%;
+        font-size: 21px;
+      }
+    }
+  }
+
+  /* variation checkbox and radio */
+  &_checkbox_radio {
+    &-container {
+      display: flex;
+      flex-direction: column;
+    }
+
+    &-item-container {
+      display: flex;
+      flex-direction: row;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    // item and input are in the merchi embed form with the className merchi-embed-form_checkbox_radio-item, but I dont know what its used for. Leaving it here in case we need it later.
+    &-item {}
+
+    &-input {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 999;
+      height: 33px;
+      width: 33px;
+
+      // Define the styles for the checkbox label
+      +label {
+        position: relative;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        margin-bottom: 0;
+
+        // Define the custom checkbox indicator
+        &::before {
+          content: " ";
+          display: inline-block;
+          margin-right: 0.5rem;
+          width: 33px;
+          height: 33px;
+          background-color: white;
+          border-radius: 6px;
+          box-shadow: rgba(42, 42, 42, 0.15) 0px 2px 2px 0px;
+          transition: all 0.1s ease-in-out;
+          cursor: pointer;
+        }
+
+        // Define the custom checkbox indicator when checked
+        &::after {
+          content: "";
+          width: 11px;
+          height: 11px; // Size of the checkmark
+          border-radius: 100%;
+          background-color: #2a2a2a;
+          position: absolute;
+          top: 50%;
+          left: 11px;
+          transform: translateY(-50%);
+          opacity: 0;
+          transition: all 0.3s ease; // Smooth transition for hover/focus effects
+          cursor: pointer;
+        }
+      }
+
+      &:disabled+label {
+        &::before {
+          opacity: 0.8;
+          box-shadow: none;
+          cursor: not-allowed;
+          border: inset 1px #0000002b;
+          background-color: transparent;
+        }
+
+        &::after {
+          cursor: not-allowed;
+        }
+      }
+
+      &:disabled+label &-label {
+        opacity: 0.8;
+        box-shadow: none;
+        cursor: not-allowed;
+        border: inset 1px #0000002b;
+        background-color: transparent;
+      }
+
+      &:disabled+label:hover::before {
+        box-shadow: none;
+        border: inset 1px #0000002b;
+      }
+
+      // Apply styles to the checkbox when checked
+      &:checked+label::before {
+        box-shadow: rgba(42, 42, 42, 0.15) 0px 1px 1px 0px;
+      }
+
+      // Show the checkmark when the checkbox is checked
+      &:checked+label::after {
+        opacity: 1;
+      }
+
+    }
+
+    &-label {
+      position: relative;
+      cursor: auto !important;
+      display: inline-flex;
+      align-items: center;
+      height: 33px;
+    }
+
+    &-super {
+      display: block;
+      color: rgb(129, 136, 155);
+      padding: 3px 10px;
+      font-weight: bold;
+      border-radius: 8px;
+      font-size: 11px;
+      margin-top: 10px;
+      width: -moz-fit-content;
+      width: fit-content;
+      box-shadow: 1px 1px 2px #00000026;
+      background: #f2f4fb;
+      border-top: 1px solid white;
+      border-left: 1px solid white;
+    }
+  }
+
+  /* titles */
+  &_input {
+    &-radio {
+      font-size: 12.6px;
+      font-weight: 800;
+      padding-bottom: 0.25rem;
+    }
+
+    &-checkbox {
+      font-size: 12.6px;
+      font-weight: 800;
+      padding-bottom: 0.25rem;
+
+    }
+
+    &-select {
+      font-size: 12.6px;
+      font-weight: 800;
+      padding-bottom: 0.25rem;
+
+    }
+
+    &-image-select {
+      font-size: 12.6px;
+      font-weight: 800;
+      padding-bottom: 0.25rem;
+
+    }
+
+    &-file {
+      font-size: 12.6px;
+      font-weight: 800;
+      padding-bottom: 0.25rem;
+
+    }
+  }
+
+  /* other */
+  &_option-cost-detail {
+    display: block;
+    color: rgb(129, 136, 155);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin-top: 0.25rem;
+    text-align: center;
+  }
+
+  &_variation-cost-detail {
+    display: block;
+    color: rgb(129, 136, 155);
+    padding: 3px 10px;
+    font-weight: bold;
+    border-radius: 8px;
+    font-size: 14px;
+    width: -moz-fit-content;
+    width: fit-content;
+    box-shadow: 1px 1px 2px #00000026;
+    background: #f2f4fb;
+    border-top: 1px solid white;
+    border-left: 1px solid white;
+    margin: 0.25rem 0rem 0.5rem;
+  }
+
+  /* product groups */
+  &_product-group {
+    &-container {
+      background: transparent;
+      border-radius: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    &-actions-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+
+      @media(min-width: 500px) {
+        width: auto;
+      }
+    }
+
+    &-actions-cost-container {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    &-total-cost {
+      font-weight: 800;
+    }
+
+    &-button-remove {
+      width: 100%;
+
+      @media(min-width: 500px) {
+        width: fit-content;
+      }
+    }
+
+    &-button-add-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin: 1rem 0;
+    }
+
+    &-inventory-status {
+      width: fit-content;
+      border-radius: 50px;
+      color: white;
+      font-weight: bold;
+      font-size: 0.75rem;
+      padding: 3px;
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+    }
+
+    &-variation-container {
+      display: block;
+    }
+
+    &-input-qty-container {
+      font-size: 12.6px;
+      font-weight: 800;
+    }
+  }
+
+  &_product-group-input-qty-container + &_variantion-container {
+    margin-top: 1.25rem;
+  }
+
+  /* quantity input */
+  &_quantity {
+    &-container {}
+
+    &-label-container {
+      font-size: 12.6px;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+  }
+}
+
+/* **********
+ END Embed from
+ ********** */
+
+/* native colour picker (COLOUR_PICKER) — circle, own line under instructions */
+.merchi-input-color-container {
+  display: block;
+
+  .variation-field-instructions {
+    display: block;
+    width: 100%;
+  }
+
+  input[type='color'] {
+    display: block;
+    clear: both;
+    box-sizing: border-box;
+    width: 50px;
+    height: 50px;
+    max-width: 50px;
+    margin-top: 0.35rem;
+    padding: 0;
+    border: 4px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    overflow: hidden;
+    -webkit-appearance: none;
+    appearance: none;
+
+    &::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    &::-webkit-color-swatch {
+      border: none;
+      border-radius: 50%;
+    }
+
+    &::-moz-color-swatch {
+      border: none;
+      border-radius: 50%;
+    }
+  }
+}
+
+/* Draft js RTE styles */
+
+.rte-editor-iframeContainer {
+  width: 100%;
+  height: 0;
+  position: relative;
+  min-height: 300px;
+  padding-bottom: 56.25%;
+}
+
+.rte-editor-iframe {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.rte-editor-invalidVideoSrc {
+  text-align: center;
+  background-color: #eaeaea;
+  padding: 1em;
+}
+
+.rte-editor-video {
+  width: 100%;
+  height: 100%;
+}
+
+[data-rmiz-wrap="visible"],
+[data-rmiz-wrap="hidden"] {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+}
+
+[data-rmiz-wrap="hidden"] {
+  visibility: hidden;
+}
+
+[data-rmiz-overlay] {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  transition-property: background-color;
+}
+
+[data-rmiz-btn-open],
+[data-rmiz-btn-close] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+
+  /* reset styles */
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+[data-rmiz-btn-open] {
+  cursor: zoom-in;
+}
+
+[data-rmiz-btn-close] {
+  cursor: zoom-out;
+}
+
+[data-rmiz-modal-content] {
+  position: absolute;
+  transition-property: transform;
+  transform-origin: center center;
+}
+
+/* Product Images */
+.preview-container {
+  display: flex;
+  height: 490px;
+  padding-bottom: 1rem !important;
+  padding-top: 1rem !important;
+}
+
+.preview-container-stacked {
+  display: flex;
+  padding-bottom: 1rem !important;
+  padding-top: 1rem !important;
+}
+
+.preview-container-main-image {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.product-pic img {
+  width: 100%;
+  border-radius: .375rem;
+  height: auto;
+  max-width: 470px;
+  max-height: 446px;
+}
+
+.fit-image {
+  width: 100%;
+  object-fit: cover;
+  border-radius: .375rem;
+}
+
+.variation-field-instructions .DraftEditor-root .DraftEditor-editorContainer {
+  min-height: 1px;
+}
+
+.variation-field-instructions .DraftEditor-root .DraftEditor-editorContainer .public-DraftEditor-content {
+  min-height: 1px;
+}
+
+.variation-field-instructions img {
+  max-width: 100%;
+}
+
+.merchi-product-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
+}
+
+.merchi-product-origin-title {
+  font-size: 0.7875rem;
+  line-height: 1.3;
+}
+
+.merchi-product-origin-title h5 {
+  font-size: inherit;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.input-alert-container {
+  font-size: 12.6px;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.merchi-product-buttons-submit-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: 100%;
+
+  > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  > span {
+    display: flex;
+  }
+
+  > span > .merchi-embed-form_button-submit,
+  > .merchi-embed-form_button-submit {
+    width: 100%;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    padding: 0.4rem 0.75rem;
+    min-height: 2.25rem;
+  }
+}
+
+.merchi-area-modality-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.merchi-area-modality-label {
+  font-size: 0.875rem;
+  line-height: 1.25;
+  color: #6c757d;
+  font-weight: 400;
+}
+
+.merchi-area-modality-label.is-active {
+  color: inherit;
+  font-weight: 600;
+}
+
+.merchi-area-modality-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 2.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: #ced4da;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  flex-shrink: 0;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+  }
+
+  &.is-on {
+    background: #0d6efd;
+  }
+}
+
+.merchi-area-modality-switch-thumb {
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.merchi-area-modality-switch.is-on .merchi-area-modality-switch-thumb {
+  transform: translateX(1rem);
+}
+
+.merchi-area-aspect-lock {
+  margin-left: auto;
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.merchi-area-dimensions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.merchi-area-dimension-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.merchi-area-dimension-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+.merchi-area-dimension-name {
+  font-weight: 500;
+}
+
+.merchi-area-dimension-meta {
+  margin-left: auto;
+  color: #6c757d;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.merchi-area-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1.5rem;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #0d6efd;
+    outline-offset: 2px;
+  }
+
+  &::-webkit-slider-runnable-track {
+    height: 0.375rem;
+    border-radius: 999px;
+    background: #dee2e6;
+  }
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    margin-top: -0.375rem;
+    border: 2px solid #0d6efd;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  }
+
+  &::-moz-range-track {
+    height: 0.375rem;
+    border: none;
+    border-radius: 999px;
+    background: #dee2e6;
+  }
+
+  &::-moz-range-thumb {
+    width: 1.125rem;
+    height: 1.125rem;
+    border: 2px solid #0d6efd;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.merchi-area-slider.is-invalid {
+  &::-webkit-slider-runnable-track,
+  &::-moz-range-track {
+    background: #f1aeb5;
+  }
+
+  &::-webkit-slider-thumb,
+  &::-moz-range-thumb {
+    border-color: #dc3545;
+  }
+}
+
+.merchi-price-matrix {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+}
+
+.merchi-price-matrix_caption {
+  caption-side: top;
+  text-align: left;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.merchi-price-matrix_caption-title {
+  display: block;
+}
+
+.merchi-price-matrix_setup {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: #71717a;
+  margin-top: 0.25rem;
+}
+
+.merchi-price-matrix_table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.merchi-price-matrix_table th,
+.merchi-price-matrix_table td {
+  padding: 0.45rem 0.65rem;
+  text-align: center;
+  border: 1px solid rgb(227, 228, 247);
+  white-space: nowrap;
+}
+
+.merchi-price-matrix_corner,
+.merchi-price-matrix_row-label {
+  text-align: left;
+  font-weight: 600;
+  background: #f7f7fb;
+}
+
+.merchi-price-matrix_th {
+  font-weight: 600;
+  background: #f7f7fb;
+}
+
+.merchi-price-matrix_col-active {
+  background: #eef4ff;
+  font-weight: 600;
+}
+
+.merchi-price-matrix_band {
+  appearance: none;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.merchi-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.merchi-product-draft-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  margin-bottom: 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #e4e4e7;
+  border-radius: 0.85rem;
+  background: #fafafa;
+}
+
+.merchi-product-draft-cta-heading {
+  font-size: 0.95rem;
+}
+
+.merchi-product-draft-cta-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #e4e4e7;
+  border-radius: 0.85rem;
+  background: #f4f4f5;
+}
+
+.merchi-product-draft-cta-tab {
+  appearance: none;
+  min-height: 40px;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
+  background: transparent;
+  color: #71717a;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.merchi-product-draft-cta-tab.is-active {
+  background: #fff;
+  color: #111827;
+  border-color: #2563eb;
+}
+
+.merchi-product-draft-cta-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e4e4e7;
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.merchi-product-draft-cta-panel span {
+  font-size: 0.8rem;
+  color: #71717a;
+}
+
+.merchi-product-draft-cta + .merchi-product-buttons-submit-container,
+.merchi-product-draft-cta + .merchi-action-buttons-container {
+  margin-top: 0;
+}
+
+.merchi-product-draft-cta-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.merchi-product-draft-cta-copy strong {
+  font-size: 0.95rem;
+}
+
+.merchi-product-draft-cta-copy span {
+  font-size: 0.8rem;
+  color: #71717a;
+}
+
+.merchi-product-draft-cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.merchi-product-draft-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0.55rem 0.95rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: #111827;
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.merchi-product-draft-cta-reset {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #71717a;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+  min-height: 32px;
+  padding: 0 0.25rem;
+}
+
+.merchi-product-draft-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100dvh;
+  background: #111111;
+  color: #f4f4f5;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.merchi-product-draft-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 56px;
+  padding: 0.5rem 0.75rem;
+  padding-top: calc(0.5rem + env(safe-area-inset-top));
+}
+
+.merchi-product-draft-sheet-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.merchi-product-draft-sheet-title strong {
+  font-size: 0.95rem;
+}
+
+.merchi-product-draft-sheet-title span {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+}
+
+.merchi-product-draft-icon-btn,
+.merchi-product-draft-done-btn,
+.merchi-product-draft-stepper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 44px;
+  min-height: 44px;
+  width: max-content;
+  max-width: none;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: #27272a;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.merchi-product-draft-icon-btn svg {
+  flex-shrink: 0;
+}
+
+.merchi-product-draft-done-btn {
+  padding: 0 0.9rem;
+  background: #16a34a;
+  font-weight: 600;
+}
+
+.merchi-product-draft-icon-btn.is-danger {
+  background: #7f1d1d;
+}
+
+.merchi-product-draft-chips {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0 0.75rem 0.5rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.merchi-product-draft-chip {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid #3f3f46;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+}
+
+.merchi-product-draft-chip.is-active {
+  background: #f4f4f5;
+  color: #111111;
+  border-color: #f4f4f5;
+}
+
+.merchi-product-draft-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.merchi-product-draft-sheet-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.merchi-product-draft-dock {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: #18181b;
+  border-top: 1px solid #27272a;
+}
+
+.merchi-product-draft-canvas,
+.merchi-product-draft-canvas-fallback {
+  width: 100%;
+  height: 100%;
+}
+
+.merchi-product-draft-canvas-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a1a1aa;
+}
+
+.merchi-product-draft-error {
+  margin: 0;
+  padding: 0.4rem 0.85rem;
+  color: #fecaca;
+  font-size: 0.8rem;
+}
+
+.merchi-product-draft-inspector,
+.merchi-product-draft-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.45rem 0.75rem;
+}
+
+.merchi-product-draft-inspector {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+.merchi-product-draft-text-input {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 2.75rem;
+  max-height: 2.75rem;
+  min-height: 0;
+  resize: none;
+  border-radius: 0.6rem;
+  border: 1px solid #3f3f46;
+  background: #09090b;
+  color: inherit;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+}
+
+.merchi-product-draft-icon-btn.is-active {
+  background: #2563eb;
+}
+
+.merchi-product-draft-toolbar {
+  justify-content: space-around;
+  border-top: 1px solid #27272a;
+  background: #18181b;
+}
+
+.merchi-product-draft-toolbar button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-width: 64px;
+  min-height: 52px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.7rem;
+}
+
+.merchi-product-draft-toolbar button:disabled {
+  opacity: 0.4;
+}
+
+.merchi-product-draft-color input {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.merchi-product-draft-font {
+  flex: 1 1 11rem;
+  min-width: 10rem;
+}
+
+.merchi-product-draft-font select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1px solid #3f3f46;
+  border-radius: 0.6rem;
+  background: #09090b;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.merchi-product-draft-file {
+  display: none;
+}
+
+.merchi-product-draft-layers,
+.merchi-product-draft-text-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  max-height: 45%;
+  overflow: auto;
+  background: #18181b;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  padding: 0.9rem 1rem 1rem;
+}
+
+.merchi-product-draft-layers-head,
+.merchi-product-draft-text-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.merchi-product-draft-layers-head {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.merchi-product-draft-layer {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 0.35rem;
+  padding: 0.45rem 0.6rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: #27272a;
+  color: inherit;
+  text-align: left;
+}
+
+.merchi-product-draft-layer.is-active {
+  outline: 2px solid #60a5fa;
+}
+
+.merchi-product-draft-layer span {
+  margin-left: auto;
+  color: #a1a1aa;
+}
+
+.merchi-product-draft-text-sheet textarea {
+  width: 100%;
+  min-height: 88px;
+  border-radius: 0.6rem;
+  border: 1px solid #3f3f46;
+  background: #09090b;
+  color: inherit;
+  padding: 0.7rem;
+  font: inherit;
+}
+
+.merchi-product-draft-text-sheet button {
+  min-height: 44px;
+  border: 0;
+  border-radius: 0.7rem;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
+
+.merchi-product-draft-approve {
+  position: fixed;
+  inset: 0;
+  z-index: 12100;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.merchi-product-draft-approve-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 90dvh;
+  max-height: 90dvh;
+  overflow: hidden;
+  background: #fff;
+  color: #111;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+}
+
+.merchi-product-draft-approve-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.merchi-product-draft-approve-intro {
+  flex-shrink: 0;
+  padding: 1.1rem 1.15rem 0.9rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.merchi-product-draft-approve-intro h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.merchi-product-draft-approve-intro p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #52525b;
+}
+
+.merchi-product-draft-approve-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem 1.15rem;
+}
+
+.merchi-product-draft-button-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0;
+  padding: 1rem 1.15rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.merchi-product-draft-approve-footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 1rem 1.15rem;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.merchi-product-draft-approve-footer > :not(button) {
+  grid-column: 1 / -1;
+}
+
+.merchi-product-draft-approve-footer > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0 1rem;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.merchi-product-draft-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 7.5rem;
+  padding: 0.65rem 1.2rem;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
+  background: #f4f4f5;
+  color: #18181b;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.merchi-product-draft-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.merchi-product-draft-btn-secondary {
+  background: #f4f4f5;
+  color: #18181b;
+  border-color: #e4e4e7;
+}
+
+.merchi-product-draft-btn-primary {
+  background: var(--primary, #2563eb);
+  color: var(--primary-foreground, #fff);
+}
+
+.merchi-product-draft-approve-panel img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.65rem;
+  background: #f4f4f5;
+}
+
+.merchi-product-draft-group-container {
+  margin-bottom: 1rem;
+}
+
+.merchi-product-draft-group-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+@media (min-width: 768px) {
+  .merchi-product-draft-main {
+    flex-direction: row;
+  }
+
+  .merchi-product-draft-dock {
+    width: 220px;
+    border-top: 0;
+    border-left: 1px solid #27272a;
+    overflow: auto;
+  }
+
+  .merchi-product-draft-toolbar,
+  .merchi-product-draft-inspector {
+    flex-direction: column;
+    overflow: visible;
+    justify-content: flex-start;
+    border-top: 0;
+  }
+
+  .merchi-product-draft-toolbar {
+    margin-top: auto;
+  }
+
+  .merchi-product-draft-approve {
+    align-items: center;
+    justify-content: center;
+  }
+
+  .merchi-product-draft-approve-panel {
+    max-width: 560px;
+    height: min(90dvh, 52rem);
+    border-radius: 1rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .merchi-product-draft-btn {
+    flex: 1 1 calc(50% - 0.4rem);
+  }
+}
