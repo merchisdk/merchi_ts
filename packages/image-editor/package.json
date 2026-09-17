@@ -1,0 +1,9 @@
+{
+  "name": "merchi_image_editor",
+  "version": "1.0.0",
+  "description": "\"The Merchi Image Editor\"",
+  "main": "index.js",
+  "repository": "git@github.com:merchisdk/merchi_image_editor.git",
+  "author": "Amtron <james@newgenstudio.com>",
+  "license": "MIT"
+}
