@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 const REGISTRY = 'https://registry.npmjs.org';
 const NPM_CACHE = join(process.cwd(), '.release', 'npm-cache');
+const NPM_CLI = process.env.MERCHI_NPM_CLI || 'npm';
 const DEPENDENCY_FIELDS = ['dependencies', 'optionalDependencies', 'peerDependencies', 'devDependencies'];
 const VERIFICATION_ATTEMPTS = 61;
 const VERIFICATION_INTERVAL_MS = 5000;
@@ -70,7 +71,7 @@ export async function publishRelease(item, head, io) {
 function npmView(specifier) {
   mkdirSync(NPM_CACHE, { recursive: true });
   const result = spawnSync(
-    'npm',
+    NPM_CLI,
     ['view', specifier, 'version', 'gitHead', '--json', '--prefer-online', `--registry=${REGISTRY}`, `--cache=${NPM_CACHE}`],
     { encoding: 'utf8' },
   );
@@ -92,7 +93,7 @@ function validatePackage(item, versions) {
   writeFileSync(packagePath, `${JSON.stringify(manifest, null, 2)}\n`);
   try {
     const result = spawnSync(
-      'npm',
+      NPM_CLI,
       ['pack', '--dry-run', '--ignore-scripts', '--json', `--cache=${NPM_CACHE}`],
       { cwd: item.path, encoding: 'utf8' },
     );
@@ -116,7 +117,7 @@ function publishPackage(item, versions) {
   writeFileSync(packagePath, `${JSON.stringify(manifest, null, 2)}\n`);
   try {
     return spawnSync(
-      'npm',
+      NPM_CLI,
       ['publish', '--access', 'public', '--tag', 'latest', `--registry=${REGISTRY}`, `--cache=${NPM_CACHE}`],
       { cwd: item.path, stdio: 'inherit' },
     ).status;
