@@ -16,7 +16,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/merchisdk/merchi_checkout.git"
+    "url": "git+https://github.com/merchisdk/merchi_ts.git",
+    "directory": "packages/checkout"
   },
   "keywords": [
     "react",
@@ -30,9 +31,9 @@
   "author": "Merchi SDK <james@merchi.co>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/merchisdk/merchi_checkout/issues"
+    "url": "https://github.com/merchisdk/merchi_ts/issues"
   },
-  "homepage": "https://github.com/merchisdk/merchi_checkout#readme",
+  "homepage": "https://github.com/merchisdk/merchi_ts/tree/main/packages/checkout#readme",
   "files": [
     "lib"
   ],

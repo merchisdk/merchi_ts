@@ -7,7 +7,9 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "release:test": "node --test .github/scripts/*.test.mjs",
+    "release:plan": "node .github/scripts/release-plan.mjs"
   },
   "devDependencies": {
     "turbo": "^2.8.0"

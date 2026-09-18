@@ -23,7 +23,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/merchisdk/merchi_cart.git"
+    "url": "git+https://github.com/merchisdk/merchi_ts.git",
+    "directory": "packages/cart"
   },
   "keywords": [
     "react",
@@ -37,9 +38,9 @@
   "author": "Merchi SDK <james@merchi.co>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/merchisdk/merchi_cart/issues"
+    "url": "https://github.com/merchisdk/merchi_ts/issues"
   },
-  "homepage": "https://github.com/merchisdk/merchi_cart#readme",
+  "homepage": "https://github.com/merchisdk/merchi_ts/tree/main/packages/cart#readme",
   "files": [
     "esm",
     "lib",

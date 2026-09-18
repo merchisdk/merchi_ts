@@ -14,7 +14,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@github.com:merchisdk/merchi_invoice.git"
+    "url": "git+https://github.com/merchisdk/merchi_ts.git",
+    "directory": "packages/invoice"
   },
   "keywords": [
     "react",
@@ -29,9 +30,9 @@
   "author": "Merchi SDK <james@merchi.co>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/merchisdk/merchi_invoice/issues"
+    "url": "https://github.com/merchisdk/merchi_ts/issues"
   },
-  "homepage": "https://github.com/merchisdk/merchi_invoice#readme",
+  "homepage": "https://github.com/merchisdk/merchi_ts/tree/main/packages/invoice#readme",
   "files": [
     "lib"
   ],

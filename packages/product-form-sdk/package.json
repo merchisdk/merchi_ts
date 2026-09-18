@@ -4,7 +4,8 @@
   "description": "Contract SDK for AI-built Merchi custom product forms.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/merchisdk/merchi_sdk_product_form.git"
+    "url": "git+https://github.com/merchisdk/merchi_ts.git",
+    "directory": "packages/product-form-sdk"
   },
   "author": "James Campton <james@merchi.co>",
   "license": "GPL-3.0",

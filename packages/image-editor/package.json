@@ -13,7 +13,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/merchisdk/merchi_image_editor.git"
+    "url": "git+https://github.com/merchisdk/merchi_ts.git",
+    "directory": "packages/image-editor"
   },
   "author": "Amtron <james@newgenstudio.com>",
   "license": "MIT",

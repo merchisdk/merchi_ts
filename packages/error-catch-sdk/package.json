@@ -38,7 +38,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/merchisdk/merchi_sdk_error_catch.git"
+    "url": "git+https://github.com/merchisdk/merchi_ts.git",
+    "directory": "packages/error-catch-sdk"
   },
   "peerDependencies": {
     "react": ">=18"

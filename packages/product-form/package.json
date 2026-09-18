@@ -16,7 +16,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/merchisdk/merchi_product_form.git"
+    "url": "git+https://github.com/merchisdk/merchi_ts.git",
+    "directory": "packages/product-form"
   },
   "keywords": [
     "react",
@@ -31,9 +32,9 @@
   "author": "Merchi SDK <james@merchi.co>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/merchisdk/merchi_product_form/issues"
+    "url": "https://github.com/merchisdk/merchi_ts/issues"
   },
-  "homepage": "https://github.com/merchisdk/merchi_product_form#readme",
+  "homepage": "https://github.com/merchisdk/merchi_ts/tree/main/packages/product-form#readme",
   "files": [
     "lib"
   ],
