@@ -4,6 +4,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 const REGISTRY = 'https://registry.npmjs.org';
+const NPM_CACHE = join(process.cwd(), '.release', 'npm-cache');
 const DEPENDENCY_FIELDS = ['dependencies', 'optionalDependencies', 'peerDependencies'];
 
 const stableParts = value => {
@@ -140,9 +141,10 @@ function loadPackages() {
 }
 
 function npmView(name) {
+  mkdirSync(NPM_CACHE, { recursive: true });
   const result = spawnSync(
     'npm',
-    ['view', name, 'version', 'gitHead', 'versions', '--json', '--prefer-online', `--registry=${REGISTRY}`],
+    ['view', name, 'version', 'gitHead', 'versions', '--json', '--prefer-online', `--registry=${REGISTRY}`, `--cache=${NPM_CACHE}`],
     { encoding: 'utf8' },
   );
   if (result.status !== 0) {

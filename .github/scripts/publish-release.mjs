@@ -1,9 +1,10 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const REGISTRY = 'https://registry.npmjs.org';
+const NPM_CACHE = join(process.cwd(), '.release', 'npm-cache');
 const DEPENDENCY_FIELDS = ['dependencies', 'optionalDependencies', 'peerDependencies', 'devDependencies'];
 const VERIFICATION_ATTEMPTS = 61;
 const VERIFICATION_INTERVAL_MS = 5000;
@@ -67,9 +68,10 @@ export async function publishRelease(item, head, io) {
 }
 
 function npmView(specifier) {
+  mkdirSync(NPM_CACHE, { recursive: true });
   const result = spawnSync(
     'npm',
-    ['view', specifier, 'version', 'gitHead', '--json', '--prefer-online', `--registry=${REGISTRY}`],
+    ['view', specifier, 'version', 'gitHead', '--json', '--prefer-online', `--registry=${REGISTRY}`, `--cache=${NPM_CACHE}`],
     { encoding: 'utf8' },
   );
   if (result.status !== 0) {
@@ -83,6 +85,7 @@ function validatePackage(item, versions) {
   const packagePath = join(item.path, 'package.json');
   const original = readFileSync(packagePath, 'utf8');
   const manifest = materializeWorkspaceDependencies(JSON.parse(original), versions);
+  manifest.version = item.version;
   if (JSON.stringify(manifest).includes('workspace:')) {
     throw new Error(`${item.name}: package manifest still contains workspace dependency ranges.`);
   }
@@ -90,7 +93,7 @@ function validatePackage(item, versions) {
   try {
     const result = spawnSync(
       'npm',
-      ['pack', '--dry-run', '--ignore-scripts', '--json'],
+      ['pack', '--dry-run', '--ignore-scripts', '--json', `--cache=${NPM_CACHE}`],
       { cwd: item.path, encoding: 'utf8' },
     );
     if (result.status !== 0) throw new Error(result.stderr || result.stdout);
@@ -109,11 +112,12 @@ function publishPackage(item, versions) {
   const packagePath = join(item.path, 'package.json');
   const original = readFileSync(packagePath, 'utf8');
   const manifest = materializeWorkspaceDependencies(JSON.parse(original), versions);
+  manifest.version = item.version;
   writeFileSync(packagePath, `${JSON.stringify(manifest, null, 2)}\n`);
   try {
     return spawnSync(
       'npm',
-      ['publish', '--access', 'public', '--tag', 'latest', `--registry=${REGISTRY}`],
+      ['publish', '--access', 'public', '--tag', 'latest', `--registry=${REGISTRY}`, `--cache=${NPM_CACHE}`],
       { cwd: item.path, stdio: 'inherit' },
     ).status;
   } finally {
