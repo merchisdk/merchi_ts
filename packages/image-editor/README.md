@@ -1,2 +1,2 @@
-# merchi_image_editor
+# @merchi/image-editor
 The Merchi Imaage Editor

@@ -10,7 +10,7 @@ export interface QuoteFields {
 }
 
 /** The job (order) a form builds, serializes, and submits. Mirrors the JSON
- * wire format used by merchi_product_form: top-level variations for
+ * wire format used by @merchi/product-form: top-level variations for
  * whole-order fields, variationsGroups for grouped line items. */
 export interface JobJson extends QuoteFields {
   quantity?: number;

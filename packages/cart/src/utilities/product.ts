@@ -1,4 +1,4 @@
-import { Merchi } from 'merchi_sdk_ts';
+import { Merchi } from '@merchi/sdk';
 import pngProductNotFound from '../assets/product-not-found.png';
 
 export function productFeatureImageUrl(product: any) {

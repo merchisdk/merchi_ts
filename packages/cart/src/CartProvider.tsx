@@ -9,7 +9,7 @@ import {
 } from './utilities/cart';
 import { cartEmbed } from './utilities/helpers';
 import { initTabs, tabIdItems, tabShipment } from './utilities/tabs';
-import { Merchi } from 'merchi_sdk_ts';
+import { Merchi } from '@merchi/sdk';
 import { getCartCookie, getCartCookieToken, setCartCookie } from './utilities/cookie';
 import { makeAddress, sanitizeAddressFields } from './utilities/address';
 import { appendStyleSheetText } from './utilities/helpers';

@@ -1,5 +1,5 @@
-// These types mirror the pricing shapes exported by `merchi_sdk_ts`
-// (`merchi_sdk_ts/dist/pricing`). They are declared locally because the linked
+// These types mirror the pricing shapes exported by `@merchi/sdk`
+// (`@merchi/sdk/dist/pricing`). They are declared locally because the linked
 // SDK build ships no type declarations, so importing the types directly does
 // not resolve under this repo's TypeScript/Jest setup. The runtime logic below
 // only reads plain object fields and does not depend on any SDK runtime code.

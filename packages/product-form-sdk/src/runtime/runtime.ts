@@ -36,7 +36,7 @@ export interface ProductFormRuntime {
 
 /** Build the runtime (pricing + actions + helpers) the embed passes into a
  * custom form. Each action quotes the job first, then invokes the host callback
- * (matching merchi_product_form's provider behaviour). An action is omitted when
+ * (matching @merchi/product-form's provider behaviour). An action is omitted when
  * its callback is not supplied. */
 export function createProductFormRuntime(
   config: ProductFormRuntimeConfig,

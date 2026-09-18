@@ -1,4 +1,4 @@
-import { Merchi } from 'merchi_sdk_ts';
+import { Merchi } from '@merchi/sdk';
 import { companyStripePubKeyOrTestPubKey } from './company';
 
 const merchi = new Merchi();

@@ -1,5 +1,5 @@
 {
-  "name": "merchi_sdk_error_catch",
+  "name": "@merchi/error-catch",
   "version": "0.1.1",
   "description": "Privacy-conscious browser and React error capture for Merchi frontends",
   "type": "module",
@@ -40,6 +40,9 @@
     "type": "git",
     "url": "git+https://github.com/merchisdk/merchi_ts.git",
     "directory": "packages/error-catch-sdk"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "react": ">=18"

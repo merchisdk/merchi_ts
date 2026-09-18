@@ -1,6 +1,6 @@
-// merchi_sdk_ts ships without type declarations; declare the minimal surface
+// @merchi/sdk ships without type declarations; declare the minimal surface
 // this package uses (the Merchi client and its Job entity).
-declare module 'merchi_sdk_ts' {
+declare module '@merchi/sdk' {
   export interface MerchiJob {
     fromJson(
       json: Record<string, unknown>,

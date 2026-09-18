@@ -23,6 +23,18 @@ importers:
       '@fortawesome/react-fontawesome':
         specifier: ^0.2.0
         version: 0.2.6(@fortawesome/fontawesome-svg-core@6.4.2)(react@18.2.0)
+      '@merchi/invoice':
+        specifier: workspace:^
+        version: link:../invoice
+      '@merchi/product-form':
+        specifier: workspace:^
+        version: link:../product-form
+      '@merchi/product-form-sdk':
+        specifier: workspace:^
+        version: link:../product-form-sdk
+      '@merchi/sdk':
+        specifier: workspace:^
+        version: link:../sdk
       '@stripe/react-stripe-js':
         specifier: ^2.3.0
         version: 2.9.0(@stripe/stripe-js@2.4.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -38,18 +50,6 @@ importers:
       lodash:
         specifier: ^4.17.21
         version: 4.18.1
-      merchi_invoice:
-        specifier: workspace:^
-        version: link:../invoice
-      merchi_product_form:
-        specifier: workspace:^
-        version: link:../product-form
-      merchi_sdk_product_form:
-        specifier: workspace:^
-        version: link:../product-form-sdk
-      merchi_sdk_ts:
-        specifier: workspace:^
-        version: link:../sdk
       react-country-region-selector:
         specifier: ^3.6.1
         version: 3.7.0(prop-types@15.8.1)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
@@ -177,6 +177,12 @@ importers:
       '@fortawesome/react-fontawesome':
         specifier: ^0.2.0
         version: 0.2.6(@fortawesome/fontawesome-svg-core@6.4.2)(react@18.2.0)
+      '@merchi/invoice':
+        specifier: workspace:^
+        version: link:../invoice
+      '@merchi/sdk':
+        specifier: workspace:^
+        version: link:../sdk
       '@pqina/pintura':
         specifier: ^8.71.1
         version: 8.100.2
@@ -204,12 +210,6 @@ importers:
       lodash:
         specifier: ^4.17.21
         version: 4.18.1
-      merchi_invoice:
-        specifier: workspace:^
-        version: link:../invoice
-      merchi_sdk_ts:
-        specifier: workspace:^
-        version: link:../sdk
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 18.2.0
@@ -562,6 +562,9 @@ importers:
       '@hcaptcha/react-hcaptcha':
         specifier: ^1.8.1
         version: 1.17.4(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@merchi/sdk':
+        specifier: workspace:^
+        version: link:../sdk
       '@types/draft-js':
         specifier: ^0.11.4
         version: 0.11.20
@@ -574,9 +577,6 @@ importers:
       lodash:
         specifier: ^4.17.21
         version: 4.18.1
-      merchi_sdk_ts:
-        specifier: workspace:^
-        version: link:../sdk
       moment-timezone:
         specifier: ^0.5.45
         version: 0.5.48
@@ -662,7 +662,7 @@ importers:
 
   packages/product-form-sdk:
     dependencies:
-      merchi_sdk_ts:
+      '@merchi/sdk':
         specifier: workspace:^
         version: link:../sdk
     devDependencies:

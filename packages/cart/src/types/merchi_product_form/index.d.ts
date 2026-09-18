@@ -1,1 +1,1 @@
-declare module 'merchi_product_form';
+declare module '@merchi/product-form';

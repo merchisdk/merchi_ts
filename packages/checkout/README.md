@@ -21,16 +21,16 @@ A customizable checkout step form component for Merchi e-commerce platform.
 
 ```bash
 # Using npm
-npm install merchi_checkout
+npm install @merchi/checkout
 
 # Using yarn
-yarn add merchi_checkout
+yarn add @merchi/checkout
 ```
 
 ## Usage
 
 ```jsx
-import { MerchiCheckout } from 'merchi_checkout';
+import { MerchiCheckout } from '@merchi/checkout';
 
 function App() {
   return (
@@ -155,7 +155,7 @@ function App() {
 
 ### Basic Usage
 ```jsx
-import { MerchiCheckout } from 'merchi_checkout';
+import { MerchiCheckout } from '@merchi/checkout';
 
 function BasicCheckout() {
   return (
@@ -171,7 +171,7 @@ function BasicCheckout() {
 
 ### With Custom Styling
 ```jsx
-import { MerchiCheckout } from 'merchi_checkout';
+import { MerchiCheckout } from '@merchi/checkout';
 
 function CustomStyledCheckout() {
   return (

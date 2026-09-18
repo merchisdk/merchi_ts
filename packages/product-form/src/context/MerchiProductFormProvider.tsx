@@ -17,7 +17,7 @@ import {
   cleanJobVariationsAndGroups,
   syncJobSelectedOptionsFromValues,
 } from '../components/utils';
-import { pricing } from 'merchi_sdk_ts';
+import { pricing } from '@merchi/sdk';
 import { toSelections } from '../utils/selections';
 import { scrollToFirstFormError } from '../utils/formErrors';
 import {

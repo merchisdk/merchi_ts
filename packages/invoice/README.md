@@ -1,6 +1,5 @@
-# merchi_invoice
+# @merchi/invoice
 Merchi Invoice
-# merchi_checkout
 Merchi's invoice component
 
 
@@ -13,11 +12,11 @@ Merchi's invoice component
 ## Installation
 
 ```bash
-npm install merchi_invoice
+npm install @merchi/invoice
 
 or
 
-yarn add merchi_invoice
+yarn add @merchi/invoice
 ```
 
 ### Props

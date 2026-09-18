@@ -14,7 +14,7 @@ A React-based product editor component that allows users to edit product templat
 ## Installation
 
 ```bash
-npm install merchi_product_editor
+npm install @merchi/product-editor
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ npm install merchi_product_editor
 ### Basic Example
 
 ```jsx
-import { ProductEditor } from 'merchi_product_editor';
+import { ProductEditor } from '@merchi/product-editor';
 
 function App() {
   const product = {
@@ -81,7 +81,7 @@ function App() {
 You can access the editor's context in child components:
 
 ```jsx
-import { useProductEditor } from 'merchi_product_editor';
+import { useProductEditor } from '@merchi/product-editor';
 
 function CustomButton() {
   const { handleSave, updateCanvasFromVariations } = useProductEditor();
@@ -134,7 +134,7 @@ The `useProductEditor` hook provides access to the following properties and meth
 The `ImageGallery` component provides a simple way to display images in your product editor when other images fail to load.
 
 ```jsx
-import { ImageGallery } from 'merchi_product_editor';
+import { ImageGallery } from '@merchi/product-editor';
 
 function Example() {
   return (

@@ -22,7 +22,7 @@ Custom forms are React components that run inside the Merchi dashboard preview a
 ## Installation
 
 ```bash
-npm install merchi_sdk_product_form
+npm install @merchi/product-form-sdk
 ```
 
 Peer dependency: `react` ^18 or ^19.
@@ -30,7 +30,7 @@ Peer dependency: `react` ^18 or ^19.
 In the Merchi monorepo, the dashboard installs a packed tarball:
 
 ```bash
-cd merchi_sdk_product_form
+cd packages/product-form-sdk
 npm run build && npm pack
 cd ../merchi_dashboard && npm install
 ```
@@ -47,7 +47,7 @@ import {
   Heading,
   Text,
   Field,
-} from 'merchi_sdk_product_form';
+} from '@merchi/product-form-sdk';
 
 export default function Form({ product }) {
   const fields = product?.independentVariationFields ?? [];
@@ -75,8 +75,8 @@ See `examples/colour-grid-form.tsx` for a per-colour quantity grid (wristbands, 
 ## How forms run
 
 1. **Authoring** — Form source is stored as TSX on a `ProductForm` in Merchi.
-2. **Gate** — Only imports from `react` and `merchi_sdk_product_form` are allowed (legacy `@merchi/product-form-sdk` is still accepted for older drafts).
-3. **Compile** — esbuild bundles the form to an IIFE; `react` → `window.React`, `merchi_sdk_product_form` → `window.MerchiProductFormSdk`.
+2. **Gate** — Only imports from `react` and `@merchi/product-form-sdk` are allowed (legacy `merchi_sdk_product_form` may still be accepted for older drafts).
+3. **Compile** — esbuild bundles the form to an IIFE; `react` → `window.React`, `@merchi/product-form-sdk` → `window.MerchiProductFormSdk`.
 4. **Host** — The dashboard or embed loads the bundle, provides `createProductFormRuntime`, and wraps the form in `ProductFormShell` (quantity control, live quote footer, submit buttons).
 
 Form authors should **not** reimplement quantity controls or pricing footers. To replace Get quote / Buy now / Add to cart, use `ProductFormActions` (or `Form.footerActions`) — do not hand-roll checkout buttons.
@@ -112,7 +112,7 @@ There is **no** `TextInput`, `Select`, `Button`, or `ColorSwatches` — use `Fie
 To change the host footer (for example one **Place order** button that opens the Get quote modal):
 
 ```tsx
-import { ProductFormActions } from 'merchi_sdk_product_form';
+import { ProductFormActions } from '@merchi/product-form-sdk';
 
 export default function Form({ product }) {
   return (
@@ -167,11 +167,11 @@ npm install
 npm run build    # tsc → dist/
 npm test         # jest
 npm run lint     # eslint src
-npm pack         # merchi_sdk_product_form-<version>.tgz
+npm pack         # merchi-product-form-sdk-<version>.tgz
 ```
 
-Repository: [github.com/merchisdk/merchi_sdk_product_form](https://github.com/merchisdk/merchi_sdk_product_form)
+Repository: [github.com/merchisdk/merchi_ts/tree/main/packages/product-form-sdk](https://github.com/merchisdk/merchi_ts/tree/main/packages/product-form-sdk)
 
 ## License
 
-GPL-3.0 — see [LICENSE](https://www.gnu.org/licenses/gpl-3.0) (same as [merchi_sdk_ts](https://github.com/merchisdk/merchi_sdk_ts)).
+GPL-3.0 — see [LICENSE](https://www.gnu.org/licenses/gpl-3.0) (same as [@merchi/sdk](https://www.npmjs.com/package/@merchi/sdk)).

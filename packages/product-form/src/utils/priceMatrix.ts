@@ -5,7 +5,7 @@ function buildPriceMatrixFn():
   | ((rules: any, selections?: any, options?: any) => PriceMatrixData | null)
   | null {
   try {
-    const { pricing } = require('merchi_sdk_ts') as {
+    const { pricing } = require('@merchi/sdk') as {
       pricing?: {
         buildPriceMatrix?: (
           rules: any,

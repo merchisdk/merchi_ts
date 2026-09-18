@@ -2,7 +2,7 @@ const estimateQuoteMock = jest.fn();
 const serverGetQuoteMock = jest.fn();
 const serverFromJsonMock = jest.fn();
 
-jest.mock('merchi_sdk_ts', () => ({
+jest.mock('@merchi/sdk', () => ({
   Merchi: jest.fn().mockImplementation(() => ({
     Job: jest.fn().mockImplementation(() => ({
       fromJson: serverFromJsonMock,

@@ -1,6 +1,6 @@
 # Merchi Product Form
 
-[![npm version](https://img.shields.io/npm/v/merchi_product_form.svg)](https://www.npmjs.com/package/merchi_product_form)
+[![npm version](https://img.shields.io/npm/v/@merchi/product-form.svg)](https://www.npmjs.com/package/@merchi/product-form)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 A React component library for rendering customizable e-commerce product forms for Merchi products. This package provides a seamless integration for Next.js applications, allowing for interactive product forms with various customization options.
@@ -30,16 +30,16 @@ A React component library for rendering customizable e-commerce product forms fo
 
 ```bash
 # Using npm
-npm install merchi_product_form
+npm install @merchi/product-form
 
 # Using yarn
-yarn add merchi_product_form
+yarn add @merchi/product-form
 ```
 
 ## Quick Start
 
 ```jsx
-import MerchiProductForm from 'merchi_product_form';
+import MerchiProductForm from '@merchi/product-form';
 
 function ProductPage({ product }) {
   return (
@@ -57,7 +57,7 @@ function ProductPage({ product }) {
 Here's a complete example of how to use the `MerchiProductForm` component in a Next.js page:
 
 ```jsx
-import MerchiProductForm from 'merchi_product_form';
+import MerchiProductForm from '@merchi/product-form';
 import { notFound } from 'next/navigation';
 
 export async function fetchProduct(id) {
@@ -204,7 +204,7 @@ The component provides extensive customization options through class name props.
 `PriceMatrix` is a standalone table. It does not need the product form — pass a product, pricing-rules bundle, or a precomputed matrix:
 
 ```jsx
-import { PriceMatrix } from 'merchi_product_form';
+import { PriceMatrix } from '@merchi/product-form';
 
 <PriceMatrix
   product={product}
@@ -220,7 +220,7 @@ import {
   MerchiProductFormProvider,
   ProductPriceMatrix,
   ProductTotalCost,
-} from 'merchi_product_form';
+} from '@merchi/product-form';
 
 <MerchiProductFormProvider initProduct={product}>
   {/* your fields */}

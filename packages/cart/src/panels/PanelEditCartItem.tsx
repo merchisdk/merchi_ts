@@ -15,7 +15,7 @@ import { getCartCookieToken } from '../utilities/cookie';
 import { publishedFormBundle } from '../utilities/customForm';
 import CustomCartProductForm from '../components/CustomCartProductForm';
 
-const MerchiProductForm = lazy(() => import('merchi_product_form'));
+const MerchiProductForm = lazy(() => import('@merchi/product-form'));
 
 function cleanVariation(variation: any) {
   const { variationField = {}, variationFiles = [] } = variation;
@@ -152,7 +152,7 @@ function PanelEditCartItem({ cart }: Props) {
       <CartFooter>
         <ButtonBack />
         {/* Custom forms render their own Save in ProductFormShell; keep the
-            HTML-form Save only for the default merchi_product_form path. */}
+            HTML-form Save only for the default @merchi/product-form path. */}
         {!customFormActive && (
           <Button
             className={classNameBtnEditCartItem}

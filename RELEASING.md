@@ -29,18 +29,50 @@ This repository is expected to be `merchisdk/merchi_ts`. If the final GitHub
 repository name differs, update every package's `repository.url` before the
 first release.
 
-For every existing npm package, add this GitHub Actions trusted publisher in
-the package settings on npmjs.com:
+All workspace packages publish publicly under the `@merchi` npm organization:
+
+| Package | Legacy package |
+| --- | --- |
+| `@merchi/sdk` | `merchi_sdk_ts` |
+| `@merchi/product-form-sdk` | `merchi_sdk_product_form` |
+| `@merchi/product-form` | `merchi_product_form` |
+| `@merchi/invoice` | `merchi_invoice` |
+| `@merchi/cart` | `merchi_cart` |
+| `@merchi/checkout` | `merchi_checkout` |
+| `@merchi/error-catch` | `merchi_sdk_error_catch` |
+| `@merchi/product-editor` | `merchi_product_editor` |
+| `@merchi/image-editor` | `merchi_image_editor` |
+
+Each scoped package must be published once by a member with permission to
+publish under `@merchi`. New scoped packages cannot use GitHub Actions trusted
+publishing until that first version exists.
+
+Perform the bootstrap publication from the exact commit already present on
+`main`, not from an unmerged feature commit. Publish in the order produced by
+`pnpm release:plan`; this ensures every internal dependency exists before its
+consumers. The current initial order is:
+
+1. `@merchi/error-catch`
+2. `@merchi/image-editor`
+3. `@merchi/invoice`
+4. `@merchi/product-editor`
+5. `@merchi/sdk`
+6. `@merchi/checkout`
+7. `@merchi/product-form`
+8. `@merchi/product-form-sdk`
+9. `@merchi/cart`
+
+After the first publication, add this GitHub Actions trusted publisher in each
+scoped package's settings on npmjs.com:
 
 - Organization: `merchisdk`
 - Repository: `merchi_ts`
 - Workflow filename: `publish.yml`
 - Allowed action: direct `npm publish`
 
-`merchi_image_editor` does not currently exist on npm. Its first publication
-must be performed by an npm owner using a short-lived publishing credential or
-manual publication. Configure the trusted publisher immediately afterward;
-subsequent releases need no long-lived npm token.
+Do not deprecate the legacy unscoped packages until downstream consumers have
+migrated and the scoped releases have been verified. Subsequent scoped releases
+need no long-lived npm token once trusted publishing is configured.
 
 The workflow requires GitHub Actions to have permission to write repository
 contents so it can push release commits and package tags. Branch protection

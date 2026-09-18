@@ -2,7 +2,7 @@
 import React from 'react';
 import { useEffect } from 'react';
 import { debounce } from 'lodash';
-import { Merchi } from 'merchi_sdk_ts';
+import { Merchi } from '@merchi/sdk';
 import { CountryDropdown, RegionDropdown } from 'react-country-region-selector';
 import { Controller } from 'react-hook-form';
 import InputText from './InputText';

@@ -1,5 +1,5 @@
 {
-  "name": "merchi_image_editor",
+  "name": "@merchi/image-editor",
   "version": "1.0.0",
   "description": "The Merchi Image Editor",
   "main": "dist/index.js",
@@ -15,6 +15,9 @@
     "type": "git",
     "url": "git+https://github.com/merchisdk/merchi_ts.git",
     "directory": "packages/image-editor"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "author": "Amtron <james@newgenstudio.com>",
   "license": "MIT",

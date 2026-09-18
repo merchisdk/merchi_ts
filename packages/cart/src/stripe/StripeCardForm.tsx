@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { StripePaymentForm, StripePaymentGate } from 'merchi_invoice';
+import { StripePaymentForm, StripePaymentGate } from '@merchi/invoice';
 import LegacyStripeCardForm from './LegacyStripeCardForm';
 import { useCartContext } from '../CartProvider';
 import { tabIdPaymentSuccess } from '../utilities/tabs';

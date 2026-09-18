@@ -2,7 +2,7 @@ const getQuoteMock = jest.fn();
 const fromJsonMock = jest.fn();
 const toJsonMock = jest.fn(() => ({ totalCost: 99, currency: 'USD' }));
 
-jest.mock('merchi_sdk_ts', () => ({
+jest.mock('@merchi/sdk', () => ({
   Merchi: jest.fn().mockImplementation(() => ({
     Job: jest.fn().mockImplementation(() => ({
       fromJson: fromJsonMock,

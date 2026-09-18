@@ -1,5 +1,5 @@
 /**
- * Keep this helper free of merchi_sdk_ts so Jest can import it directly.
+ * Keep this helper free of @merchi/sdk so Jest can import it directly.
  * The implementation must stay in sync with cleanFormVariationJson in utils.ts.
  */
 export function cleanFormVariationJson(variation: any) {

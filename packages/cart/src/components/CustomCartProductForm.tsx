@@ -17,7 +17,7 @@ interface Props {
 
 /**
  * Loads a product's published custom form for cart-item edit. On any failure
- * renders `fallback` (the default merchi_product_form) so the cart stays usable.
+ * renders `fallback` (the default @merchi/product-form) so the cart stays usable.
  */
 export function CustomCartProductForm({
   product,

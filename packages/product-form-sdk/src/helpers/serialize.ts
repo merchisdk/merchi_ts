@@ -14,7 +14,7 @@ function cleanVariation(variation: VariationJson): VariationJson {
 /** Return a deep-ish copy of the job with variations/groups cleaned for the API:
  * form-only fields removed, zero-quantity groups dropped, and each remaining
  * group's quantity defaulted to 0 when missing. Does not mutate the input
- * (unlike merchi_product_form's in-place cleaner). */
+ * (unlike @merchi/product-form's in-place cleaner). */
 export function serializeJob(job: JobJson): JobJson {
   const out: JobJson = { ...job };
   if (Array.isArray(job.variations)) {

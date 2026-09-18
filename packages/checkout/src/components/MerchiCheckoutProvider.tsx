@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { MerchiCheckoutTab } from '../types';
 import { tabsInit, tabIdConfirm } from '../tabs_utils';
-import { Merchi } from 'merchi_sdk_ts';
+import { Merchi } from '@merchi/sdk';
 import {
   buildCheckoutSession,
   checkoutSessionChanged,

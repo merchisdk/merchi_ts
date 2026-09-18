@@ -1,5 +1,5 @@
 {
-  "name": "merchi_product_form",
+  "name": "@merchi/product-form",
   "version": "1.19.12",
   "description": "A React component for Merchi product forms",
   "main": "lib/index.js",
@@ -18,6 +18,9 @@
     "type": "git",
     "url": "git+https://github.com/merchisdk/merchi_ts.git",
     "directory": "packages/product-form"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "react",
@@ -78,7 +81,7 @@
     "draft-js": "^0.11.7",
     "konva": "^10.3.2",
     "lodash": "^4.17.21",
-    "merchi_sdk_ts": "workspace:^",
+    "@merchi/sdk": "workspace:^",
     "moment-timezone": "^0.5.45",
     "react-dropzone": "^14.2.3",
     "react-hook-form": "^7.45.4",

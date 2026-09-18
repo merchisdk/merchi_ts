@@ -1,4 +1,4 @@
-import { Merchi } from 'merchi_sdk_ts';
+import { Merchi } from '@merchi/sdk';
 import { JobJson } from '../types/job';
 import { ProductJson } from '../types/product';
 import { serializeJob } from '../helpers/serialize';
@@ -27,7 +27,7 @@ export interface PricingOptions {
 /** Build a pricing helper bound to a backend api url.
  *
  * When `product.clientSideCalculation` is set, getQuote computes the quote
- * locally via merchi_sdk_ts's pricing engine (mirroring merchi_product_form),
+ * locally via @merchi/sdk's pricing engine (mirroring @merchi/product-form),
  * fetching the product's pricing-rules bundle once and caching it. It falls back
  * to a server quote (`Job.getQuote` → /specialised-order-estimate/) when
  * client-side is disabled, the rules can't be loaded, or the rules are

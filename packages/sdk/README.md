@@ -2,7 +2,7 @@
 
 A TypeScript SDK for interacting with the Merchi API.
 
-[![npm version](https://img.shields.io/npm/v/merchi_sdk_ts.svg)](https://www.npmjs.com/package/merchi_sdk_ts)
+[![npm version](https://img.shields.io/npm/v/@merchi/sdk.svg)](https://www.npmjs.com/package/@merchi/sdk)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 ## Table of Contents
@@ -23,16 +23,16 @@ A TypeScript SDK for interacting with the Merchi API.
 
 ```bash
 # Using npm
-npm install merchi_sdk_ts
+npm install @merchi/sdk
 
 # Using yarn
-yarn add merchi_sdk_ts
+yarn add @merchi/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { Merchi, Product } from 'merchi_sdk_ts';
+import { Merchi, Product } from '@merchi/sdk';
 
 // Initialize the SDK
 const merchi = new Merchi();
@@ -59,7 +59,7 @@ The API version (e.g., `/v6/`) will be appended automatically if not included in
 **Example: Passing `backendUri` to the constructor**
 
 ```typescript
-import { Merchi } from 'merchi_sdk_ts';
+import { Merchi } from '@merchi/sdk';
 
 // Initialize the SDK with a custom backend URI
 // This URI should be the base path to your Merchi backend instance.
@@ -178,7 +178,7 @@ Each entity maps directly to the corresponding API endpoint and data structure.
 ### Working with Products
 
 ```typescript
-import { Merchi, Product } from 'merchi_sdk_ts';
+import { Merchi, Product } from '@merchi/sdk';
 
 // Initialize Merchi
 const merchi = new Merchi('your-session-token');
@@ -197,7 +197,7 @@ product.create().then(newProduct => {
 ### Managing a Cart
 
 ```typescript
-import { Merchi, Cart, CartItem } from 'merchi_sdk_ts';
+import { Merchi, Cart, CartItem } from '@merchi/sdk';
 
 // Initialize Merchi
 const merchi = new Merchi('your-session-token');
@@ -222,7 +222,7 @@ cart.create().then(newCart => {
 This SDK is built with TypeScript and provides full type definitions for all entities and operations.
 
 ```typescript
-import { Product, EmbedDescriptor } from 'merchi_sdk_ts';
+import { Product, EmbedDescriptor } from '@merchi/sdk';
 
 // TypeScript will provide intellisense for all properties
 const product = new Product();

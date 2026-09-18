@@ -1,5 +1,5 @@
 /**
- * Full merchi_sdk_product_form runtime for window.MerchiProductFormSdk.
+ * Full @merchi/product-form-sdk runtime for window.MerchiProductFormSdk.
  * Keep in sync with merchi_api/common/js/product_form_gate.cjs SDK_EXPORTS.
  */
 import {
@@ -32,7 +32,7 @@ import {
   useProductForm,
   OPTION_FIELD_TYPES,
   theme,
-} from 'merchi_sdk_product_form';
+} from '@merchi/product-form-sdk';
 
 export const MerchiProductFormSdkExternals = {
   SDK_VERSION,

@@ -1,4 +1,4 @@
-import { Merchi } from 'merchi_sdk_ts';
+import { Merchi } from '@merchi/sdk';
 import { formatCurrency } from '../utils/currency';
 import { ProductType, FieldType } from '../utils/types';
 export { cleanFormVariationJson } from '../utils/cleanFormVariationJson';

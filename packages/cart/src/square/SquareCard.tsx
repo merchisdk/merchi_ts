@@ -3,7 +3,7 @@ import { CreditCard, PaymentForm } from 'react-square-web-payments-sdk';
 import { currencyMap } from '../utilities/currency';
 import { useCartContext } from '../CartProvider';
 import { tabIdPaymentSuccess } from '../utilities/tabs';
-import { Merchi } from 'merchi_sdk_ts';
+import { Merchi } from '@merchi/sdk';
 
 declare const SQUARE_APPLICATION_ID: string;
 

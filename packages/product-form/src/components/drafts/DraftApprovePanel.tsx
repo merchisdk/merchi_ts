@@ -62,7 +62,7 @@ async function uploadBase64Image(
   }
 }
 
-/** merchi_checkout.cleanClientFiles reads `.file`, not a bare `{ id }`. */
+/** @merchi/checkout cleanClientFiles reads `.file`, not a bare `{ id }`. */
 function asCheckoutClientFile(file: MerchiFile) {
   return {
     file: { id: file.id },

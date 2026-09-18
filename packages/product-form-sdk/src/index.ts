@@ -42,7 +42,7 @@ export type {
 } from './runtime/runtime';
 
 // UI component kit — the building blocks AI-built forms compose. Form authors
-// import these from 'merchi_sdk_product_form' (the static gate allowlists it).
+// import these from '@merchi/product-form-sdk' (the static gate allowlists it).
 export {
   Section,
   Stack,

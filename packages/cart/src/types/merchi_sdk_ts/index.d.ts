@@ -1,1 +1,1 @@
-declare module 'merchi_sdk_ts';
+declare module '@merchi/sdk';

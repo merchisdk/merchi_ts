@@ -1,10 +1,10 @@
-import { pricing } from 'merchi_sdk_ts';
+import { pricing } from '@merchi/sdk';
 import { JobJson } from '../types/job';
 import { VariationJson } from '../types/variation';
 
-// These pricing shapes mirror merchi_sdk_ts's pricing module. They are declared
+// These pricing shapes mirror @merchi/sdk's pricing module. They are declared
 // locally because the linked SDK build ships no type declarations. The logic
-// below only reads plain object fields (ported from merchi_product_form's
+// below only reads plain object fields (ported from @merchi/product-form's
 // toSelections) and does not depend on SDK runtime types.
 interface FieldSelection {
   selectedOptionIds?: number[];
@@ -56,7 +56,7 @@ function buildFieldValues(
 }
 
 /** Convert a job's form values into the `Selections` shape estimateQuote needs.
- * Ported from merchi_product_form/src/utils/selections.ts so a custom form gets
+ * Ported from @merchi/product-form's selections helper so a custom form gets
  * identical client-side pricing behaviour. */
 export function toSelections(job: JobJson, rules: PricingRules): Selections {
   const selectableByField: Record<number, boolean> = {};

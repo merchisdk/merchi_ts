@@ -31,7 +31,7 @@ export interface InventoryStatusText {
   label: string;
 }
 
-/** Human-readable inventory pill text (mirrors merchi_product_form). */
+/** Human-readable inventory pill text (mirrors @merchi/product-form). */
 export function inventoryStatusText(
   group: VariationsGroupJson | undefined,
   needsInventory: boolean,

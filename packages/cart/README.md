@@ -1,4 +1,4 @@
-# merchi_cart
+# @merchi/cart
 Merchi's cart
 
 
@@ -11,11 +11,11 @@ Merchi's cart
 ## Installation
 
 ```bash
-npm install merchi_cart
+npm install @merchi/cart
 
 or
 
-yarn add merchi_cart
+yarn add @merchi/cart
 ```
 
 ### Usage
@@ -126,7 +126,7 @@ yarn add merchi_cart
 | `onClickClose`                                | `() => void?`| `() => console.log('close merchi cart!')`                                 | `a function to close the cart`        |
 | `setIsCartModalOpen`                          | `(isOpen: boolean) => void?`| `() => console.log('close merchi cart!')`                  | `a function to open/close cart modal wrapper`|
 | `isCartModalOpen`                             | `boolean`  | `false`                                                                     | `a boolean value to control the cart modal open/closed`|
-| `productFormClassNames`                       | `obj`      | `{}`                                                                        | `An object to be passsed to the merchi_product_form `|
+| `productFormClassNames`                       | `obj`      | `{}`                                                                        | `An object to be passed to @merchi/product-form` |
 | `showUserTermsAndConditions`                  | `boolean?` | `true`                                                                      | `Display the user t&cs for Merchi`    |
 | `showCartItemInfo`                  | `boolean?` | `true`                                                                      | `Will display the cart item info in the cart items table`|
 | `apiUrl`                                      | `string?`  | `'https://api.merchi.co/v6/'`                                               | `URL to connect to the Merchi API`    |
