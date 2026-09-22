@@ -1,5 +1,5 @@
-import { JobJson } from '../types/job';
-import { VariationsGroupJson, VariationJson } from '../types/variation';
+import { JobJson } from '../types/job.js';
+import { VariationsGroupJson, VariationJson } from '../types/variation.js';
 
 function variationFieldId(
   variationField: VariationJson['variationField'],

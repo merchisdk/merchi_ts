@@ -1,6 +1,6 @@
 import { pricing } from '@merchi/sdk';
-import { JobJson } from '../types/job';
-import { VariationJson } from '../types/variation';
+import { JobJson } from '../types/job.js';
+import { VariationJson } from '../types/variation.js';
 
 // These pricing shapes mirror @merchi/sdk's pricing module. They are declared
 // locally because the linked SDK build ships no type declarations. The logic

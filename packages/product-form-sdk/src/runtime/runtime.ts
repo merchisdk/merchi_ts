@@ -1,8 +1,8 @@
-import { ProductJson } from '../types/product';
-import { JobJson } from '../types/job';
-import { Pricing, createPricing } from './pricing';
-import { serializeJob, nonEmptyGroups } from '../helpers/serialize';
-import { formatCurrency, urlFor } from '../helpers/format';
+import { ProductJson } from '../types/product.js';
+import { JobJson } from '../types/job.js';
+import { Pricing, createPricing } from './pricing.js';
+import { serializeJob, nonEmptyGroups } from '../helpers/serialize.js';
+import { formatCurrency, urlFor } from '../helpers/format.js';
 
 export interface Actions {
   addToCart?: (job: JobJson) => void;

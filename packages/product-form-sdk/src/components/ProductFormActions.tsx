@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { useProductForm } from './context';
-import { FooterAction, normalizeFooterActions } from './footerActions';
+import { useProductForm } from './context.js';
+import { FooterAction, normalizeFooterActions } from './footerActions.js';
 
 /**
  * Configure the host ProductFormShell footer from form source.

@@ -1,8 +1,8 @@
 import * as React from 'react';
 import { useMemo, useState } from 'react';
-import { useProductForm, FieldSelection } from './context';
-import { theme } from './layout';
-import { VariationFieldJson, OptionJson } from '../types/variation';
+import { useProductForm, FieldSelection } from './context.js';
+import { theme } from './layout.js';
+import { VariationFieldJson, OptionJson } from '../types/variation.js';
 import {
   AreaUnit,
   DisplayModality,
@@ -16,8 +16,8 @@ import {
   parseAreaValue,
   stepInDisplayUnit,
   unitLabel,
-} from '../helpers/area';
-import { formatCurrency } from '../helpers/format';
+} from '../helpers/area.js';
+import { formatCurrency } from '../helpers/format.js';
 
 const FIELD = {
   TEXT_INPUT: 1,

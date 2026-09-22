@@ -1,9 +1,9 @@
 import { ComponentType } from 'react';
-import { ProductJson } from './product';
-import { JobJson } from './job';
-import { Pricing } from '../runtime/pricing';
-import { Actions, Helpers } from '../runtime/runtime';
-import type { FooterAction } from '../components/footerActions';
+import { ProductJson } from './product.js';
+import { JobJson } from './job.js';
+import { Pricing } from '../runtime/pricing.js';
+import { Actions, Helpers } from '../runtime/runtime.js';
+import type { FooterAction } from '../components/footerActions.js';
 
 /** Props every custom product form receives. This is the ONLY surface a form
  * may rely on; the static-analysis gate (Plan 3) rejects anything else. */

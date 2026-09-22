@@ -1,4 +1,4 @@
-import { VariationFieldJson } from './variation';
+import { VariationFieldJson } from './variation.js';
 
 /** The product JSON a custom form receives. Fields are optional because the
  * shape varies by product type; the commonly-used fields are documented here. */

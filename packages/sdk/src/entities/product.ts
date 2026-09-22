@@ -1,4 +1,4 @@
-import * as _ from 'lodash';
+import _ from 'lodash';
 import { CartItem } from './cart_item.js';
 import { Category } from './category.js';
 import { Company } from './company.js';

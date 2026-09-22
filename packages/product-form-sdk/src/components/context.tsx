@@ -8,32 +8,32 @@ import {
   useRef,
   useState,
 } from 'react';
-import { ProductJson } from '../types/product';
-import { JobJson } from '../types/job';
-import { VariationFieldJson } from '../types/variation';
-import { Pricing } from '../runtime/pricing';
-import { Actions, Helpers } from '../runtime/runtime';
+import { ProductJson } from '../types/product.js';
+import { JobJson } from '../types/job.js';
+import { VariationFieldJson } from '../types/variation.js';
+import { Pricing } from '../runtime/pricing.js';
+import { Actions, Helpers } from '../runtime/runtime.js';
 import {
   buildProductFormJob,
   GroupRow,
   jobToFormState,
-} from '../helpers/buildJob';
-import { OPTION_FIELD_TYPES } from '../helpers/constants';
+} from '../helpers/buildJob.js';
+import { OPTION_FIELD_TYPES } from '../helpers/constants.js';
 import {
   groupFieldsOf,
   independentFieldsOf,
   isOptionQuantityGridProduct,
   productHasGroups,
-} from '../helpers/product';
+} from '../helpers/product.js';
 
 import {
   FooterAction,
   normalizeFooterActions,
   type SubmitAction,
-} from './footerActions';
+} from './footerActions.js';
 
 export { OPTION_FIELD_TYPES };
-export type { FooterAction, SubmitAction } from './footerActions';
+export type { FooterAction, SubmitAction } from './footerActions.js';
 
 export interface FieldSelection {
   /** Comma-separated option ids (selectable fields) or the raw text/number. */

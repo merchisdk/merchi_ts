@@ -39,7 +39,9 @@ import { DomainTag } from './domain_tag.js';
 import { UserType } from '../constants/user_types.js';
 import { SystemRoles as SR } from '../constants/system_roles.js';
 
-import { some } from 'lodash';
+import lodash from 'lodash';
+
+const { some } = lodash;
 
 export class User extends Entity {
   protected static resourceName = 'users';

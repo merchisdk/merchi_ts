@@ -1,4 +1,4 @@
-import { cloneDeepWith } from 'lodash';
+import lodash from 'lodash';
 import { DiscountGroup } from './discount_group.js';
 import { Entity } from '../entity.js';
 import { InventoryGroup } from './inventory_group.js';
@@ -6,6 +6,8 @@ import { Product } from './product.js';
 import { Variation } from './variation.js';
 import { VariationFieldsOption } from './variation_fields_option.js';
 import { FieldType } from '../constants/field_types.js';
+
+const { cloneDeepWith } = lodash;
 
 export class VariationField extends Entity {
   protected static resourceName = 'variation_fields';

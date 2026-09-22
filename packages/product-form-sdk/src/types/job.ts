@@ -1,4 +1,4 @@
-import { VariationJson, VariationsGroupJson } from './variation';
+import { VariationJson, VariationsGroupJson } from './variation.js';
 
 /** Pricing fields populated on a job by a quote (server or client-side). */
 export interface QuoteFields {

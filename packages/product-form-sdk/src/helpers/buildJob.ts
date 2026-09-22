@@ -1,14 +1,14 @@
-import { JobJson } from '../types/job';
-import { ProductJson } from '../types/product';
-import { VariationFieldJson, VariationJson } from '../types/variation';
-import { FieldSelection } from '../components/context';
-import { OPTION_FIELD_TYPES } from './constants';
+import { JobJson } from '../types/job.js';
+import { ProductJson } from '../types/product.js';
+import { VariationFieldJson, VariationJson } from '../types/variation.js';
+import { FieldSelection } from '../components/context.js';
+import { OPTION_FIELD_TYPES } from './constants.js';
 import {
   groupFieldsOf,
   independentFieldsOf,
   isOptionQuantityGridProduct,
   productHasGroups,
-} from './product';
+} from './product.js';
 
 export interface GroupRow {
   quantity: number;

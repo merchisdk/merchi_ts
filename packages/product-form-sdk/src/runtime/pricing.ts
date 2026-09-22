@@ -1,8 +1,8 @@
 import { Merchi } from '@merchi/sdk';
-import { JobJson } from '../types/job';
-import { ProductJson } from '../types/product';
-import { serializeJob } from '../helpers/serialize';
-import { clientQuote, PricingRules } from './clientPricing';
+import { JobJson } from '../types/job.js';
+import { ProductJson } from '../types/product.js';
+import { serializeJob } from '../helpers/serialize.js';
+import { clientQuote, PricingRules } from './clientPricing.js';
 
 export interface Pricing {
   /** Request a quote for the given job; resolves to the job json with pricing

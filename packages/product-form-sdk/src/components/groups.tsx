@@ -1,9 +1,9 @@
 import * as React from 'react';
-import { useProductForm } from './context';
-import { Field } from './Field';
-import { Card, Heading, Stack, theme } from './layout';
-import { OptionJson, VariationFieldJson } from '../types/variation';
-import { inventoryStatusText, quoteGroupForOption } from '../helpers/gridQuote';
+import { useProductForm } from './context.js';
+import { Field } from './Field.js';
+import { Card, Heading, Stack, theme } from './layout.js';
+import { OptionJson, VariationFieldJson } from '../types/variation.js';
+import { inventoryStatusText, quoteGroupForOption } from '../helpers/gridQuote.js';
 
 const COLOUR_SELECT = 11;
 const IMAGE_SELECT = 9;

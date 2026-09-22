@@ -1,6 +1,6 @@
-import { ProductJson } from '../types/product';
-import { VariationFieldJson } from '../types/variation';
-import { OPTION_FIELD_TYPES } from './constants';
+import { ProductJson } from '../types/product.js';
+import { VariationFieldJson } from '../types/variation.js';
+import { OPTION_FIELD_TYPES } from './constants.js';
 
 export function groupFieldsOf(product: ProductJson): VariationFieldJson[] {
   const fields = (product as { groupVariationFields?: VariationFieldJson[] })

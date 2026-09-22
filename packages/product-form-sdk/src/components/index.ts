@@ -1,11 +1,11 @@
-export { Section, Stack, Card, Heading, Text, Divider, theme } from './layout';
-export { Field } from './Field';
-export { GroupRows, OptionQuantityGrid } from './groups';
+export { Section, Stack, Card, Heading, Text, Divider, theme } from './layout.js';
+export { Field } from './Field.js';
+export { GroupRows, OptionQuantityGrid } from './groups.js';
 export {
   ProductFormProvider,
   useProductForm,
   OPTION_FIELD_TYPES,
-} from './context';
+} from './context.js';
 export type {
   ProductFormContextValue,
   ProductFormProviderProps,
@@ -13,11 +13,11 @@ export type {
   SubmitAction,
   FooterAction,
   GroupRow,
-} from './context';
-export { ProductFormShell } from './shell';
-export { ProductFormActions } from './ProductFormActions';
+} from './context.js';
+export { ProductFormShell } from './shell.js';
+export { ProductFormActions } from './ProductFormActions.js';
 export {
   normalizeFooterActions,
   resolveFooterActions,
   footerActionsFromComponent,
-} from './footerActions';
+} from './footerActions.js';

@@ -6,7 +6,9 @@ import { Job } from './job.js';
 import { Product } from './product.js';
 import { VariationsGroup } from './variations_group.js';
 import { VariationFieldsOption } from './variation_fields_option.js';
-import { some } from 'lodash';
+import lodash from 'lodash';
+
+const { some } = lodash;
 
 export class Inventory extends Entity {
   protected static resourceName = 'inventories';

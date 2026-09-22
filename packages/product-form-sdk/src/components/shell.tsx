@@ -3,14 +3,14 @@ import {
   ProductFormProvider,
   ProductFormProviderProps,
   useProductForm,
-} from './context';
-import { theme } from './layout';
-import { productHasGroups } from '../helpers/product';
+} from './context.js';
+import { theme } from './layout.js';
+import { productHasGroups } from '../helpers/product.js';
 import {
   footerActionsFromComponent,
   resolveFooterActions,
   type FooterAction,
-} from './footerActions';
+} from './footerActions.js';
 
 function QuantityControl() {
   const { product, quantity, setQuantity } = useProductForm();

@@ -3,7 +3,9 @@ import { Role } from '../constants/roles.js';
 import { SystemRoles } from '../constants/system_roles.js';
 import { DomainType } from '../constants/domain_types.js';
 import { setup, mockFetch } from '../test_util.js';
-import { every } from 'lodash';
+import lodash from 'lodash';
+
+const { every } = lodash;
 
 setup();
 

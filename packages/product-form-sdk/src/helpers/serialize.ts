@@ -1,5 +1,5 @@
-import { JobJson } from '../types/job';
-import { VariationJson, VariationsGroupJson } from '../types/variation';
+import { JobJson } from '../types/job.js';
+import { VariationJson, VariationsGroupJson } from '../types/variation.js';
 
 const FORM_ONLY_VARIATION_KEYS = ['id', 'variationArrayFieldId', 'json', 'groupId'];
 
