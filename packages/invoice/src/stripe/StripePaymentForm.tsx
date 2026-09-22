@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 
 export interface StripePaymentFormProps {
@@ -45,8 +45,8 @@ function PaymentFields({ attempt, check, report, text }: {
   const elements = useElements();
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const [expressAvailable, setExpressAvailable] = useState(false);
+  const confirm = async () => {
     if (!stripe || !elements || busy) return;
     setBusy(true);
     try {
@@ -60,7 +60,18 @@ function PaymentFields({ attempt, check, report, text }: {
       report(error.message || 'Payment could not be confirmed.');
     } finally { setBusy(false); }
   };
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    void confirm();
+  };
   return <form onSubmit={submit}>
+    {attempt.methods.includes('card') && <div style={{ display: expressAvailable ? 'block' : 'none', marginBottom: 12 }}>
+      <ExpressCheckoutElement
+        options={{ paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', paypal: 'never', klarna: 'never', amazonPay: 'never' } }}
+        onReady={({ availablePaymentMethods }) => setExpressAvailable(Boolean(availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay))}
+        onConfirm={() => { void confirm(); }}
+      />
+    </div>}
     <PaymentElement options={{ layout: 'tabs', paymentMethodOrder: ['card', 'wechat_pay', 'alipay'], defaultValues: {} }}
       onReady={() => setReady(true)} onLoadError={(event) => report(event.error.message)} />
     <button type="submit" disabled={!stripe || !ready || busy} style={buttonStyle}>

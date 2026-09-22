@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { StripePaymentForm } from './StripePaymentForm';
 
-const mocks = vi.hoisted(() => ({ confirm: vi.fn(), elementOptions: [] as any[] }));
+const mocks = vi.hoisted(() => ({ confirm: vi.fn(), elementOptions: [] as any[], expressOptions: [] as any[] }));
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: () => Promise.resolve({}) }));
 vi.mock('@stripe/react-stripe-js', () => ({
   Elements: ({ children }: any) => <div>{children}</div>,
@@ -11,6 +11,11 @@ vi.mock('@stripe/react-stripe-js', () => ({
     React.useEffect(() => { onReady(); }, []);
     mocks.elementOptions.push(options);
     return <div>Credit card | WeChat Pay | Alipay</div>;
+  },
+  ExpressCheckoutElement: ({ onReady, onConfirm, options }: any) => {
+    React.useEffect(() => { onReady({ availablePaymentMethods: { applePay: true } }); }, []);
+    mocks.expressOptions.push(options);
+    return <button type="button" onClick={onConfirm}>Apple Pay</button>;
   },
   useStripe: () => ({ confirmPayment: mocks.confirm }),
   useElements: () => ({}),
@@ -28,6 +33,7 @@ beforeEach(() => {
   requests = []; status = pending; postError = false;
   mocks.confirm.mockReset().mockResolvedValue({ paymentIntent: { status: 'succeeded' } });
   mocks.elementOptions.length = 0;
+  mocks.expressOptions.length = 0;
   sessionStorage.clear();
   history.replaceState({}, '', '/invoice/1');
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: any = {}) => {
@@ -56,6 +62,15 @@ describe('shared Stripe payment form', () => {
     expect(post.body.amountMinor).toBeUndefined();
     expect(post.url).toContain('invoice_token=invoice-token');
     expect(mocks.elementOptions.at(-1).paymentMethodOrder).toEqual(['card', 'wechat_pay', 'alipay']);
+    expect(mocks.expressOptions.at(-1).paymentMethods).toMatchObject({ applePay: 'auto', googlePay: 'auto', link: 'never' });
+  });
+  it('confirms a card wallet through the existing attempt and waits for server booking', async () => {
+    const completed = setup();
+    fireEvent.click(await screen.findByText('Continue to payment'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apple Pay' }));
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce());
+    expect(completed).not.toHaveBeenCalled();
+    expect(requests.filter(request => request.method === 'POST')).toHaveLength(1);
   });
 
   it('sends a partial amount as minor units and rejects excess precision', async () => {
