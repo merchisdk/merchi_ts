@@ -100,8 +100,8 @@ function PaymentFields({ attempt, check, report, text, formattedAmount }: {
       <p className="merchi-stripe-payment__label">{text.express}</p>
       <ExpressCheckoutElement
         options={{ layout: { maxColumns: 2, maxRows: 3, overflow: 'never' },
-          paymentMethods: { applePay: attempt.cardWallets?.includes('apple_pay') ? 'auto' : 'never', googlePay: attempt.cardWallets?.includes('google_pay') ? 'auto' : 'never', link: 'auto', paypal: 'never', klarna: 'never', amazonPay: 'never' } }}
-        onReady={({ availablePaymentMethods }) => setExpressAvailable(Boolean(availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay || availablePaymentMethods?.link))}
+          paymentMethods: { applePay: attempt.cardWallets?.includes('apple_pay') ? 'auto' : 'never', googlePay: attempt.cardWallets?.includes('google_pay') ? 'auto' : 'never', link: 'never', paypal: 'never', klarna: 'never', amazonPay: 'never' } }}
+        onReady={({ availablePaymentMethods }) => setExpressAvailable(Boolean(availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay))}
         onConfirm={() => { void confirm(); }}
       />
     </div>}

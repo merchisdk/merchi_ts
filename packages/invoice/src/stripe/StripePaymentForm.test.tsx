@@ -14,10 +14,11 @@ vi.mock('@stripe/react-stripe-js', () => ({
   },
   ExpressCheckoutElement: ({ onReady, onConfirm, options }: any) => {
     const applePay = options.paymentMethods.applePay !== 'never';
-    React.useEffect(() => { onReady({ availablePaymentMethods: { applePay, link: true } }); }, []);
+    const link = options.paymentMethods.link !== 'never';
+    React.useEffect(() => { onReady({ availablePaymentMethods: { applePay, link } }); }, []);
     mocks.expressOptions.push(options);
     return <div>{applePay && <button type="button" onClick={onConfirm}>Apple Pay</button>}
-      <button type="button" onClick={onConfirm}>Link</button></div>;
+      {link && <button type="button" onClick={onConfirm}>Link</button>}</div>;
   },
   useStripe: () => ({ confirmPayment: mocks.confirm }),
   useElements: () => ({}),
@@ -67,7 +68,7 @@ describe('shared Stripe payment form', () => {
     expect(mocks.elementOptions.at(-1).layout).toMatchObject({ type: 'accordion', radios: 'always',
       defaultCollapsed: false, visibleAccordionItemsCount: 3 });
     expect(mocks.elementOptions.at(-1).wallets).toEqual({ link: 'never', applePay: 'never', googlePay: 'never' });
-    expect(mocks.expressOptions.at(-1).paymentMethods).toMatchObject({ applePay: 'auto', googlePay: 'auto', link: 'auto' });
+    expect(mocks.expressOptions.at(-1).paymentMethods).toMatchObject({ applePay: 'auto', googlePay: 'auto', link: 'never' });
     expect(mocks.expressOptions.at(-1).layout).toMatchObject({ overflow: 'never', maxRows: 3 });
     expect(screen.getByText('Choose a payment method')).toBeTruthy();
   });
@@ -85,7 +86,7 @@ describe('shared Stripe payment form', () => {
     setup();
     await screen.findByText('Credit card | WeChat Pay | Alipay');
     expect(screen.queryByRole('button', { name: 'Apple Pay' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Link' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Link' })).toBeNull();
   });
 
   it('shows only methods allowed by this payment attempt', async () => {
