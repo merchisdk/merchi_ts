@@ -97,6 +97,18 @@ describe('shared Stripe payment form', () => {
     expect(mocks.elementOptions.at(-1).layout.visibleAccordionItemsCount).toBe(2);
   });
 
+  it('uses the same wallet form for a cart payment attempt', async () => {
+    render(<StripePaymentForm apiUrl="https://api.example/v6/" resource="cart" resourceId={42}
+      resourceToken="cart-token" onSuccess={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue to payment' }));
+    await screen.findByText('Choose a payment method');
+    const post = requests.find(request => request.method === 'POST')!;
+    expect(post.url).toContain('/payments/stripe/cart/42/attempts/?cart_token=cart-token');
+    expect(requests.some(request => request.url.includes('/options/'))).toBe(false);
+    expect(screen.getByRole('button', { name: 'Pay A$12.34' })).toBeTruthy();
+    expect(mocks.elementOptions.at(-1).paymentMethodOrder).toEqual(['card', 'wechat_pay', 'alipay']);
+  });
+
   it('sends a partial amount as minor units and rejects excess precision', async () => {
     setup();
     fireEvent.click(await screen.findByRole('radio', { name: 'Pay a partial amount' }));
