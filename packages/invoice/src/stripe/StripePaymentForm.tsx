@@ -30,6 +30,7 @@ interface Attempt {
   publishableKey: string;
   stripeClientSecret?: string;
   methods: string[];
+  cardWallets?: string[];
 }
 
 const messages = {
@@ -65,9 +66,9 @@ function PaymentFields({ attempt, check, report, text }: {
     void confirm();
   };
   return <form onSubmit={submit}>
-    {attempt.methods.includes('card') && <div style={{ display: expressAvailable ? 'block' : 'none', marginBottom: 12 }}>
+    {attempt.methods.includes('card') && Boolean(attempt.cardWallets?.length) && <div style={{ display: expressAvailable ? 'block' : 'none', marginBottom: 12 }}>
       <ExpressCheckoutElement
-        options={{ paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', paypal: 'never', klarna: 'never', amazonPay: 'never' } }}
+        options={{ paymentMethods: { applePay: attempt.cardWallets?.includes('apple_pay') ? 'auto' : 'never', googlePay: attempt.cardWallets?.includes('google_pay') ? 'auto' : 'never', link: 'never', paypal: 'never', klarna: 'never', amazonPay: 'never' } }}
         onReady={({ availablePaymentMethods }) => setExpressAvailable(Boolean(availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay))}
         onConfirm={() => { void confirm(); }}
       />

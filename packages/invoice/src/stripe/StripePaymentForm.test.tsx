@@ -23,7 +23,7 @@ vi.mock('@stripe/react-stripe-js', () => ({
 
 const pending = { id: 'attempt-1', status: 'requires_payment_method', recorded: false, amountMinor: 1234,
   amountMajor: '12.34', currency: 'aud', publishableKey: 'pk_test_fixture', stripeClientSecret: 'pi_fixture_secret_test',
-  methods: ['card', 'wechat_pay', 'alipay'] };
+  methods: ['card', 'wechat_pay', 'alipay'], cardWallets: ['apple_pay', 'google_pay'] };
 const options = { amountMinor: 5000, currency: 'aud', minorUnitFactor: 100 };
 let requests: Array<{ url: string; method: string; body?: any }>;
 let status: any;
@@ -71,6 +71,13 @@ describe('shared Stripe payment form', () => {
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce());
     expect(completed).not.toHaveBeenCalled();
     expect(requests.filter(request => request.method === 'POST')).toHaveLength(1);
+  });
+  it('does not show a card wallet when the merchant has not enabled it', async () => {
+    status = { ...pending, cardWallets: [] };
+    history.replaceState({}, '', '/invoice/1?merchi_payment_attempt=attempt-1');
+    setup();
+    await screen.findByText('Credit card | WeChat Pay | Alipay');
+    expect(screen.queryByRole('button', { name: 'Apple Pay' })).toBeNull();
   });
 
   it('sends a partial amount as minor units and rejects excess precision', async () => {
