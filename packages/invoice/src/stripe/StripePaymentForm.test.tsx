@@ -113,7 +113,7 @@ describe('shared Stripe payment form', () => {
     const completed = setup();
     fireEvent.click(await screen.findByText('Continue to payment'));
     await screen.findByText('Credit card | WeChat Pay | Alipay');
-    fireEvent.click(screen.getByRole('button', { name: 'Pay', exact: true } as any));
+    fireEvent.click(screen.getByRole('button', { name: 'Pay A$12.34' }));
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce());
     await waitFor(() => expect(requests.some(request => request.url.includes('/attempt-1/'))).toBe(true));
     expect(completed).not.toHaveBeenCalled();
