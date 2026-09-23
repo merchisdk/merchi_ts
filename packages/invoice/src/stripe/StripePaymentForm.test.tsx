@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { StripePaymentForm } from './StripePaymentForm';
 
-const mocks = vi.hoisted(() => ({ confirm: vi.fn(), elementOptions: [] as any[] }));
+const mocks = vi.hoisted(() => ({ confirm: vi.fn(), elementOptions: [] as any[], expressOptions: [] as any[] }));
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: () => Promise.resolve({}) }));
 vi.mock('@stripe/react-stripe-js', () => ({
   Elements: ({ children }: any) => <div>{children}</div>,
@@ -12,13 +12,21 @@ vi.mock('@stripe/react-stripe-js', () => ({
     mocks.elementOptions.push(options);
     return <div>Credit card | WeChat Pay | Alipay</div>;
   },
+  ExpressCheckoutElement: ({ onReady, onConfirm, options }: any) => {
+    const applePay = options.paymentMethods.applePay !== 'never';
+    const link = options.paymentMethods.link !== 'never';
+    React.useEffect(() => { onReady({ availablePaymentMethods: { applePay, link } }); }, []);
+    mocks.expressOptions.push(options);
+    return <div>{applePay && <button type="button" onClick={onConfirm}>Apple Pay</button>}
+      {link && <button type="button" onClick={onConfirm}>Link</button>}</div>;
+  },
   useStripe: () => ({ confirmPayment: mocks.confirm }),
   useElements: () => ({}),
 }));
 
 const pending = { id: 'attempt-1', status: 'requires_payment_method', recorded: false, amountMinor: 1234,
   amountMajor: '12.34', currency: 'aud', publishableKey: 'pk_test_fixture', stripeClientSecret: 'pi_fixture_secret_test',
-  methods: ['card', 'wechat_pay', 'alipay'] };
+  methods: ['card', 'wechat_pay', 'alipay'], cardWallets: ['apple_pay', 'google_pay'] };
 const options = { amountMinor: 5000, currency: 'aud', minorUnitFactor: 100 };
 let requests: Array<{ url: string; method: string; body?: any }>;
 let status: any;
@@ -28,6 +36,7 @@ beforeEach(() => {
   requests = []; status = pending; postError = false;
   mocks.confirm.mockReset().mockResolvedValue({ paymentIntent: { status: 'succeeded' } });
   mocks.elementOptions.length = 0;
+  mocks.expressOptions.length = 0;
   sessionStorage.clear();
   history.replaceState({}, '', '/invoice/1');
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: any = {}) => {
@@ -56,6 +65,49 @@ describe('shared Stripe payment form', () => {
     expect(post.body.amountMinor).toBeUndefined();
     expect(post.url).toContain('invoice_token=invoice-token');
     expect(mocks.elementOptions.at(-1).paymentMethodOrder).toEqual(['card', 'wechat_pay', 'alipay']);
+    expect(mocks.elementOptions.at(-1).layout).toMatchObject({ type: 'accordion', radios: 'always',
+      defaultCollapsed: false, visibleAccordionItemsCount: 3 });
+    expect(mocks.elementOptions.at(-1).wallets).toEqual({ link: 'never', applePay: 'never', googlePay: 'never' });
+    expect(mocks.expressOptions.at(-1).paymentMethods).toMatchObject({ applePay: 'auto', googlePay: 'auto', link: 'never' });
+    expect(mocks.expressOptions.at(-1).layout).toMatchObject({ overflow: 'never', maxRows: 3 });
+    expect(screen.getByText('Choose a payment method')).toBeTruthy();
+  });
+  it('confirms a card wallet through the existing attempt and waits for server booking', async () => {
+    const completed = setup();
+    fireEvent.click(await screen.findByText('Continue to payment'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apple Pay' }));
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce());
+    expect(completed).not.toHaveBeenCalled();
+    expect(requests.filter(request => request.method === 'POST')).toHaveLength(1);
+  });
+  it('does not show a card wallet when the merchant has not enabled it', async () => {
+    status = { ...pending, cardWallets: [] };
+    history.replaceState({}, '', '/invoice/1?merchi_payment_attempt=attempt-1');
+    setup();
+    await screen.findByText('Credit card | WeChat Pay | Alipay');
+    expect(screen.queryByRole('button', { name: 'Apple Pay' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Link' })).toBeNull();
+  });
+
+  it('shows only methods allowed by this payment attempt', async () => {
+    status = { ...pending, methods: ['card', 'wechat_pay'] };
+    history.replaceState({}, '', '/invoice/1?merchi_payment_attempt=attempt-1');
+    setup();
+    await screen.findByText('Choose a payment method');
+    expect(mocks.elementOptions.at(-1).paymentMethodOrder).toEqual(['card', 'wechat_pay']);
+    expect(mocks.elementOptions.at(-1).layout.visibleAccordionItemsCount).toBe(2);
+  });
+
+  it('uses the same wallet form for a cart payment attempt', async () => {
+    render(<StripePaymentForm apiUrl="https://api.example/v6/" resource="cart" resourceId={42}
+      resourceToken="cart-token" onSuccess={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue to payment' }));
+    await screen.findByText('Choose a payment method');
+    const post = requests.find(request => request.method === 'POST')!;
+    expect(post.url).toContain('/payments/stripe/cart/42/attempts/?cart_token=cart-token');
+    expect(requests.some(request => request.url.includes('/options/'))).toBe(false);
+    expect(screen.getByRole('button', { name: 'Pay A$12.34' })).toBeTruthy();
+    expect(mocks.elementOptions.at(-1).paymentMethodOrder).toEqual(['card', 'wechat_pay', 'alipay']);
   });
 
   it('sends a partial amount as minor units and rejects excess precision', async () => {
@@ -74,7 +126,7 @@ describe('shared Stripe payment form', () => {
     const completed = setup();
     fireEvent.click(await screen.findByText('Continue to payment'));
     await screen.findByText('Credit card | WeChat Pay | Alipay');
-    fireEvent.click(screen.getByRole('button', { name: 'Pay', exact: true } as any));
+    fireEvent.click(screen.getByRole('button', { name: 'Pay A$12.34' }));
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce());
     await waitFor(() => expect(requests.some(request => request.url.includes('/attempt-1/'))).toBe(true));
     expect(completed).not.toHaveBeenCalled();
@@ -110,7 +162,7 @@ describe('shared Stripe payment form', () => {
     fireEvent.click(await screen.findByText('Continue to payment'));
     await screen.findByText('Credit card | WeChat Pay | Alipay');
     status = { ...pending, recorded: true, status: 'succeeded', invoice: { id: 1 } };
-    fireEvent.click(screen.getByText('Cancel payment / change amount'));
+    fireEvent.click(screen.getByText('Change amount'));
     await waitFor(() => expect(completed).toHaveBeenCalledOnce());
   });
 });

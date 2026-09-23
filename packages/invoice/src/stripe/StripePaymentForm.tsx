@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
 
 export interface StripePaymentFormProps {
@@ -30,23 +30,54 @@ interface Attempt {
   publishableKey: string;
   stripeClientSecret?: string;
   methods: string[];
+  cardWallets?: string[];
 }
 
 const messages = {
-  en: { full: 'Pay full balance', partial: 'Pay a partial amount', amount: 'Payment amount', continue: 'Continue to payment', pay: 'Pay', cancel: 'Cancel payment / change amount', back: 'Back', loading: 'Checking payment…', pending: 'Payment is awaiting confirmation. You can safely return later.', retry: 'Check payment status', invalid: 'Enter an amount greater than zero, with no more than two decimal places.', success: 'Payment recorded', secure: 'Secure payment by Stripe', resume: 'Resume payment', methods: 'Credit card · WeChat Pay · Alipay (where available)' },
-  zh: { full: '支付全部余额', partial: '支付部分金额', amount: '支付金额', continue: '继续付款', pay: '支付', cancel: '取消付款 / 修改金额', back: '返回', loading: '正在核对付款…', pending: '正在等待支付确认。你可以稍后返回查看。', retry: '核对支付状态', invalid: '请输入大于零的金额，最多两位小数。', success: '付款已入账', secure: '由 Stripe 安全处理付款', resume: '继续付款', methods: '信用卡 · 微信支付 · 支付宝（视账户可用性）' },
-  ko: { full: '잔액 전액 결제', partial: '일부 금액 결제', amount: '결제 금액', continue: '결제 계속', pay: '결제', cancel: '결제 취소 / 금액 변경', back: '뒤로', loading: '결제 확인 중…', pending: '결제 확인을 기다리고 있습니다. 나중에 돌아와 확인할 수 있습니다.', retry: '결제 상태 확인', invalid: '소수점 두 자리 이하의 양수를 입력하세요.', success: '결제가 반영되었습니다', secure: 'Stripe 보안 결제', resume: '결제 계속', methods: '카드 · WeChat Pay · Alipay (사용 가능한 경우)' },
+  en: { full: 'Pay full balance', partial: 'Pay a partial amount', amount: 'Payment amount', continue: 'Continue to payment', pay: 'Pay', cancel: 'Change amount', back: 'Back', loading: 'Checking payment…', pending: 'Payment is awaiting confirmation. You can safely return later.', retry: 'Check payment status', invalid: 'Enter an amount greater than zero, with no more than two decimal places.', success: 'Payment recorded', secure: 'Secure payment by Stripe', resume: 'Resume payment', methods: 'Choose a payment method', express: 'Express checkout' },
+  zh: { full: '支付全部余额', partial: '支付部分金额', amount: '支付金额', continue: '继续付款', pay: '支付', cancel: '修改金额', back: '返回', loading: '正在核对付款…', pending: '正在等待支付确认。你可以稍后返回查看。', retry: '核对支付状态', invalid: '请输入大于零的金额，最多两位小数。', success: '付款已入账', secure: '由 Stripe 安全处理付款', resume: '继续付款', methods: '选择支付方式', express: '快捷支付' },
+  ko: { full: '잔액 전액 결제', partial: '일부 금액 결제', amount: '결제 금액', continue: '결제 계속', pay: '결제', cancel: '금액 변경', back: '뒤로', loading: '결제 확인 중…', pending: '결제 확인을 기다리고 있습니다. 나중에 돌아와 확인할 수 있습니다.', retry: '결제 상태 확인', invalid: '소수점 두 자리 이하의 양수를 입력하세요.', success: '결제가 반영되었습니다', secure: 'Stripe 보안 결제', resume: '결제 계속', methods: '결제 수단 선택', express: '빠른 결제' },
 };
 
-function PaymentFields({ attempt, check, report, text }: {
-  attempt: Attempt; check: () => Promise<void>; report: (message: string) => void; text: typeof messages.en;
+const checkoutStyles = `
+.merchi-stripe-payment { --pay-primary: var(--primary, #ff4449); --pay-primary-text: var(--primary-foreground, #fff); --pay-surface: var(--card, #fff); --pay-muted: var(--muted, #f6f9fc); --pay-border: var(--border, #e9ecef); --pay-text: var(--foreground, #32325d); --pay-subtle: var(--muted-foreground, #8898aa); }
+.merchi-stripe-payment__amount { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; padding: 16px 18px; border: 1px solid var(--pay-border); border-radius: 12px; background: linear-gradient(120deg, var(--pay-muted), var(--pay-surface)); }
+.merchi-stripe-payment__amount span { color: var(--pay-subtle); font-size: 13px; font-weight: 600; }
+.merchi-stripe-payment__amount strong { color: var(--pay-text); font-size: 24px; line-height: 1.2; white-space: nowrap; }
+.merchi-stripe-payment__label { margin: 0 0 12px; color: var(--pay-text); font-size: 14px; font-weight: 650; }
+.merchi-stripe-payment__choices { display: grid; gap: 10px; margin: 0; padding: 0; border: 0; }
+.merchi-stripe-payment__choice { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 12px 14px; border: 1px solid var(--pay-border); border-radius: 9px; background: var(--pay-surface); cursor: pointer; font-size: 14px; font-weight: 600; transition: border-color .18s, background-color .18s, box-shadow .18s; }
+.merchi-stripe-payment__choice:hover { border-color: var(--pay-primary); }
+.merchi-stripe-payment__choice.is-selected { border-color: var(--pay-primary); background: var(--pay-muted); box-shadow: inset 3px 0 0 var(--pay-primary); }
+.merchi-stripe-payment__choice input { margin: 0; accent-color: var(--pay-primary); }
+.merchi-stripe-payment__partial { padding: 4px 2px 0; }
+.merchi-stripe-payment__partial label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 600; }
+.merchi-stripe-payment__partial input { box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--pay-border); border-radius: 8px; background: var(--pay-surface); color: var(--pay-text); font: inherit; }
+.merchi-stripe-payment__button { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 11px 16px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 14px; font-weight: 650; line-height: 1.3; cursor: pointer; transition: background-color .18s, border-color .18s, box-shadow .18s, transform .18s; }
+.merchi-stripe-payment__button:focus-visible, .merchi-stripe-payment__choice:focus-within, .merchi-stripe-payment__partial input:focus-visible { outline: 3px solid var(--pay-primary); outline-offset: 2px; }
+.merchi-stripe-payment__button:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; transform: none; }
+.merchi-stripe-payment__button--primary { width: 100%; margin-top: 22px; background: var(--pay-primary); color: var(--pay-primary-text); box-shadow: 0 7px 18px -8px var(--pay-primary); font-size: 16px; }
+.merchi-stripe-payment__button--primary:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 10px 22px -8px var(--pay-primary); }
+.merchi-stripe-payment__button--secondary { border-color: var(--pay-border); background: var(--pay-surface); color: var(--pay-text); box-shadow: 0 1px 3px rgba(50, 50, 93, .08); }
+.merchi-stripe-payment__button--secondary:not(:disabled):hover { transform: translateY(-2px); border-color: var(--pay-primary); background: var(--pay-muted); box-shadow: 0 5px 12px rgba(50, 50, 93, .10); }
+.merchi-stripe-payment__button--back { margin-top: 10px; border-color: transparent; background: transparent; color: var(--pay-subtle); }
+.merchi-stripe-payment__button--back:not(:disabled):hover { color: var(--pay-primary); background: var(--pay-muted); }
+.merchi-stripe-payment__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.merchi-stripe-payment__secure { margin: 20px 0 0; color: var(--pay-subtle); font-size: 12px; text-align: center; }
+.merchi-stripe-payment__error { padding: 10px 12px; border-radius: 8px; background: var(--pay-muted); color: var(--destructive, #f5365c); font-size: 13px; }
+@media (max-width: 430px) { .merchi-stripe-payment__actions { grid-template-columns: 1fr; } .merchi-stripe-payment__amount { padding: 14px; } }
+@media (prefers-reduced-motion: reduce) { .merchi-stripe-payment__button, .merchi-stripe-payment__choice { transition: none; } .merchi-stripe-payment__button:not(:disabled):hover { transform: none; } }
+`;
+
+function PaymentFields({ attempt, check, report, text, formattedAmount }: {
+  attempt: Attempt; check: () => Promise<void>; report: (message: string) => void; text: typeof messages.en; formattedAmount: string;
 }) {
   const stripe = useStripe();
   const elements = useElements();
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const [expressAvailable, setExpressAvailable] = useState(false);
+  const confirm = async () => {
     if (!stripe || !elements || busy) return;
     setBusy(true);
     try {
@@ -60,16 +91,34 @@ function PaymentFields({ attempt, check, report, text }: {
       report(error.message || 'Payment could not be confirmed.');
     } finally { setBusy(false); }
   };
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault();
+    void confirm();
+  };
   return <form onSubmit={submit}>
-    <PaymentElement options={{ layout: 'tabs', paymentMethodOrder: ['card', 'wechat_pay', 'alipay'], defaultValues: {} }}
+    {attempt.methods.includes('card') && <div style={{ display: expressAvailable ? 'block' : 'none', marginBottom: 20 }}>
+      <p className="merchi-stripe-payment__label">{text.express}</p>
+      <ExpressCheckoutElement
+        options={{ layout: { maxColumns: 2, maxRows: 3, overflow: 'never' },
+          paymentMethods: { applePay: attempt.cardWallets?.includes('apple_pay') ? 'auto' : 'never', googlePay: attempt.cardWallets?.includes('google_pay') ? 'auto' : 'never', link: 'never', paypal: 'never', klarna: 'never', amazonPay: 'never' } }}
+        onReady={({ availablePaymentMethods }) => setExpressAvailable(Boolean(availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay))}
+        onConfirm={() => { void confirm(); }}
+      />
+    </div>}
+    <p className="merchi-stripe-payment__label">{text.methods}</p>
+    <PaymentElement options={{
+      layout: { type: 'accordion', defaultCollapsed: false, radios: 'always', spacedAccordionItems: true,
+        visibleAccordionItemsCount: attempt.methods.length },
+      paymentMethodOrder: attempt.methods,
+      wallets: { link: 'never', applePay: 'never', googlePay: 'never' },
+      defaultValues: {},
+    }}
       onReady={() => setReady(true)} onLoadError={(event) => report(event.error.message)} />
-    <button type="submit" disabled={!stripe || !ready || busy} style={buttonStyle}>
-      {busy ? text.loading : text.pay}
+    <button type="submit" disabled={!stripe || !ready || busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--primary">
+      {busy ? text.loading : `${text.pay} ${formattedAmount}`}
     </button>
   </form>;
 }
-
-const buttonStyle: React.CSSProperties = { padding: '10px 16px', marginTop: 12, border: '1px solid currentColor', borderRadius: 6, cursor: 'pointer' };
 
 /** Only the backend's recorded payment state invokes onSuccess. */
 export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken, sessionToken,
@@ -182,26 +231,30 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
   const options: StripeElementsOptions = useMemo(() => ({ clientSecret: attempt?.stripeClientSecret,
     appearance: { theme: dark ? 'night' : 'stripe' }, locale: locale === 'zh' ? 'zh' : locale }), [attempt?.stripeClientSecret, dark, locale]);
   const terminal = attempt && ['canceled', 'failed'].includes(attempt.status);
-  return <section aria-label={text.secure} style={{ width: '100%', maxWidth: 560, margin: '0 auto' }}>
-    <p>{text.secure}</p>
-    {paymentOptions && !attempt && <p>{new Intl.NumberFormat(locale, { style: 'currency', currency: paymentOptions.currency }).format(paymentOptions.amountMinor / paymentOptions.minorUnitFactor)}</p>}
-    {error && <p role="alert" style={{ color: '#c53030' }}>{error}</p>}
+  const formattedAmount = attempt ? new Intl.NumberFormat(locale, { style: 'currency', currency: attempt.currency }).format(Number(attempt.amountMajor)) : '';
+  return <section className="merchi-stripe-payment" aria-label={text.secure} style={{ width: '100%', maxWidth: 560, margin: '0 auto' }}>
+    <style>{checkoutStyles}</style>
+    {paymentOptions && !attempt && <div className="merchi-stripe-payment__amount"><span>{text.amount}</span><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: paymentOptions.currency }).format(paymentOptions.amountMinor / paymentOptions.minorUnitFactor)}</strong></div>}
+    {error && <p role="alert" className="merchi-stripe-payment__error">{error}</p>}
     {restoring ? <p role="status">{text.loading}</p> : attempt?.recorded ? <p role="status">{text.success}</p> : !attempt || terminal ? <>
-      {allowPartial && paymentOptions && <fieldset disabled={busy}>
-        <label style={{ display: 'block' }}><input type="radio" name={fieldId} checked={!partial} onChange={() => setPartial(false)} /> {text.full}</label>
-        <label style={{ display: 'block' }}><input type="radio" name={fieldId} checked={partial} onChange={() => setPartial(true)} /> {text.partial}</label>
-        {partial && <div><label htmlFor={fieldId}>{text.amount}</label><input id={fieldId} inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} aria-invalid={!!error} style={{ display: 'block', border: '1px solid', padding: 8 }} /></div>}
+      {allowPartial && paymentOptions && <fieldset disabled={busy} aria-label={`${text.full} / ${text.partial}`} className="merchi-stripe-payment__choices">
+        <label className={`merchi-stripe-payment__choice${partial ? '' : ' is-selected'}`}><input type="radio" name={fieldId} checked={!partial} onChange={() => setPartial(false)} /> {text.full}</label>
+        <label className={`merchi-stripe-payment__choice${partial ? ' is-selected' : ''}`}><input type="radio" name={fieldId} checked={partial} onChange={() => setPartial(true)} /> {text.partial}</label>
+        {partial && <div className="merchi-stripe-payment__partial"><label htmlFor={fieldId}>{text.amount}</label><input id={fieldId} inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} aria-invalid={!!error} /></div>}
       </fieldset>}
-      <button type="button" onClick={() => void start()} disabled={busy} style={buttonStyle}>{busy ? text.loading : text.continue}</button>
+      <button type="button" onClick={() => void start()} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--primary">{busy ? text.loading : text.continue}</button>
     </> : <>
-      <p>{new Intl.NumberFormat(locale, { style: 'currency', currency: attempt.currency }).format(Number(attempt.amountMajor))}</p>
+      <div className="merchi-stripe-payment__amount"><span>{text.amount}</span><strong>{formattedAmount}</strong></div>
       {attempt.stripeClientSecret && stripe && !['processing', 'requires_capture'].includes(attempt.status) && <Elements key={attempt.id} stripe={stripe} options={options}>
-        <PaymentFields attempt={attempt} check={check} report={report} text={text} />
+        <PaymentFields attempt={attempt} check={check} report={report} text={text} formattedAmount={formattedAmount} />
       </Elements>}
       {attempt.status === 'processing' && <p role="status">{text.pending}</p>}
-      <div><button type="button" onClick={() => void check()} disabled={busy} style={buttonStyle}>{text.retry}</button></div>
-      <button type="button" onClick={() => void cancel()} disabled={busy} style={buttonStyle}>{text.cancel}</button>
+      <div className="merchi-stripe-payment__actions">
+        <button type="button" onClick={() => void check()} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--secondary">{text.retry}</button>
+        <button type="button" onClick={() => void cancel()} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--secondary">{text.cancel}</button>
+      </div>
     </>}
-    {onBack && <div><button type="button" onClick={onBack} disabled={busy} style={buttonStyle}>{text.back}</button></div>}
+    {onBack && <button type="button" onClick={onBack} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--back">{text.back}</button>}
+    <p className="merchi-stripe-payment__secure">{text.secure}</p>
   </section>;
 }
