@@ -13,9 +13,11 @@ vi.mock('@stripe/react-stripe-js', () => ({
     return <div>Credit card | WeChat Pay | Alipay</div>;
   },
   ExpressCheckoutElement: ({ onReady, onConfirm, options }: any) => {
-    React.useEffect(() => { onReady({ availablePaymentMethods: { applePay: true } }); }, []);
+    const applePay = options.paymentMethods.applePay !== 'never';
+    React.useEffect(() => { onReady({ availablePaymentMethods: { applePay, link: true } }); }, []);
     mocks.expressOptions.push(options);
-    return <button type="button" onClick={onConfirm}>Apple Pay</button>;
+    return <div>{applePay && <button type="button" onClick={onConfirm}>Apple Pay</button>}
+      <button type="button" onClick={onConfirm}>Link</button></div>;
   },
   useStripe: () => ({ confirmPayment: mocks.confirm }),
   useElements: () => ({}),
@@ -62,7 +64,12 @@ describe('shared Stripe payment form', () => {
     expect(post.body.amountMinor).toBeUndefined();
     expect(post.url).toContain('invoice_token=invoice-token');
     expect(mocks.elementOptions.at(-1).paymentMethodOrder).toEqual(['card', 'wechat_pay', 'alipay']);
-    expect(mocks.expressOptions.at(-1).paymentMethods).toMatchObject({ applePay: 'auto', googlePay: 'auto', link: 'never' });
+    expect(mocks.elementOptions.at(-1).layout).toMatchObject({ type: 'accordion', radios: 'always',
+      defaultCollapsed: false, visibleAccordionItemsCount: 3 });
+    expect(mocks.elementOptions.at(-1).wallets).toEqual({ link: 'never', applePay: 'never', googlePay: 'never' });
+    expect(mocks.expressOptions.at(-1).paymentMethods).toMatchObject({ applePay: 'auto', googlePay: 'auto', link: 'auto' });
+    expect(mocks.expressOptions.at(-1).layout).toMatchObject({ overflow: 'never', maxRows: 3 });
+    expect(screen.getByText('Choose a payment method')).toBeTruthy();
   });
   it('confirms a card wallet through the existing attempt and waits for server booking', async () => {
     const completed = setup();
@@ -78,6 +85,16 @@ describe('shared Stripe payment form', () => {
     setup();
     await screen.findByText('Credit card | WeChat Pay | Alipay');
     expect(screen.queryByRole('button', { name: 'Apple Pay' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Link' })).toBeTruthy();
+  });
+
+  it('shows only methods allowed by this payment attempt', async () => {
+    status = { ...pending, methods: ['card', 'wechat_pay'] };
+    history.replaceState({}, '', '/invoice/1?merchi_payment_attempt=attempt-1');
+    setup();
+    await screen.findByText('Choose a payment method');
+    expect(mocks.elementOptions.at(-1).paymentMethodOrder).toEqual(['card', 'wechat_pay']);
+    expect(mocks.elementOptions.at(-1).layout.visibleAccordionItemsCount).toBe(2);
   });
 
   it('sends a partial amount as minor units and rejects excess precision', async () => {
@@ -132,7 +149,7 @@ describe('shared Stripe payment form', () => {
     fireEvent.click(await screen.findByText('Continue to payment'));
     await screen.findByText('Credit card | WeChat Pay | Alipay');
     status = { ...pending, recorded: true, status: 'succeeded', invoice: { id: 1 } };
-    fireEvent.click(screen.getByText('Cancel payment / change amount'));
+    fireEvent.click(screen.getByText('Change amount'));
     await waitFor(() => expect(completed).toHaveBeenCalledOnce());
   });
 });

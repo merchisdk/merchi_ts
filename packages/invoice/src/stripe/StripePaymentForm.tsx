@@ -34,9 +34,9 @@ interface Attempt {
 }
 
 const messages = {
-  en: { full: 'Pay full balance', partial: 'Pay a partial amount', amount: 'Payment amount', continue: 'Continue to payment', pay: 'Pay', cancel: 'Cancel payment / change amount', back: 'Back', loading: 'Checking payment…', pending: 'Payment is awaiting confirmation. You can safely return later.', retry: 'Check payment status', invalid: 'Enter an amount greater than zero, with no more than two decimal places.', success: 'Payment recorded', secure: 'Secure payment by Stripe', resume: 'Resume payment', methods: 'Credit card · WeChat Pay · Alipay (where available)' },
-  zh: { full: '支付全部余额', partial: '支付部分金额', amount: '支付金额', continue: '继续付款', pay: '支付', cancel: '取消付款 / 修改金额', back: '返回', loading: '正在核对付款…', pending: '正在等待支付确认。你可以稍后返回查看。', retry: '核对支付状态', invalid: '请输入大于零的金额，最多两位小数。', success: '付款已入账', secure: '由 Stripe 安全处理付款', resume: '继续付款', methods: '信用卡 · 微信支付 · 支付宝（视账户可用性）' },
-  ko: { full: '잔액 전액 결제', partial: '일부 금액 결제', amount: '결제 금액', continue: '결제 계속', pay: '결제', cancel: '결제 취소 / 금액 변경', back: '뒤로', loading: '결제 확인 중…', pending: '결제 확인을 기다리고 있습니다. 나중에 돌아와 확인할 수 있습니다.', retry: '결제 상태 확인', invalid: '소수점 두 자리 이하의 양수를 입력하세요.', success: '결제가 반영되었습니다', secure: 'Stripe 보안 결제', resume: '결제 계속', methods: '카드 · WeChat Pay · Alipay (사용 가능한 경우)' },
+  en: { full: 'Pay full balance', partial: 'Pay a partial amount', amount: 'Payment amount', continue: 'Continue to payment', pay: 'Pay', cancel: 'Change amount', back: 'Back', loading: 'Checking payment…', pending: 'Payment is awaiting confirmation. You can safely return later.', retry: 'Check payment status', invalid: 'Enter an amount greater than zero, with no more than two decimal places.', success: 'Payment recorded', secure: 'Secure payment by Stripe', resume: 'Resume payment', methods: 'Choose a payment method', express: 'Express checkout' },
+  zh: { full: '支付全部余额', partial: '支付部分金额', amount: '支付金额', continue: '继续付款', pay: '支付', cancel: '修改金额', back: '返回', loading: '正在核对付款…', pending: '正在等待支付确认。你可以稍后返回查看。', retry: '核对支付状态', invalid: '请输入大于零的金额，最多两位小数。', success: '付款已入账', secure: '由 Stripe 安全处理付款', resume: '继续付款', methods: '选择支付方式', express: '快捷支付' },
+  ko: { full: '잔액 전액 결제', partial: '일부 금액 결제', amount: '결제 금액', continue: '결제 계속', pay: '결제', cancel: '금액 변경', back: '뒤로', loading: '결제 확인 중…', pending: '결제 확인을 기다리고 있습니다. 나중에 돌아와 확인할 수 있습니다.', retry: '결제 상태 확인', invalid: '소수점 두 자리 이하의 양수를 입력하세요.', success: '결제가 반영되었습니다', secure: 'Stripe 보안 결제', resume: '결제 계속', methods: '결제 수단 선택', express: '빠른 결제' },
 };
 
 function PaymentFields({ attempt, check, report, text }: {
@@ -66,22 +66,37 @@ function PaymentFields({ attempt, check, report, text }: {
     void confirm();
   };
   return <form onSubmit={submit}>
-    {attempt.methods.includes('card') && Boolean(attempt.cardWallets?.length) && <div style={{ display: expressAvailable ? 'block' : 'none', marginBottom: 12 }}>
+    {attempt.methods.includes('card') && <div style={{ display: expressAvailable ? 'block' : 'none', marginBottom: 20 }}>
+      <p style={sectionLabelStyle}>{text.express}</p>
       <ExpressCheckoutElement
-        options={{ paymentMethods: { applePay: attempt.cardWallets?.includes('apple_pay') ? 'auto' : 'never', googlePay: attempt.cardWallets?.includes('google_pay') ? 'auto' : 'never', link: 'never', paypal: 'never', klarna: 'never', amazonPay: 'never' } }}
-        onReady={({ availablePaymentMethods }) => setExpressAvailable(Boolean(availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay))}
+        options={{ layout: { maxColumns: 2, maxRows: 3, overflow: 'never' },
+          paymentMethods: { applePay: attempt.cardWallets?.includes('apple_pay') ? 'auto' : 'never', googlePay: attempt.cardWallets?.includes('google_pay') ? 'auto' : 'never', link: 'auto', paypal: 'never', klarna: 'never', amazonPay: 'never' } }}
+        onReady={({ availablePaymentMethods }) => setExpressAvailable(Boolean(availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay || availablePaymentMethods?.link))}
         onConfirm={() => { void confirm(); }}
       />
     </div>}
-    <PaymentElement options={{ layout: 'tabs', paymentMethodOrder: ['card', 'wechat_pay', 'alipay'], defaultValues: {} }}
+    <p style={sectionLabelStyle}>{text.methods}</p>
+    <PaymentElement options={{
+      layout: { type: 'accordion', defaultCollapsed: false, radios: 'always', spacedAccordionItems: true,
+        visibleAccordionItemsCount: attempt.methods.length },
+      paymentMethodOrder: attempt.methods,
+      wallets: { link: 'never', applePay: 'never', googlePay: 'never' },
+      defaultValues: {},
+    }}
       onReady={() => setReady(true)} onLoadError={(event) => report(event.error.message)} />
-    <button type="submit" disabled={!stripe || !ready || busy} style={buttonStyle}>
+    <button type="submit" disabled={!stripe || !ready || busy} style={primaryButtonStyle}>
       {busy ? text.loading : text.pay}
     </button>
   </form>;
 }
 
-const buttonStyle: React.CSSProperties = { padding: '10px 16px', marginTop: 12, border: '1px solid currentColor', borderRadius: 6, cursor: 'pointer' };
+const sectionLabelStyle: React.CSSProperties = { margin: '0 0 12px', fontSize: 14, fontWeight: 600 };
+const primaryButtonStyle: React.CSSProperties = { display: 'block', width: '100%', marginTop: 24, padding: '12px 18px',
+  border: 0, borderRadius: 8, background: '#30375f', color: '#fff', fontSize: 16, fontWeight: 600, cursor: 'pointer' };
+const secondaryButtonStyle: React.CSSProperties = { padding: '8px 0', border: 0, background: 'none',
+  color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3, cursor: 'pointer' };
+const amountStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+  gap: 12, padding: '14px 0', marginBottom: 20, borderBottom: '1px solid currentColor' };
 
 /** Only the backend's recorded payment state invokes onSuccess. */
 export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken, sessionToken,
@@ -195,8 +210,7 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
     appearance: { theme: dark ? 'night' : 'stripe' }, locale: locale === 'zh' ? 'zh' : locale }), [attempt?.stripeClientSecret, dark, locale]);
   const terminal = attempt && ['canceled', 'failed'].includes(attempt.status);
   return <section aria-label={text.secure} style={{ width: '100%', maxWidth: 560, margin: '0 auto' }}>
-    <p>{text.secure}</p>
-    {paymentOptions && !attempt && <p>{new Intl.NumberFormat(locale, { style: 'currency', currency: paymentOptions.currency }).format(paymentOptions.amountMinor / paymentOptions.minorUnitFactor)}</p>}
+    {paymentOptions && !attempt && <div style={amountStyle}><span>{text.amount}</span><strong style={{ fontSize: 22 }}>{new Intl.NumberFormat(locale, { style: 'currency', currency: paymentOptions.currency }).format(paymentOptions.amountMinor / paymentOptions.minorUnitFactor)}</strong></div>}
     {error && <p role="alert" style={{ color: '#c53030' }}>{error}</p>}
     {restoring ? <p role="status">{text.loading}</p> : attempt?.recorded ? <p role="status">{text.success}</p> : !attempt || terminal ? <>
       {allowPartial && paymentOptions && <fieldset disabled={busy}>
@@ -204,16 +218,19 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
         <label style={{ display: 'block' }}><input type="radio" name={fieldId} checked={partial} onChange={() => setPartial(true)} /> {text.partial}</label>
         {partial && <div><label htmlFor={fieldId}>{text.amount}</label><input id={fieldId} inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} aria-invalid={!!error} style={{ display: 'block', border: '1px solid', padding: 8 }} /></div>}
       </fieldset>}
-      <button type="button" onClick={() => void start()} disabled={busy} style={buttonStyle}>{busy ? text.loading : text.continue}</button>
+      <button type="button" onClick={() => void start()} disabled={busy} style={primaryButtonStyle}>{busy ? text.loading : text.continue}</button>
     </> : <>
-      <p>{new Intl.NumberFormat(locale, { style: 'currency', currency: attempt.currency }).format(Number(attempt.amountMajor))}</p>
+      <div style={amountStyle}><span>{text.amount}</span><strong style={{ fontSize: 22 }}>{new Intl.NumberFormat(locale, { style: 'currency', currency: attempt.currency }).format(Number(attempt.amountMajor))}</strong></div>
       {attempt.stripeClientSecret && stripe && !['processing', 'requires_capture'].includes(attempt.status) && <Elements key={attempt.id} stripe={stripe} options={options}>
         <PaymentFields attempt={attempt} check={check} report={report} text={text} />
       </Elements>}
       {attempt.status === 'processing' && <p role="status">{text.pending}</p>}
-      <div><button type="button" onClick={() => void check()} disabled={busy} style={buttonStyle}>{text.retry}</button></div>
-      <button type="button" onClick={() => void cancel()} disabled={busy} style={buttonStyle}>{text.cancel}</button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 24px', marginTop: 12 }}>
+        <button type="button" onClick={() => void check()} disabled={busy} style={secondaryButtonStyle}>{text.retry}</button>
+        <button type="button" onClick={() => void cancel()} disabled={busy} style={secondaryButtonStyle}>{text.cancel}</button>
+      </div>
     </>}
-    {onBack && <div><button type="button" onClick={onBack} disabled={busy} style={buttonStyle}>{text.back}</button></div>}
+    {onBack && <button type="button" onClick={onBack} disabled={busy} style={secondaryButtonStyle}>{text.back}</button>}
+    <p style={{ margin: '20px 0 0', fontSize: 12, opacity: 0.7 }}>{text.secure}</p>
   </section>;
 }
