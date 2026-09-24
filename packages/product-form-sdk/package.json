@@ -1,6 +1,6 @@
 {
   "name": "@merchi/product-form-sdk",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "Contract SDK for AI-built Merchi custom product forms.",
   "repository": {
     "type": "git",

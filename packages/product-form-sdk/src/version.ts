@@ -1,6 +1,6 @@
 /** Auto-synced from package.json — do not edit; run `npm run build`. */
 export function getProductFormSdkVersion(): string {
-  return '1.0.12';
+  return '1.0.13';
 }
 
 /** @deprecated Prefer getProductFormSdkVersion(); kept for gate/export compatibility. */
