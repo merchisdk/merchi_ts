@@ -7,6 +7,7 @@ import { Variation } from './variation.js';
 import { VariationsGroup } from './variations_group.js';
 import { DomainTag } from './domain_tag.js';
 import { Draft } from './draft.js';
+import { MerchiFile } from './file.js';
 
 export class CartItem extends Entity {
   protected static resourceName = 'cart_items';
@@ -60,6 +61,9 @@ export class CartItem extends Entity {
 
   @CartItem.property({arrayType: 'Draft'})
   public ownDrafts?: Draft[];
+
+  @CartItem.property({arrayType: 'MerchiFile'})
+  public clientFiles?: MerchiFile[];
 
   public requiresShipment = () => {
     if (this.product === undefined) {
