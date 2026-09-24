@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import { MerchiCheckoutTab } from '../types';
-import { tabsInit, tabIdConfirm } from '../tabs_utils';
+import { tabsInit, tabIdConfirm, withProductCheckoutFields } from '../tabs_utils';
 import { Merchi } from '@merchi/sdk';
 import {
   buildCheckoutSession,
@@ -320,7 +320,10 @@ function getInitialTabsState(
   }
 
   const session = loadCheckoutSession(product);
-  const mergedJob = mergeJobWithCheckoutSession(job, session);
+  const mergedJob = withProductCheckoutFields(
+    mergeJobWithCheckoutSession(job, session),
+    product
+  );
   const restoredInvoice = invoice?.id ? invoice : session?.invoice;
   const tabIndex = getSafeRestoredTabIndex(
     mergedJob,
@@ -349,7 +352,7 @@ export const MerchiCheckoutProvider = ({
   classNameMerchiCheckoutButtonDownloadInvoice = 'btn btn-lg btn-primary',
   classNameMerchiCheckoutButtonCancelOrder = 'btn btn-lg btn-secondary',
   classNameMerchiCheckoutConfirmInfoPanel = 'd-flex align-items-center',
-  classNameMerchiCheckoutFooterActionsContainer = 'd-flex justify-content-between mt-4',
+  classNameMerchiCheckoutFooterActionsContainer = 'merchi-checkout-actions d-flex justify-content-between',
   classNameMerchiCheckoutFormCheckbox = 'form-check-input',
   classNameMerchiCheckoutFormGroup = 'form-group',
   classNameMerchiCheckoutFormGroupCheckbox = 'form-check',
@@ -449,7 +452,7 @@ export const MerchiCheckoutProvider = ({
   }
   function initTabsFromJob(jobForTabs: any, tabIndex = 0) {
     const { tabs: nextTabs, activeTabIndex: nextIndex } = buildTabsState(
-      jobForTabs,
+      withProductCheckoutFields(jobForTabs, product),
       { includeDomainSignup, isBuyRequest, tabIndex }
     );
     setTabs(nextTabs);
@@ -505,7 +508,10 @@ export const MerchiCheckoutProvider = ({
     if (!product?.id) return;
 
     const session = loadCheckoutSession(product);
-    const mergedJob = mergeJobWithCheckoutSession(job, session);
+    const mergedJob = withProductCheckoutFields(
+      mergeJobWithCheckoutSession(job, session),
+      product
+    );
 
     if (checkoutSessionChanged(job, mergedJob)) {
       setJob(mergedJob);
@@ -678,7 +684,7 @@ export const MerchiCheckoutProvider = ({
           isBuyRequest,
           isOpen,
           isProductEmbedForm,
-          job,
+          job: withProductCheckoutFields(job, product),
           loading,
           merchi,
           messageSuccessBuyRequest,

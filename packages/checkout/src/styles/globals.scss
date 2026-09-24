@@ -2006,13 +2006,47 @@ input:autofill {
   }
 }
 
+.merchi-checkout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .merchi-checkout-header {
   position: relative;
   display: flex;
   align-items: flex-start;
+  flex-shrink: 0;
   gap: 1rem;
   margin-bottom: 1rem;
-  padding-right: 2.75rem;
+}
+
+.merchi-checkout .tab-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.merchi-checkout .tab-pane.active {
+  display: flex !important;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.merchi-checkout-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 0.875rem;
+  padding-bottom: 0.875rem;
+  background: #fff;
+  border-top: 1px solid #e4e4e7;
 }
 
 .merchi-checkout-close {
