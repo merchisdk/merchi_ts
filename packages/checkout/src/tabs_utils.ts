@@ -122,6 +122,34 @@ interface TabsInit {
   job: any;
 }
 
+const checkoutProductFields = [
+  'needsDrafting',
+  'needsProduction',
+  'needsShipping',
+  'productType',
+] as const;
+
+/** Quote jobs often carry product: { id } only. Copy the flags that decide the address step from the checkout product. */
+export function withProductCheckoutFields(job: any, product: any) {
+  if (!job) return job;
+  const jobProduct =
+    job.product && typeof job.product === 'object' ? job.product : {};
+  const source = product && typeof product === 'object' ? product : {};
+  const nextProduct: any = { ...jobProduct };
+  if (nextProduct.id == null && source.id != null) {
+    nextProduct.id = source.id;
+  }
+  let changed = nextProduct.id !== jobProduct.id;
+  for (const key of checkoutProductFields) {
+    if (nextProduct[key] == null && source[key] != null) {
+      nextProduct[key] = source[key];
+      changed = true;
+    }
+  }
+  if (!changed) return job;
+  return { ...job, product: nextProduct };
+}
+
 export function tabsInit(settings: TabsInit) {
   const {
     includeDomainSignup,
