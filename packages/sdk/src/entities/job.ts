@@ -66,7 +66,7 @@ export class Job extends Entity {
   @Job.property({type: Number})
   public productionStatus?: number | null;
 
-  @Job.property()
+  @Job.property({type: String})
   public productionQuotingSpec?: string | null;
 
   @Job.property()
