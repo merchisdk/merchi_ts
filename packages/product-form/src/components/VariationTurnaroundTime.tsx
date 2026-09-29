@@ -6,26 +6,36 @@ import IconCheckedOrNoStock from './icons/IconCheckedOrNoStock';
 import VariationError from './VariationError';
 import VariationLabel from './VariationLabel';
 import { useMerchiFormContext } from '../context/MerchiProductFormProvider';
-
+import * as moment from 'moment-timezone';
+import {
+  DEFAULT_TURNAROUND_TIMEZONE,
+  calculateDeadline,
+} from '../utils/calculateDeadline';
 
 /**
  * Formats a date for display
  */
 function formatDate(date: Date): { dayName: string; dayNumber: string; month: string } {
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
-                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  
+  const deadline = moment.tz(date, DEFAULT_TURNAROUND_TIMEZONE);
   return {
-    dayName: dayNames[date.getDay()],
-    dayNumber: String(date.getDate()),
-    month: monthNames[date.getMonth()],
+    dayName: deadline.format('ddd'),
+    dayNumber: deadline.format('D'),
+    month: deadline.format('MMM'),
   };
+}
+
+function useNow(): Date {
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    setNow(new Date());
+  }, []);
+  return now;
 }
 
 interface TurnaroundOptionProps {
   disabled?: boolean;
   name: string;
+  now: Date;
   onChange?: () => void;
   option: any;
   variation: any;
@@ -36,6 +46,7 @@ interface TurnaroundOptionProps {
 function TurnaroundOption({
   disabled,
   name,
+  now,
   onChange,
   option,
   variation,
@@ -45,7 +56,7 @@ function TurnaroundOption({
   const { hookForm, getQuote } = useMerchiFormContext();
   const { register, watch } = hookForm;
   const { selectedOptions = [] } = variation;
-  const { available = true, isVisible = true, userDeadline, value, optionId } = option;
+  const { available = true, isVisible = true, value, optionId } = option;
 
   const selectedValues = selectedOptions.map((o: any) => o.optionId);
   const optionCost = variationFieldOptionCostDetail(option);
@@ -56,9 +67,12 @@ function TurnaroundOption({
   const isActive = watchedValue ? String(watchedValue) === String(optionId) : isSelected;
   
   // Calculate the turnaround date based on days value
-  const days = parseInt(value, 10) || 0;
-  
-  const formattedDate = userDeadline ? formatDate(new Date(userDeadline * 1000)) : null;
+  const parsedDays = parseInt(value, 10);
+  const days = Number.isNaN(parsedDays) ? 0 : parsedDays;
+  const deadlineDate = Number.isNaN(parsedDays)
+    ? null
+    : calculateDeadline(days, considerBusinessHours, now);
+  const formattedDate = deadlineDate ? formatDate(deadlineDate) : null;
   const isDisabled = disabled || !available || !isVisible;
   const outOfStock = !isVisible ? ' - disabled' : !available ? ' - insufficient stock' : '';
   
@@ -128,6 +142,7 @@ function VariationTurnaroundTime({
 }: Props) {
   const { selectableOptions = [], variationField = {} } = variation;
   const { considerBusinessHours = false, shippingTimeIncluded = false } = variationField;
+  const now = useNow();
 
   return (
     <div className="merchi-turnaround-time-container">
@@ -142,6 +157,7 @@ function VariationTurnaroundTime({
             key={`${option.optionId}-${name}-turnaround`}
             disabled={disabled}
             name={name}
+            now={now}
             onChange={onChange}
             option={option}
             variation={variation}
