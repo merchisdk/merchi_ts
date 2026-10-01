@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { debounce } from 'lodash';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMerchiCheckboutContext } from '../MerchiCheckoutProvider';
 import InputsAddress from './InputsAddress';
@@ -12,6 +12,7 @@ import {
   getSavedShippingAddress,
   loadCheckoutSession,
 } from '../../checkoutSession';
+import { chooseShipmentOption } from '../../shipmentOptions';
 
 interface PropsAddress {
   defaultAddress?: any;
@@ -62,32 +63,50 @@ function FormAddresses({ formId }: Props) {
     handleSubmit,
     reset,
   } = hookForm;
-  const debouncedFetchShippingOptions = debounce(async (address: any) => {
-    onSelectShipment(null);
-    setError(null);
-    setLoading(true);
-    try {
-      const { product = {}, quantity = 0 } = job;
-      const addressEnt = new merchi.Address()
-        .fromJson(address, {makeDirty: true})
-        .toFormData({_prefix: 'address-0'});
-      const query: any[] = [['quantity', quantity.toString()]];
-      const r = await merchi.authenticatedFetch(
-        `/products/${(product as any).id}/shipment_options/`,
-        {body: addressEnt, method: 'POST', query}
-      );
-      const shipments = r.shipments ?? [];
-      setShipmentOptions(shipments);
-      const firstShipment = shipments[0]?.shipment;
-      if (firstShipment) {
-        setJob((prev: any) => ({ ...prev, shipment: firstShipment }));
+  // Back closes the checkout modal and unmounts this form. A quote request
+  // that is still running must not then replace the customer's method with
+  // the cheapest default (usually pickup).
+  const shipmentFetchGeneration = useRef(0);
+  const checkoutRef = useRef({ job, merchi, setJob });
+  checkoutRef.current = { job, merchi, setJob };
+  const debouncedFetchShippingOptions = useRef(
+    debounce(async (address: any, generation: number) => {
+      const { job: currentJob, merchi: currentMerchi, setJob: setCurrentJob } =
+        checkoutRef.current;
+      setError(null);
+      setLoading(true);
+      try {
+        const { product = {}, quantity = 0 } = currentJob;
+        const addressEnt = new currentMerchi.Address()
+          .fromJson(address, {makeDirty: true})
+          .toFormData({_prefix: 'address-0'});
+        const query: any[] = [['quantity', quantity.toString()]];
+        const r = await currentMerchi.authenticatedFetch(
+          `/products/${(product as any).id}/shipment_options/`,
+          {body: addressEnt, method: 'POST', query}
+        );
+        if (generation !== shipmentFetchGeneration.current) return;
+        const shipments = r.shipments ?? [];
+        setShipmentOptions(shipments);
+        setCurrentJob((prev: any) => ({
+          ...prev,
+          shipment: chooseShipmentOption(shipments, prev?.shipment),
+        }));
+      } catch (e: any) {
+        if (generation !== shipmentFetchGeneration.current) return;
+        setError(e);
+      } finally {
+        if (generation === shipmentFetchGeneration.current) setLoading(false);
       }
-    } catch (e: any) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
-  }, 1000);
+    }, 1000)
+  ).current;
+
+  useEffect(() => {
+    return () => {
+      shipmentFetchGeneration.current += 1;
+      debouncedFetchShippingOptions.cancel();
+    };
+  }, [debouncedFetchShippingOptions]);
 
   useEffect(() => {
     if (!job.shipping?.lineOne) return;
@@ -99,7 +118,8 @@ function FormAddresses({ formId }: Props) {
     setBillingAddressSameAsShippingAddress(
       addressesMatch(job.shipping, job.billing)
     );
-    debouncedFetchShippingOptions(job.shipping);
+    const generation = shipmentFetchGeneration.current;
+    debouncedFetchShippingOptions(job.shipping, generation);
   }, [job.shipping?.lineOne]);
 
   function persistAddressToJob(name: string, address: any) {
@@ -127,7 +147,7 @@ function FormAddresses({ formId }: Props) {
     reset(values);
     persistAddressToJob(name, address);
     if (fetch) {
-      debouncedFetchShippingOptions(address);
+      debouncedFetchShippingOptions(address, shipmentFetchGeneration.current);
     }
   }
   function onSelectShipment(shipment: any) {
