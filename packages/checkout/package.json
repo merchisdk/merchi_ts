@@ -1,6 +1,6 @@
 {
   "name": "@merchi/checkout",
-  "version": "1.3.17",
+  "version": "1.3.18",
   "description": "Merchi's custom checkout step form",
   "main": "lib/index.js",
   "module": "lib/index.js",
