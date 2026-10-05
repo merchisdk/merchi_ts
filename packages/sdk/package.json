@@ -1,6 +1,6 @@
 {
   "name": "@merchi/sdk",
-  "version": "1.42.8",
+  "version": "1.42.9",
   "main": "dist/index.js",
   "type": "module",
   "repository": {
