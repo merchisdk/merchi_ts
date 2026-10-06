@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { faCheckCircle, faExclamationTriangle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import { Alert, Tab } from './types';
 import {
@@ -10,7 +10,7 @@ import {
 import { cartEmbed } from './utilities/helpers';
 import { initTabs, tabIdItems, tabShipment } from './utilities/tabs';
 import { Merchi } from '@merchi/sdk';
-import { getCartCookie, getCartCookieToken, setCartCookie } from './utilities/cookie';
+import { getCartCookie, getCartCookieToken, readHandoffCart, setCartCookie } from './utilities/cookie';
 import { makeAddress, sanitizeAddressFields } from './utilities/address';
 import { appendStyleSheetText } from './utilities/helpers';
 import { makeJob } from './utilities/job';
@@ -593,6 +593,7 @@ const CartProvider = ({
 
   const [fetchingCart, setFetchingCart] = useState(false);
   const [cartSettingsInvalid, setCartSettingsInvalid] = useState(false);
+  const appliedHandoffCart = useRef<string | null>(null);
 
   async function attachSavedClientIfNeeded(cartJson: any) {
     if (cartJson?.client?.id) {
@@ -699,7 +700,20 @@ const CartProvider = ({
     }
   }
 
+  // A checkout link can name the cart. Remember it once, then keep using the cookie
+  // so a later refetch does not put that cart back after the shopper replaced it.
+  async function adoptHandoffCart() {
+    if (typeof window === 'undefined' || !domainId) return;
+    const raw = new URLSearchParams(window.location.search).get('cart');
+    if (!raw || raw === appliedHandoffCart.current) return;
+    const handoff = readHandoffCart(window.location.search);
+    if (!handoff) return;
+    appliedHandoffCart.current = raw;
+    await setCartCookie(Number(domainId), { id: handoff[0], token: handoff[1] });
+  }
+
   async function actionGetMerchiCart() {
+    await adoptHandoffCart();
     const cartIdAndToken = await getCartCookie((domainId as number));
     if (cartIdAndToken) {
       getCart(cartIdAndToken);
