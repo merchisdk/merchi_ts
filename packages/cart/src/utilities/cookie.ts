@@ -1,6 +1,16 @@
 import { isBrowser } from "browser-or-node";
 import { cartCookieName, readTestCheckoutFlag } from "./test_checkout";
 
+// id,token from a checkout link. The token is url-safe and has no padding.
+const HANDOFF_CART = /^\d+,[A-Za-z0-9_-]{8,}$/;
+
+export function readHandoffCart(search: string): string[] | null {
+  const cart = new URLSearchParams(search).get("cart");
+  if (!cart || !HANDOFF_CART.test(cart)) return null;
+  const comma = cart.indexOf(",");
+  return [cart.slice(0, comma), cart.slice(comma + 1)];
+}
+
 export async function getCookie(name: string, defaultValue: any) {
   if (!isBrowser) {
     return '';
