@@ -133,6 +133,8 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
   const [paymentOptions, setPaymentOptions] = useState<{ minorUnitFactor: number; currency: string; amountMinor: number } | null>(null);
   const requestKey = useRef<string | null>(null);
   const completed = useRef(false);
+  const opened = useRef(false);
+  const [resumeManually, setResumeManually] = useState(false);
   const callback = useRef({ onSuccess, onError });
   callback.current = { onSuccess, onError };
   const fieldId = useId();
@@ -172,6 +174,8 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
     let active = true;
     completed.current = false;
     requestKey.current = null;
+    opened.current = false;
+    setResumeManually(false);
     setAttempt(null);
     setRestoring(true);
     const url = new URL(window.location.href);
@@ -222,11 +226,19 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
     try {
       const result = await request(`${attempt.id}/`, 'DELETE');
       if (result.recorded) accept(result);
-      else if (result.status === 'canceled') { setAttempt(null); requestKey.current = null; remember(); setError(''); }
+      else if (result.status === 'canceled') { setAttempt(null); requestKey.current = null; remember(); setError(''); setResumeManually(true); }
       else report(text.pending);
     } catch (error: any) { report(error.message); }
     finally { setBusy(false); }
   };
+  const startPayment = useRef(start);
+  startPayment.current = start;
+  useEffect(() => {
+    // A fixed cart total has nothing to choose, so open the card form immediately.
+    if (allowPartial || restoring || attempt || resumeManually || opened.current) return;
+    opened.current = true;
+    void startPayment.current();
+  }, [allowPartial, restoring, attempt, resumeManually]);
   const stripe = useMemo(() => attempt?.publishableKey ? loadStripe(attempt.publishableKey) : null, [attempt?.publishableKey]);
   const options: StripeElementsOptions = useMemo(() => ({ clientSecret: attempt?.stripeClientSecret,
     appearance: { theme: dark ? 'night' : 'stripe' }, locale: locale === 'zh' ? 'zh' : locale }), [attempt?.stripeClientSecret, dark, locale]);
@@ -236,14 +248,14 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
     <style>{checkoutStyles}</style>
     {paymentOptions && !attempt && <div className="merchi-stripe-payment__amount"><span>{text.amount}</span><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: paymentOptions.currency }).format(paymentOptions.amountMinor / paymentOptions.minorUnitFactor)}</strong></div>}
     {error && <p role="alert" className="merchi-stripe-payment__error">{error}</p>}
-    {restoring ? <p role="status">{text.loading}</p> : attempt?.recorded ? <p role="status">{text.success}</p> : !attempt || terminal ? <>
+    {restoring ? <p role="status">{text.loading}</p> : attempt?.recorded ? <p role="status">{text.success}</p> : !attempt || terminal ? (allowPartial || error || resumeManually || terminal ? <>
       {allowPartial && paymentOptions && <fieldset disabled={busy} aria-label={`${text.full} / ${text.partial}`} className="merchi-stripe-payment__choices">
         <label className={`merchi-stripe-payment__choice${partial ? '' : ' is-selected'}`}><input type="radio" name={fieldId} checked={!partial} onChange={() => setPartial(false)} /> {text.full}</label>
         <label className={`merchi-stripe-payment__choice${partial ? ' is-selected' : ''}`}><input type="radio" name={fieldId} checked={partial} onChange={() => setPartial(true)} /> {text.partial}</label>
         {partial && <div className="merchi-stripe-payment__partial"><label htmlFor={fieldId}>{text.amount}</label><input id={fieldId} inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} aria-invalid={!!error} /></div>}
       </fieldset>}
       <button type="button" onClick={() => void start()} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--primary">{busy ? text.loading : text.continue}</button>
-    </> : <>
+    </> : <p role="status">{text.loading}</p>) : <>
       <div className="merchi-stripe-payment__amount"><span>{text.amount}</span><strong>{formattedAmount}</strong></div>
       {attempt.stripeClientSecret && stripe && !['processing', 'requires_capture'].includes(attempt.status) && <Elements key={attempt.id} stripe={stripe} options={options}>
         <PaymentFields attempt={attempt} check={check} report={report} text={text} formattedAmount={formattedAmount} />
