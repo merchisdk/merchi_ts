@@ -261,10 +261,10 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
         <PaymentFields attempt={attempt} check={check} report={report} text={text} formattedAmount={formattedAmount} />
       </Elements>}
       {attempt.status === 'processing' && <p role="status">{text.pending}</p>}
-      <div className="merchi-stripe-payment__actions">
+      {allowPartial && <div className="merchi-stripe-payment__actions">
         <button type="button" onClick={() => void check()} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--secondary">{text.retry}</button>
         <button type="button" onClick={() => void cancel()} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--secondary">{text.cancel}</button>
-      </div>
+      </div>}
     </>}
     {onBack && <button type="button" onClick={onBack} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--back">{text.back}</button>}
     <p className="merchi-stripe-payment__secure">{text.secure}</p>

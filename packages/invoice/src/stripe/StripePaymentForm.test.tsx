@@ -108,6 +108,8 @@ describe('shared Stripe payment form', () => {
     expect(requests.filter(request => request.method === 'POST')).toHaveLength(1);
     expect(requests.some(request => request.url.includes('/options/'))).toBe(false);
     expect(screen.getByRole('button', { name: 'Pay A$12.34' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Check payment status' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Change amount' })).toBeNull();
     expect(mocks.elementOptions.at(-1).paymentMethodOrder).toEqual(['card', 'wechat_pay', 'alipay']);
     expect(mocks.elementOptions.at(-1).wallets).toEqual({ link: 'never', applePay: 'never', googlePay: 'never' });
   });
