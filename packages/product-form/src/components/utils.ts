@@ -1,4 +1,4 @@
-import { Merchi } from '@merchi/sdk';
+import { Merchi, VariationField } from '@merchi/sdk';
 import { formatCurrency } from '../utils/currency';
 import { ProductType, FieldType } from '../utils/types';
 export { cleanFormVariationJson } from '../utils/cleanFormVariationJson';
@@ -147,6 +147,17 @@ export function allowedFileTypes(variationField: any): string {
   return allowedTypes.join(',');
 }
 
+const VariationFieldClass = VariationField as unknown as {
+  property: (options?: { type?: unknown }) => (target: object, key: string) => void;
+  prototype: object;
+};
+// Published @merchi/sdk drops unknown keys, which makes a half-width field
+// render full width after the form rebuilds a variation.
+VariationFieldClass.property({ type: Number })(
+  VariationFieldClass.prototype,
+  'layoutSpan',
+);
+
 const merchi = new Merchi();
 
 function ensureVariationOptionFlags(variation: any) {
@@ -162,6 +173,13 @@ export function buildEmptyVariationFromField(field: any) {
   const fieldEnt = new merchi.VariationField();
   fieldEnt.fromJson({ ...field }, { makeDirty: false });
   const variationJson = fieldEnt.buildEmptyVariation().toJson();
+  if (
+    variationJson?.variationField &&
+    field?.layoutSpan != null &&
+    variationJson.variationField.layoutSpan == null
+  ) {
+    variationJson.variationField.layoutSpan = field.layoutSpan;
+  }
   ensureVariationOptionFlags(variationJson);
   return variationJson;
 }

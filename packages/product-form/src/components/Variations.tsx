@@ -30,6 +30,19 @@ function getSelectedOptionIds(variations: any[]): Set<number> {
   return ids;
 }
 
+function layoutSpanForVariation(variation: any, product: any): unknown {
+  const direct = variation?.variationField?.layoutSpan;
+  if (direct != null && direct !== '') return direct;
+  const id = Number(variation?.variationField?.id);
+  if (!Number.isFinite(id)) return direct;
+  const fields = [
+    ...(product?.independentVariationFields || []),
+    ...(product?.groupVariationFields || []),
+  ];
+  const field = fields.find((item: any) => Number(item?.id) === id);
+  return field?.layoutSpan ?? direct;
+}
+
 function isDynamicVariationVisible(
   variation: any,
   selectedOptionIds: Set<number>,
@@ -97,7 +110,7 @@ function Variations({
         }
         const hideSelection = shouldHideSingleOptionSelection(variation);
         const span = variationLayoutSpan(
-          variation?.variationField?.layoutSpan,
+          layoutSpanForVariation(variation, product),
           columnCount,
         );
         return (
