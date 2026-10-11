@@ -30,9 +30,18 @@ function getSelectedOptionIds(variations: any[]): Set<number> {
   return ids;
 }
 
-function layoutSpanForVariation(variation: any, product: any): unknown {
-  const direct = variation?.variationField?.layoutSpan;
-  if (direct != null && direct !== '') return direct;
+function asLayoutSpan(value: unknown): number | null | undefined {
+  if (value == null || value === '') return undefined;
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function layoutSpanForVariation(
+  variation: any,
+  product: any,
+): number | null | undefined {
+  const direct = asLayoutSpan(variation?.variationField?.layoutSpan);
+  if (direct != null) return direct;
   const id = Number(variation?.variationField?.id);
   if (!Number.isFinite(id)) return direct;
   const fields = [
@@ -40,7 +49,7 @@ function layoutSpanForVariation(variation: any, product: any): unknown {
     ...(product?.groupVariationFields || []),
   ];
   const field = fields.find((item: any) => Number(item?.id) === id);
-  return field?.layoutSpan ?? direct;
+  return asLayoutSpan(field?.layoutSpan);
 }
 
 function isDynamicVariationVisible(
