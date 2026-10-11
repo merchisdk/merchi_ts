@@ -1,6 +1,11 @@
 /* Screen approximations from the MIT Pantoner library. Not official Pantone values. */
 export interface PantoneColour { code: string; hex: string; book: 'coated' | 'uncoated' | 'metallic' | 'pastel'; }
-export const PANTONE_COLOURS: PantoneColour[] = [
+
+// A single PantoneColour[] annotation unions every fresh object literal.
+// Subtype reduction of that union fails with TS2590 past about 1400 entries,
+// so each group stays smaller and is checked on its own. Keep groups under that size.
+const PANTONE_COLOUR_GROUPS: PantoneColour[][] = [
+  [
   { code: "100 C", hex: "#F6EB61", book: "coated" },
   { code: "101 C", hex: "#F7EA48", book: "coated" },
   { code: "102 C", hex: "#FCE300", book: "coated" },
@@ -1001,6 +1006,8 @@ export const PANTONE_COLOURS: PantoneColour[] = [
   { code: "579 C", hex: "#BCD19B", book: "coated" },
   { code: "578 C", hex: "#B7CE95", book: "coated" },
   { code: "577 C", hex: "#A9C47F", book: "coated" },
+  ],
+  [
   { code: "576 C", hex: "#789D4A", book: "coated" },
   { code: "575 C", hex: "#67823A", book: "coated" },
   { code: "574 C", hex: "#4E5B31", book: "coated" },
@@ -2001,6 +2008,8 @@ export const PANTONE_COLOURS: PantoneColour[] = [
   { code: "2766 U", hex: "#575A7C", book: "uncoated" },
   { code: "2708 U", hex: "#B2C9EF", book: "uncoated" },
   { code: "2718 U", hex: "#6A87D8", book: "uncoated" },
+  ],
+  [
   { code: "2728 U", hex: "#5268C2", book: "uncoated" },
   { code: "2738 U", hex: "#474DA4", book: "uncoated" },
   { code: "2748 U", hex: "#484F8C", book: "uncoated" },
@@ -3001,6 +3010,8 @@ export const PANTONE_COLOURS: PantoneColour[] = [
   { code: "9043 C", hex: "#E8E6DF", book: "pastel" },
   { code: "9080 C", hex: "#E4E2DB", book: "pastel" },
   { code: "9100 C", hex: "#E7E7E0", book: "pastel" },
+  ],
+  [
   { code: "9101 C", hex: "#E3E3DD", book: "pastel" },
   { code: "9102 C", hex: "#D9DBD5", book: "pastel" },
   { code: "9103 C", hex: "#D5D8D2", book: "pastel" },
@@ -3173,4 +3184,7 @@ export const PANTONE_COLOURS: PantoneColour[] = [
   { code: "940 C", hex: "#FFB6D9", book: "pastel" },
   { code: "941 C", hex: "#FCA9E6", book: "pastel" },
   { code: "942 C", hex: "#C0AEE7", book: "pastel" },
+  ],
 ];
+
+export const PANTONE_COLOURS: PantoneColour[] = PANTONE_COLOUR_GROUPS.flat();
