@@ -4,9 +4,14 @@ import DynamicVariationInput from './DynamicVariationInput';
 import { useFieldArray } from 'react-hook-form';
 import { useMerchiFormContext } from '../context/MerchiProductFormProvider';
 import { shouldHideSingleOptionSelection } from '../utils/singleOptionVariation';
+import {
+  clampVariationColumns,
+  variationLayoutSpan,
+} from '../utils/variationLayout';
 
 interface Props {
   containerClass?: string;
+  columns?: number;
   disabled?: boolean;
   name?: string;
   keyName?: string;
@@ -36,11 +41,12 @@ function isDynamicVariationVisible(
 
 function Variations({
   containerClass,
+  columns,
   disabled,
   name = 'variations',
   keyName = 'variationArrayFieldId',
 }: Props) {
-  const { control, hookForm } = useMerchiFormContext();
+  const { control, hookForm, product } = useMerchiFormContext();
   const { watch } = hookForm;
   const { fields } = useFieldArray({ control, keyName, name });
   const currentVariations: any[] = watch(name) || [];
@@ -52,8 +58,23 @@ function Variations({
     ...independentVariations,
     ...currentVariations,
   ]);
+  const columnCount = clampVariationColumns(
+    columns ??
+      (name === 'variations'
+        ? product?.independentVariationColumns
+        : product?.groupVariationColumns),
+  );
+  if (!fields.length) return null;
+  // One column keeps the fields in the parent stack. A grid wrapper would
+  // still take a flex slot when every field is hidden.
+  const gridStyle: React.CSSProperties = columnCount > 1
+    ? { ['--merchi-variation-columns' as string]: String(columnCount) }
+    : { display: 'contents' };
   return (
-    <>
+    <div
+      className="merchi-embed-form_variation-grid"
+      style={gridStyle}
+    >
       {fields.map((fieldItem: any, index: number) => {
         const current = currentVariations[index];
         // Field-array items are the source of truth for variationField /
@@ -75,12 +96,17 @@ function Variations({
           return null;
         }
         const hideSelection = shouldHideSingleOptionSelection(variation);
+        const span = variationLayoutSpan(
+          variation?.variationField?.layoutSpan,
+          columnCount,
+        );
         return (
           <fieldset
             className={hideSelection ? undefined : containerClass}
             key={fieldItem[keyName]}
             name={`${name}[${index}]`}
             hidden={hideSelection}
+            style={hideSelection ? undefined : { gridColumn: `span ${span}` }}
           >
             <DynamicVariationInput
               disabled={disabled}
@@ -91,7 +117,7 @@ function Variations({
           </fieldset>
         );
       })}
-    </>
+    </div>
   );
 }
 
