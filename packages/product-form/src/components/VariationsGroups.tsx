@@ -55,6 +55,7 @@ function VariationsGroups({ disabled, name = 'variationsGroups', renderBetweenGr
                 />
               )}
               <Variations
+                columns={product?.groupVariationColumns}
                 containerClass='merchi-embed-form_product-group-variation-container'
                 disabled={disabled}
                 name={`${name}[${index}].variations`}

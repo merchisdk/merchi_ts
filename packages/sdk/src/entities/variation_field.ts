@@ -23,6 +23,10 @@ export class VariationField extends Entity {
   @VariationField.property()
   public position?: number;
 
+  /** Columns this field spans. Null is the full width of its list. */
+  @VariationField.property({type: Number})
+  public layoutSpan?: number | null;
+
   @VariationField.property()
   public required?: boolean;
 

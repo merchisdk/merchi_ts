@@ -81,6 +81,12 @@ export class Product extends Entity {
   public groupsFirst?: boolean;
 
   @Product.property()
+  public independentVariationColumns?: number;
+
+  @Product.property()
+  public groupVariationColumns?: number;
+
+  @Product.property()
   public deliveryDaysNormal?: number;
 
   @Product.property()

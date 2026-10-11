@@ -147,9 +147,8 @@ export function allowedFileTypes(variationField: any): string {
   return allowedTypes.join(',');
 }
 
-// Published @merchi/sdk drops unknown keys. Register the flag on the class
-// this package actually constructs, or an allow-all Pantone field is saved
-// as a limited field with no options and the preview hides it.
+// Published @merchi/sdk drops unknown keys. Register flags on the class
+// this package actually constructs, or a rebuilt variation loses them.
 const VariationFieldClass = VariationField as unknown as {
   property: (options?: { type?: unknown }) => (target: object, key: string) => void;
   prototype: object;
@@ -157,6 +156,10 @@ const VariationFieldClass = VariationField as unknown as {
 VariationFieldClass.property({ type: Boolean })(
   VariationFieldClass.prototype,
   'allowAllPantones',
+);
+VariationFieldClass.property({ type: Number })(
+  VariationFieldClass.prototype,
+  'layoutSpan',
 );
 
 const merchi = new Merchi();
@@ -180,6 +183,13 @@ export function buildEmptyVariationFromField(field: any) {
     variationJson.variationField.allowAllPantones == null
   ) {
     variationJson.variationField.allowAllPantones = Boolean(field.allowAllPantones);
+  }
+  if (
+    variationJson?.variationField &&
+    field?.layoutSpan != null &&
+    variationJson.variationField.layoutSpan == null
+  ) {
+    variationJson.variationField.layoutSpan = field.layoutSpan;
   }
   ensureVariationOptionFlags(variationJson);
   return variationJson;
