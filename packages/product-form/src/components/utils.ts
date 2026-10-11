@@ -147,12 +147,16 @@ export function allowedFileTypes(variationField: any): string {
   return allowedTypes.join(',');
 }
 
+// Published @merchi/sdk drops unknown keys. Register flags on the class
+// this package actually constructs, or a rebuilt variation loses them.
 const VariationFieldClass = VariationField as unknown as {
   property: (options?: { type?: unknown }) => (target: object, key: string) => void;
   prototype: object;
 };
-// Published @merchi/sdk drops unknown keys, which makes a half-width field
-// render full width after the form rebuilds a variation.
+VariationFieldClass.property({ type: Boolean })(
+  VariationFieldClass.prototype,
+  'allowAllPantones',
+);
 VariationFieldClass.property({ type: Number })(
   VariationFieldClass.prototype,
   'layoutSpan',
@@ -173,6 +177,13 @@ export function buildEmptyVariationFromField(field: any) {
   const fieldEnt = new merchi.VariationField();
   fieldEnt.fromJson({ ...field }, { makeDirty: false });
   const variationJson = fieldEnt.buildEmptyVariation().toJson();
+  if (
+    variationJson?.variationField &&
+    field?.allowAllPantones != null &&
+    variationJson.variationField.allowAllPantones == null
+  ) {
+    variationJson.variationField.allowAllPantones = Boolean(field.allowAllPantones);
+  }
   if (
     variationJson?.variationField &&
     field?.layoutSpan != null &&
