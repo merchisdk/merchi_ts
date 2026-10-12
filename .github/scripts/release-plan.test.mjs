@@ -41,6 +41,19 @@ test('chooses a free stable version without rolling the registry back', () => {
   assert.equal(chooseVersion('1.3.0', '1.4.0', ['1.4.0', '1.4.1']), '1.4.2');
 });
 
+test('a published package with no tag is queued for tag recovery', () => {
+  const registry = new Map(packages.map(pkg => [pkg.name, {
+    exists: true,
+    latestVersion: pkg.version,
+    latestHead: 'head',
+    versions: [pkg.version],
+  }]));
+  const items = createReleasePlan(packages, registry, new Set(), ['sdk']);
+  assert.deepEqual(items.map(item => ({ name: item.name, mode: item.mode, version: item.version })), [
+    { name: 'sdk', mode: 'tag', version: '2.0.0' },
+  ]);
+});
+
 test('release plan is topological and explains dependency propagation', () => {
   const registry = new Map(packages.map(pkg => [pkg.name, {
     exists: true,

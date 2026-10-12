@@ -50,6 +50,8 @@ export async function publishRelease(item, head, io) {
       break;
     } catch (error) {
       if (attempt === VERIFICATION_ATTEMPTS - 1) {
+        // npm can accept a publish before the version is readable.
+        if (status === 0) return { published: true, recovered: false, unverified: true };
         throw new Error(
           `Could not verify ${item.name}@${item.version} after publication (exit ${status}); next run will reconcile it.`,
           { cause: error },
@@ -66,6 +68,38 @@ export async function publishRelease(item, head, io) {
     throw new Error(`npm publish failed for ${item.name}@${item.version} with exit ${status}.`);
   }
   return { published: status === 0, recovered: status !== 0 };
+}
+
+export async function publishPlannedReleases(items, head, versions, {
+  ioFor,
+  publishPackage: publishOne,
+  recordTag: tagOne,
+  log = console.log,
+}) {
+  for (const item of items) {
+    const io = ioFor(item);
+    if (item.mode === 'tag') {
+      const exact = await io.exactOrNull();
+      if (!exact || exact.gitHead !== head) {
+        throw new Error(`${item.name}@${item.version}: cannot recover tag without matching npm gitHead.`);
+      }
+      tagOne(item, head);
+      continue;
+    }
+
+    const result = await publishRelease(item, head, {
+      ...io,
+      publish: () => publishOne(item, versions),
+    });
+    if (result.unverified) {
+      log(
+        `::warning::Could not verify ${item.name}@${item.version} after publication (exit 0); next run will reconcile it.`,
+      );
+      continue;
+    }
+    log(`${item.name}@${item.version}: ${result.recovered ? 'reconciled' : 'published'}.`);
+    tagOne(item, head);
+  }
 }
 
 function npmView(specifier) {
@@ -157,30 +191,20 @@ async function main() {
   if (verifyOnly) return;
 
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-  for (const item of plan.items) {
-    if (item.mode === 'tag') {
-      const exact = npmView(`${item.name}@${item.version}`);
-      if (!exact || exact.gitHead !== head) {
-        throw new Error(`${item.name}@${item.version}: cannot recover tag without matching npm gitHead.`);
-      }
-      recordTag(item, head);
-      continue;
-    }
-
-    const result = await publishRelease(item, head, {
+  await publishPlannedReleases(plan.items, head, plan.versions, {
+    ioFor: item => ({
       exactOrNull: async () => npmView(`${item.name}@${item.version}`),
       latestOrNull: async () => npmView(`${item.name}@latest`),
-      publish: () => publishPackage(item, plan.versions),
       exact: async () => {
         const value = npmView(`${item.name}@${item.version}`);
         if (!value) throw new Error('Registry version is not visible yet.');
         return value;
       },
       wait: milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
-    });
-    console.log(`${item.name}@${item.version}: ${result.recovered ? 'reconciled' : 'published'}.`);
-    recordTag(item, head);
-  }
+    }),
+    publishPackage,
+    recordTag,
+  });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

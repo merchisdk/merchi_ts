@@ -14,10 +14,15 @@ also scheduled hourly so an interrupted publish can reconcile and continue.
 7. Publish packages serially in topological dependency order.
 8. Verify each exact npm version, allowing up to five minutes for registry
    propagation, then push a package-specific `<name>@<version>` Git tag.
+   If `npm publish` exits 0 but the version is still not visible, the workflow
+   emits a warning and continues with the remaining packages in dependency
+   order. That package is left untagged so the next run can reconcile it.
+   Dependents still publish against the version selected in the release plan.
 
-The workflow stops if npm's latest source commit is not contained in `main`, if
-another release changes registry state after planning, or if a release tag or
-version is already owned by another commit.
+The workflow stops if `npm publish` exits non-zero, if the registry version
+differs or belongs to another commit, if npm's latest source commit is not
+contained in `main`, if another release changes registry state after planning,
+or if a release tag is already owned by another commit.
 
 Workspace dependency ranges stay as `workspace:` in Git. Immediately before
 packing, the release script converts them to the versions selected in the same
