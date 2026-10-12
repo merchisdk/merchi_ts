@@ -766,14 +766,45 @@ function VariationsInfo({ product, quantity, variations = [] }: any) {
   );
 }
 
+function designInputsFor(inputs: any[] | undefined, groupIndex?: number) {
+  return (inputs || []).filter((input) => {
+    if (!input || (input.kind !== 'text' && input.kind !== 'file')) return false;
+    if (groupIndex == null) return input.groupIndex == null;
+    return input.groupIndex === groupIndex;
+  });
+}
+
+function DesignerInputsInfo({ inputs }: { inputs: any[] }) {
+  if (!inputs.length) return null;
+  return (
+    <div className='merchi-checkout-summary-variations'>
+      {inputs.map((input, index) => (
+        <SummaryFieldRow
+          key={`${input.kind}-${index}`}
+          label={
+            input.name || (input.kind === 'file' ? 'Custom image' : 'Custom text')
+          }
+          value={
+            input.kind === 'file'
+              ? 'Uploaded'
+              : String(input.value || '').trim() || '-'
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
 function VariationGroupInfo({
   group,
   index,
   product,
   showSetupOnUnitPrice,
 }: any) {
+  const { job } = useMerchiCheckboutContext();
   const isResell = isProductSupplierMOD(product);
   const { quantity, variations } = group;
+  const extraInputs = designInputsFor(job?.designInputs, index);
   const visibleVariations = (variations ?? []).filter(
     (v: any) => !isInstructionsType(v?.variationField?.fieldType)
   );
@@ -798,6 +829,7 @@ function VariationGroupInfo({
           product={product}
         />
       )}
+      <DesignerInputsInfo inputs={extraInputs} />
       <strong className='merchi-checkout-summary-group-cost'>
         {costLabel}: {formatCost(product, group.groupCost)}
       </strong>
@@ -808,6 +840,7 @@ function VariationGroupInfo({
 export default function JobInfoContent() {
   const { job } = useMerchiCheckboutContext();
   const { product, quantity = 0, variations = [], variationsGroups = [] } = job;
+  const extraJobInputs = designInputsFor(job?.designInputs);
   const { needsShipping } = product;
   const totalCost = currencyTotalCostShowIncTax(job);
   const isResell = isProductSupplierMOD(product);
@@ -861,18 +894,22 @@ export default function JobInfoContent() {
               product={product}
             />
           )}
+          <DesignerInputsInfo inputs={extraJobInputs} />
         </div>
       )}
-      {hasGroups && jobLevelVariations.length > 0 && (
+      {hasGroups && (jobLevelVariations.length > 0 || extraJobInputs.length > 0) && (
         <div className='merchi-checkout-summary-standalone'>
           <strong className='merchi-checkout-summary-order-detail-title'>
             Order Information
           </strong>
-          <VariationsInfo
-            quantity={quantity}
-            variations={variations}
-            product={product}
-          />
+          {jobLevelVariations.length > 0 && (
+            <VariationsInfo
+              quantity={quantity}
+              variations={variations}
+              product={product}
+            />
+          )}
+          <DesignerInputsInfo inputs={extraJobInputs} />
         </div>
       )}
       {!isResell && (
