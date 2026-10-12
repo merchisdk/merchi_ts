@@ -845,6 +845,9 @@ const CartProvider = ({
     cartItemEnt.ownDrafts = jobEnt.ownDrafts;
     cartItemEnt.clientFiles = jobEnt.clientFiles;
     cartItemEnt.tags = jobEnt.tags;
+    if (typeof jobJson.designInputNotes === 'string' && jobJson.designInputNotes) {
+      cartItemEnt.notes = jobJson.designInputNotes;
+    }
     try {
       const item = await cartItemEnt.create();
       const itemJson = await item.toJson();
