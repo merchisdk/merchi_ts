@@ -1,8 +1,14 @@
 'use client';
 import * as React from 'react';
 import DynamicVariationInput from './DynamicVariationInput';
-import { useFieldArray } from 'react-hook-form';
+import { useFieldArray, useWatch } from 'react-hook-form';
 import { useMerchiFormContext } from '../context/MerchiProductFormProvider';
+import { productHasGroups } from '../utils/products';
+import {
+  displayQuantity,
+  groupIndexFromVariationName,
+  withQuantityAdjustedDisplayCosts,
+} from '../utils/quantityAdjustedCosts';
 import { shouldHideSingleOptionSelection } from '../utils/singleOptionVariation';
 import {
   clampVariationColumns,
@@ -68,9 +74,31 @@ function Variations({
   name = 'variations',
   keyName = 'variationArrayFieldId',
 }: Props) {
-  const { control, hookForm, product } = useMerchiFormContext();
+  const { control, hookForm, pricingRules, product } = useMerchiFormContext();
   const { watch } = hookForm;
   const { fields } = useFieldArray({ control, keyName, name });
+  const groupIndex = groupIndexFromVariationName(name);
+  const hasGroups = productHasGroups(product);
+  const watchedQuantity = useWatch({
+    control,
+    name:
+      groupIndex != null
+        ? `variationsGroups.${groupIndex}.quantity`
+        : 'quantity',
+    disabled: groupIndex == null && hasGroups,
+  });
+  const watchedGroups = useWatch({
+    control,
+    name: 'variationsGroups',
+    disabled: groupIndex != null || !hasGroups,
+  });
+  const quantity = displayQuantity({
+    groupIndex,
+    groupQuantity: watchedQuantity,
+    groups: watchedGroups,
+    jobQuantity: watchedQuantity,
+    hasGroups,
+  });
   const currentVariations: any[] = watch(name) || [];
   // Group fields can be gated by independent options (and vice versa is rare).
   // Mirror the server: group selected_options = group.variations + job.variations.
@@ -117,9 +145,14 @@ function Variations({
         if (!isDynamicVariationVisible(variation, selectedOptionIds)) {
           return null;
         }
-        const hideSelection = shouldHideSingleOptionSelection(variation);
+        const pricedVariation = withQuantityAdjustedDisplayCosts(
+          variation,
+          pricingRules,
+          quantity
+        );
+        const hideSelection = shouldHideSingleOptionSelection(pricedVariation);
         const span = variationLayoutSpan(
-          layoutSpanForVariation(variation, product),
+          layoutSpanForVariation(pricedVariation, product),
           columnCount,
         );
         return (
@@ -134,7 +167,7 @@ function Variations({
               disabled={disabled}
               index={index}
               name={name}
-              variation={variation}
+              variation={pricedVariation}
             />
           </fieldset>
         );
