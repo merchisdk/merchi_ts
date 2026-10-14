@@ -276,6 +276,7 @@ function VariationEmbroideryInput({ disabled, name, variation }: Props) {
             type='number'
             min={0}
             disabled={disabled}
+            placeholder='Width (mm)'
             value={width}
             onChange={(event) => updateSize('width', event.target.value)}
           />
@@ -287,6 +288,7 @@ function VariationEmbroideryInput({ disabled, name, variation }: Props) {
             type='number'
             min={0}
             disabled={disabled}
+            placeholder='Height (mm)'
             value={height}
             onChange={(event) => updateSize('height', event.target.value)}
           />
