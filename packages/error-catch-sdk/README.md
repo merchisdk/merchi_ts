@@ -63,7 +63,8 @@ Vercel (`NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA`, `VERCEL_GIT_COMMIT_SHA`),
 `GITHUB_SHA`, then generic commit variables (`COMMIT_SHA`, `GIT_COMMIT_SHA`,
 `GIT_COMMIT`, `CI_COMMIT_SHA`, `SOURCE_VERSION`). Blank values are skipped.
 `@merchi/error-catch/release` has no imports, so it is safe to load from
-`next.config`.
+`next.config`. Both ESM and CommonJS config loaders are supported, including
+Next.js's transpiled `next.config.ts` on Node 20.
 
 ```ts
 // instrumentation-client.ts

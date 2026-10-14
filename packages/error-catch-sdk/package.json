@@ -25,7 +25,8 @@
     },
     "./release": {
       "types": "./dist/releaseSha.d.ts",
-      "import": "./dist/releaseSha.js"
+      "import": "./dist/releaseSha.js",
+      "require": "./dist/releaseSha.cjs"
     }
   },
   "files": [
