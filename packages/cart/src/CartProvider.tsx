@@ -21,6 +21,7 @@ import {
 } from './utilities/local_storage';
 import { makeUser } from './utilities/user';
 import { persistTestCheckoutFlag, readTestCheckoutFlag } from './utilities/test_checkout';
+import { reportAddCartItemFailure } from './utilities/reportFailure';
 import {
   appendJobSourceToFormData,
   captureAndReadJobSource,
@@ -853,7 +854,7 @@ const CartProvider = ({
       const itemJson = await item.toJson();
       onSuccess(itemJson);
     } catch(e: any) {
-      onError(e);
+      reportAddCartItemFailure(e, onError);
     } finally {
       setFetchingCart(false);
     }
