@@ -119,11 +119,13 @@ function VariationEmbroideryInput({ disabled, name, variation }: Props) {
         coverage: data.coverage,
         pixelWidth: data.pixelWidth || next.pixelWidth,
         pixelHeight: data.pixelHeight || next.pixelHeight,
-        widthMm: next.widthMm || data.widthMm,
-        heightMm: next.heightMm || data.heightMm,
+        widthMm: next.widthMm || data.widthMm || data.measuredWidthMm,
+        heightMm: next.heightMm || data.heightMm || data.measuredHeightMm,
       };
-      if (!next.widthMm && data.widthMm) setWidth(String(data.widthMm));
-      if (!next.heightMm && data.heightMm) setHeight(String(data.heightMm));
+      const measuredWidth = data.widthMm || data.measuredWidthMm;
+      const measuredHeight = data.heightMm || data.measuredHeightMm;
+      if (!next.widthMm && measuredWidth) setWidth(String(measuredWidth));
+      if (!next.heightMm && measuredHeight) setHeight(String(measuredHeight));
       writeValue(merged);
     } catch (err: any) {
       if (current === requestId.current) {
@@ -178,58 +180,64 @@ function VariationEmbroideryInput({ disabled, name, variation }: Props) {
               if (fields.length) remove(0);
               append(uploaded);
             }}
-          />
-          {file ? (
-            <div className={classNameFilePreviewContainer} style={{ marginTop: 8, maxWidth: 320 }}>
-              <div
-                className={classNameFilePreviewIconWrapper}
-                onClick={() => remove(0)}
-              >
-                <FaTimes className='close-icon' />
-              </div>
-              <div style={{ position: 'relative' }}>
-                {file.viewUrl || file.cachedViewUrl ? (
-                  <img
-                    alt={file.name || 'Embroidery artwork'}
-                    src={file.viewUrl || file.cachedViewUrl}
-                    style={{ display: 'block', width: '100%', maxHeight: 180, objectFit: 'contain' }}
-                  />
-                ) : null}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginTop: 4 }}>
-                  <span>{width || '–'} mm wide</span>
-                  <span>{height || '–'} mm high</span>
+            preview={file ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <div style={{ position: 'relative' }}>
+                  {(file.viewUrl || file.cachedViewUrl) ? (
+                    <img
+                      alt={file.name || 'Embroidery artwork'}
+                      src={file.viewUrl || file.cachedViewUrl}
+                      style={{ display: 'block', maxWidth: 220, maxHeight: 160, objectFit: 'contain' }}
+                    />
+                  ) : null}
+                  <button
+                    type='button'
+                    aria-label='Remove artwork'
+                    className={classNameFilePreviewIconWrapper}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      event.preventDefault();
+                      remove(0);
+                    }}
+                    style={{ position: 'absolute', top: 0, right: -28 }}
+                  >
+                    <FaTimes className='close-icon' />
+                  </button>
                 </div>
-                {warning ? (
-                  <div className='text-danger' style={{ fontSize: 12, marginTop: 4 }}>
-                    {warning}
+                <div style={{ fontSize: 12 }}>
+                  {width ? `${width} mm wide` : 'Measuring width…'}
+                  {' · '}
+                  {height ? `${height} mm high` : 'Measuring height…'}
+                </div>
+                {Array.isArray(draft.colours) && draft.colours.length > 0 ? (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {draft.colours.map((colour) => (
+                      <span
+                        key={colour}
+                        title={colour}
+                        style={{
+                          width: 16,
+                          height: 16,
+                          borderRadius: 8,
+                          background: colour,
+                          display: 'inline-block',
+                          border: '1px solid rgba(0,0,0,0.2)',
+                        }}
+                      />
+                    ))}
                   </div>
                 ) : null}
-              </div>
-              <InputHiddenStatic
-                name={`${filesName}[0].id`}
-                rules={{ required: true }}
-                value={file.id}
-              />
-            </div>
-          ) : null}
-          {Array.isArray(draft.colours) && draft.colours.length > 0 ? (
-            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-              {draft.colours.map((colour) => (
-                <span
-                  key={colour}
-                  title={colour}
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 8,
-                    background: colour,
-                    display: 'inline-block',
-                    border: '1px solid rgba(0,0,0,0.2)',
-                  }}
+                {warning ? (
+                  <div className='text-danger' style={{ fontSize: 12 }}>{warning}</div>
+                ) : null}
+                <InputHiddenStatic
+                  name={`${filesName}[0].id`}
+                  rules={{ required: true }}
+                  value={file.id}
                 />
-              ))}
-            </div>
-          ) : null}
+              </div>
+            ) : undefined}
+          />
         </>
       ) : (
         <>

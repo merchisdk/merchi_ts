@@ -12,6 +12,8 @@ interface Props {
   multiple?: boolean;
   onUploadSuccess: (files: any) => void;
   placeholder?: string;
+  /** Replaces the empty prompt. The dropzone stays clickable. */
+  preview?: React.ReactNode;
 }
 
 function DropzoneInput({
@@ -20,6 +22,7 @@ function DropzoneInput({
   multiple = false,
   onUploadSuccess,
   placeholder = 'Drop files:',
+  preview,
 }: Props) {
   const {
     apiUrl,
@@ -76,6 +79,7 @@ function DropzoneInput({
     <>
       <div {...getRootProps()} className={classNameFileUpload}>
         <input {...getInputProps()} disabled={disabled} aria-label={placeholder} />
+        {preview || (
         <div className={classNameFileUploadTextContainer}>
           <div className={classNameFileUploadIconContainer}>
             {loading ? (
@@ -97,6 +101,7 @@ function DropzoneInput({
             {accept && <div>{accept.replace(/,/g, ', ')}</div>}
           </div>
         </div>
+        )}
       </div>
       {error && (
         <div className='text-danger'>
