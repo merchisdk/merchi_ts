@@ -1,3 +1,4 @@
+import { isExpectedClientError } from "./expectedClientError.js";
 import {
   errorDetails,
   MAX_COMPONENT_STACK_LENGTH,
@@ -11,6 +12,7 @@ import {
   type CaptureContext,
   type FrontendErrorEvent,
   type FrontendErrorReporterConfig,
+  type FrontendErrorShouldReport,
   type FrontendErrorSource,
   type FrontendErrorTransport,
 } from "./types.js";
@@ -58,6 +60,7 @@ export class FrontendErrorReporter {
   readonly #dedupeWindowMs: number;
   readonly #maxEventsPerPage: number;
   readonly #transport: FrontendErrorTransport;
+  readonly #shouldReport: FrontendErrorShouldReport | undefined;
   readonly #seenAt = new Map<string, number>();
   #eventCount = 0;
 
@@ -73,10 +76,12 @@ export class FrontendErrorReporter {
       Math.floor(config.maxEventsPerPage ?? DEFAULT_MAX_EVENTS_PER_PAGE),
     );
     this.#transport = config.transport ?? fetchTransport;
+    this.#shouldReport = config.shouldReport;
   }
 
   captureException(error: unknown, context: CaptureContext = {}): boolean {
     try {
+      if (this.#shouldReport && !this.#shouldReport(error, context)) return false;
       if (!this.#enabled || !this.#endpoint || this.#eventCount >= this.#maxEventsPerPage) {
         return false;
       }
@@ -94,6 +99,20 @@ export class FrontendErrorReporter {
         // Error reporting must never interfere with the host application.
       }
       return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Report an unexpected failure. Non-Error rejections are normalised by the
+   * same path as `captureException`. Expected Merchi client errors are skipped
+   * unless `shouldReport` is configured.
+   */
+  captureUnexpected(error: unknown, context: CaptureContext = {}): boolean {
+    try {
+      if (!this.#shouldReport && isExpectedClientError(error)) return false;
+      return this.captureException(error, context);
     } catch {
       return false;
     }
@@ -133,7 +152,52 @@ export class FrontendErrorReporter {
   }
 }
 
+interface NormalizedReporterConfig {
+  endpoint: string;
+  application: string;
+  releaseSha: string;
+  enabled: boolean;
+  dedupeWindowMs: number;
+  maxEventsPerPage: number;
+  transport: FrontendErrorTransport;
+  shouldReport?: FrontendErrorShouldReport;
+}
+
+function normalizedReporterConfig(config: FrontendErrorReporterConfig): NormalizedReporterConfig {
+  const normalized: NormalizedReporterConfig = {
+    endpoint: typeof config.endpoint === "string" ? config.endpoint.trim() : "",
+    application: normalizeIdentifier(config.application, "unknown-frontend"),
+    releaseSha: normalizeIdentifier(config.releaseSha, ""),
+    enabled: config.enabled === true,
+    dedupeWindowMs: Math.max(0, config.dedupeWindowMs ?? DEFAULT_DEDUPE_WINDOW_MS),
+    maxEventsPerPage: Math.max(
+      0,
+      Math.floor(config.maxEventsPerPage ?? DEFAULT_MAX_EVENTS_PER_PAGE),
+    ),
+    transport: config.transport ?? fetchTransport,
+  };
+  if (config.shouldReport) normalized.shouldReport = config.shouldReport;
+  return normalized;
+}
+
+function sameReporterConfig(
+  left: NormalizedReporterConfig,
+  right: NormalizedReporterConfig,
+): boolean {
+  return (
+    left.endpoint === right.endpoint &&
+    left.application === right.application &&
+    left.releaseSha === right.releaseSha &&
+    left.enabled === right.enabled &&
+    left.dedupeWindowMs === right.dedupeWindowMs &&
+    left.maxEventsPerPage === right.maxEventsPerPage &&
+    left.transport === right.transport &&
+    left.shouldReport === right.shouldReport
+  );
+}
+
 let defaultReporter: FrontendErrorReporter | undefined;
+let defaultReporterConfig: NormalizedReporterConfig | undefined;
 
 export function createFrontendErrorReporter(
   config: FrontendErrorReporterConfig,
@@ -144,7 +208,16 @@ export function createFrontendErrorReporter(
 export function configureFrontendErrors(
   config: FrontendErrorReporterConfig,
 ): FrontendErrorReporter {
+  const normalized = normalizedReporterConfig(config);
+  if (
+    defaultReporter &&
+    defaultReporterConfig &&
+    sameReporterConfig(defaultReporterConfig, normalized)
+  ) {
+    return defaultReporter;
+  }
   defaultReporter = createFrontendErrorReporter(config);
+  defaultReporterConfig = normalized;
   return defaultReporter;
 }
 
@@ -154,4 +227,8 @@ export function getDefaultFrontendErrorReporter(): FrontendErrorReporter | undef
 
 export function captureException(error: unknown, context?: CaptureContext): boolean {
   return defaultReporter?.captureException(error, context) ?? false;
+}
+
+export function captureUnexpected(error: unknown, context?: CaptureContext): boolean {
+  return defaultReporter?.captureUnexpected(error, context) ?? false;
 }

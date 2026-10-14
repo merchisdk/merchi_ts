@@ -40,6 +40,71 @@ installGlobalErrorHandlers(reporter);
 For Next.js App Router, put this setup in `src/instrumentation-client.ts` so it
 runs before hydration.
 
+Calling `configureFrontendErrors` again with the same effective options returns
+the existing reporter. Pair that with `installGlobalErrorHandlers`, which
+already reference-counts listeners, and startup code can run more than once
+without installing a second set of handlers.
+
+## Next.js storefront
+
+Storefronts can replace local `src/lib` error-reporting glue with a few calls.
+`apiUrl` is concatenated as `${apiUrl}frontend-errors` (Merchi API URLs already
+end with `/`). The application name is `merchi-storefront-<domainId>`.
+
+```ts
+// next.config.ts — import the release helper, not the browser reporter
+import { resolveReleaseSha } from "@merchi/error-catch/release";
+
+const releaseSha = resolveReleaseSha(process.env);
+```
+
+`resolveReleaseSha` checks, in order, `NEXT_PUBLIC_RELEASE_SHA`, `RELEASE_SHA`,
+Vercel (`NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA`, `VERCEL_GIT_COMMIT_SHA`),
+`GITHUB_SHA`, then generic commit variables (`COMMIT_SHA`, `GIT_COMMIT_SHA`,
+`GIT_COMMIT`, `CI_COMMIT_SHA`, `SOURCE_VERSION`). Blank values are skipped.
+`@merchi/error-catch/release` has no imports, so it is safe to load from
+`next.config`.
+
+```ts
+// instrumentation-client.ts
+import { isReportingEnabled } from "@merchi/error-catch";
+import { initMerchiStorefrontErrors } from "@merchi/error-catch/next";
+
+initMerchiStorefrontErrors({
+  apiUrl: process.env.NEXT_PUBLIC_API_URI ?? "",
+  domainId: process.env.NEXT_PUBLIC_DOMAIN_ID ?? "",
+  releaseSha: process.env.NEXT_PUBLIC_RELEASE_SHA,
+  enabled: isReportingEnabled(
+    process.env.NODE_ENV,
+    process.env.NEXT_PUBLIC_FRONTEND_ERROR_REPORTING_ENABLED,
+  ),
+});
+```
+
+`isReportingEnabled(nodeEnv, flag)` opts in for `1`, `true`, `yes`, and `on`,
+opts out for `0`, `false`, `no`, and `off`, and otherwise enables reporting
+only when `nodeEnv` is `production`.
+
+```tsx
+// app/error.tsx and app/global-error.tsx
+"use client";
+
+import { useReportRouteError } from "@merchi/error-catch/next";
+
+export default function Error({
+  error,
+}: {
+  error: Error & { digest?: string };
+}) {
+  useReportRouteError(error);
+  return <p>This page is temporarily unavailable.</p>;
+}
+```
+
+`useReportRouteError` reports the route error and forwards Next.js `digest`.
+`initMerchiStorefrontErrors` configures the shared reporter once and installs
+global handlers once.
+
 ## Capture an error explicitly
 
 ```ts
@@ -53,6 +118,42 @@ captureException(error, {
 `captureException` never throws and does not return a network promise. Error
 reporting therefore cannot create an unhandled rejection or replace the
 application's original failure.
+
+```ts
+import { captureUnexpected, isExpectedClientError } from "@merchi/error-catch";
+
+captureUnexpected(error, { source: "manual" });
+```
+
+`captureUnexpected` uses the same transport as `captureException`. String,
+number, boolean, and object rejections are normalised into a
+`NonErrorException` event instead of being dropped. It skips expected Merchi
+client failures unless you pass `shouldReport`.
+
+Those failures are `@merchi/sdk` `ApiError` values and the
+`{ errorMessage, statusCode, errorCode }` objects `@merchi/cart` already
+handles. A numeric `statusCode` from 400 to 499 is expected. When `statusCode`
+is absent, `errorCode` values 2 through 22 (`ErrorType.CLIENT_ERROR` through
+`ErrorType.DOMAIN_NOT_FOUND`) are expected. `statusCode` of 500 or more, and
+`errorCode` `0` (unknown) or `1` (server), are reported. Other `status` field
+names are ignored.
+
+```ts
+configureFrontendErrors({
+  endpoint: "https://api.merchi.co/v6/frontend-errors",
+  application: "merchi-dashboard",
+  enabled: true,
+  shouldReport: (error) => !isExpectedClientError(error),
+});
+```
+
+`shouldReport` replaces that default filter for both `captureException` and
+`captureUnexpected`. Omit it and `captureException` keeps reporting every
+enabled event.
+
+Global handlers call `captureUnexpected`, so expected client errors are not
+sent and non-Error rejections are normalised. Resource errors that carry no
+error value are still ignored.
 
 ## React boundary
 

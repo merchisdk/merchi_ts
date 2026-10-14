@@ -36,6 +36,11 @@ export interface CaptureContext {
   componentStack?: string;
 }
 
+export type FrontendErrorShouldReport = (
+  error: unknown,
+  context: CaptureContext,
+) => boolean;
+
 export type FrontendErrorTransport = (
   endpoint: string,
   event: FrontendErrorEvent,
@@ -49,4 +54,10 @@ export interface FrontendErrorReporterConfig {
   dedupeWindowMs?: number;
   maxEventsPerPage?: number;
   transport?: FrontendErrorTransport;
+  /**
+   * Replaces the default unexpected-error filter. When omitted,
+   * `captureException` reports every enabled event and `captureUnexpected`
+   * skips expected Merchi client errors.
+   */
+  shouldReport?: FrontendErrorShouldReport;
 }
