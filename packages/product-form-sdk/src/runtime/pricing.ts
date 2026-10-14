@@ -2,7 +2,7 @@ import { Merchi } from '@merchi/sdk';
 import { JobJson } from '../types/job.js';
 import { ProductJson } from '../types/product.js';
 import { serializeJob } from '../helpers/serialize.js';
-import { clientQuote, PricingRules } from './clientPricing.js';
+import { clientQuote, PricingRules, withEmbroideryEstimates } from './clientPricing.js';
 
 export interface Pricing {
   /** Request a quote for the given job; resolves to the job json with pricing
@@ -83,7 +83,8 @@ export function createPricing(apiUrl: string, options: PricingOptions = {}): Pri
       if (product && product.clientSideCalculation) {
         const rules = await getRules();
         if (rules) {
-          const local = clientQuote(rules, job);
+          const prepared = await withEmbroideryEstimates(apiUrl, rules, job);
+          const local = clientQuote(rules, prepared);
           if (local) return local;
         }
       }

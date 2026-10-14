@@ -31,6 +31,36 @@ beforeEach(() => {
 });
 
 describe('toSelections', () => {
+  it('passes embroidery size, coverage, and colours into the client quote', () => {
+    const value = JSON.stringify({
+      widthMm: 40,
+      heightMm: 20,
+      coverage: 0.42,
+      colours: ['#111111', '#888888'],
+    });
+    const sel = toSelections(
+      {
+        quantity: 12,
+        variations: [{
+          variationField: { id: 16 },
+          value,
+          variationFiles: [{ id: 'logo' }],
+        }],
+      },
+      {
+        hasGroups: false,
+        fields: [{ id: 16, isSelectable: false, fieldType: 16 }],
+        groupFields: [],
+      },
+    );
+    expect(sel.fieldValues[16]).toEqual({
+      value,
+      colourCount: 2,
+      coverage: 0.42,
+      hasFiles: true,
+    });
+  });
+
   it('maps grouped selectable fields to selectedOptionIds', () => {
     const sel = toSelections(
       {

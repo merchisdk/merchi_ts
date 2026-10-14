@@ -34,7 +34,71 @@ const FIELD = {
   TURNAROUND_TIME: 12,
   COLOUR_EXTRACT: 13,
   AREA: 14,
+  EMBROIDERY: 16,
 } as const;
+
+function parseEmbroideryValue(value: string): Record<string, any> {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' ? parsed : { text: value };
+  } catch {
+    return { text: value };
+  }
+}
+
+function EmbroideryFieldControl({
+  field,
+  value,
+  onChange,
+}: {
+  field: VariationFieldJson;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const saved = parseEmbroideryValue(value);
+  const fileMode = field.embroideryInputMode !== 'text';
+  const write = (patch: Record<string, unknown>) => {
+    onChange(JSON.stringify({ ...saved, ...patch }));
+  };
+  return (
+    <div>
+      {fileMode ? (
+        <p style={{ fontFamily: theme.font, fontSize: 13, color: theme.muted, margin: '0 0 8px' }}>
+          Upload the logo on the live product form. Adjust the size here when the measured size should change the price.
+        </p>
+      ) : (
+        <input
+          type="text"
+          placeholder="Wording"
+          value={saved.text || ''}
+          onChange={(event) => write({ text: event.target.value })}
+          style={{ ...inputStyle(), marginBottom: 8 }}
+        />
+      )}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          type="number"
+          min={0}
+          placeholder="Width (mm)"
+          aria-label="Width (mm)"
+          value={saved.widthMm ?? ''}
+          onChange={(event) => write({ widthMm: Number(event.target.value) || undefined })}
+          style={inputStyle()}
+        />
+        <input
+          type="number"
+          min={0}
+          placeholder="Height (mm)"
+          aria-label="Height (mm)"
+          value={saved.heightMm ?? ''}
+          onChange={(event) => write({ heightMm: Number(event.target.value) || undefined })}
+          style={inputStyle()}
+        />
+      </div>
+    </div>
+  );
+}
 
 function Label({ field }: { field: VariationFieldJson }) {
   if (!field.name) return null;
@@ -610,6 +674,19 @@ export function Field({
           value={current?.value ?? ''}
           onChange={(e) => setText(e.target.value)}
           style={inputStyle()}
+        />
+      </div>
+    );
+  }
+
+  if (fieldType === FIELD.EMBROIDERY) {
+    return (
+      <div>
+        <Label field={field} />
+        <EmbroideryFieldControl
+          field={field}
+          value={current?.value ?? ''}
+          onChange={setText}
         />
       </div>
     );
