@@ -93,20 +93,21 @@
     "@fortawesome/fontawesome-svg-core": "6.4.2",
     "@fortawesome/free-solid-svg-icons": "6.4.2",
     "@fortawesome/react-fontawesome": "^0.2.0",
+    "@merchi/error-catch": "workspace:^",
+    "@merchi/invoice": "workspace:^",
+    "@merchi/product-form": "workspace:^",
+    "@merchi/product-form-sdk": "workspace:^",
+    "@merchi/sdk": "workspace:^",
     "@stripe/react-stripe-js": "^2.3.0",
     "@stripe/stripe-js": "^2.1.6",
     "browser-or-node": "^3.0.0-pre.0",
     "js-cookie": "^3.0.5",
     "lodash": "^4.17.21",
-    "@merchi/product-form": "workspace:^",
-    "@merchi/product-form-sdk": "workspace:^",
-    "@merchi/sdk": "workspace:^",
     "react-country-region-selector": "^3.6.1",
     "react-hook-form": "7.45.4",
     "react-icons": "^4.10.1",
     "react-square-web-payments-sdk": "^3.2.1",
     "react-transition-group": "^4.4.5",
-    "reactstrap": "^9.2.2",
-    "@merchi/invoice": "workspace:^"
+    "reactstrap": "^9.2.2"
   }
 }

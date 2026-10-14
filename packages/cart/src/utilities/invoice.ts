@@ -1,3 +1,5 @@
+import { CART_FAILURE_SOURCES, reportCartFailure } from './reportFailure';
+
 const urlToFile = async (url: string, filename: string, type: string) => {
   const res = await fetch(url);
   const buf = await res.arrayBuffer();
@@ -9,9 +11,15 @@ const urlToFilePdf = async (url: string, filename: string) => {
   return file;
 };
 
+function publicInvoicePdfFilename(invoice: any): string {
+  const id = invoice?.id;
+  const emailDomain = invoice?.domain?.emailDomain;
+  return emailDomain ? `${emailDomain}-invoice-${id}.pdf` : `invoice-${id}.pdf`;
+}
+
 export async function generatePublicInvoicePdf(apiUrl: string, invoice: any, receipt?: boolean) {
   const id = invoice.id;
-  const domain = invoice.domain.emailDomain;
+  const filename = publicInvoicePdfFilename(invoice);
 
   const queryString = new URLSearchParams({
     invoice_token: invoice.invoiceToken
@@ -35,7 +43,7 @@ export async function generatePublicInvoicePdf(apiUrl: string, invoice: any, rec
     const r = await response.json();
     const pdf = await urlToFilePdf(
       `data:application/pdf;base64,${r.pdf}`,
-      `${domain}-invoice-${id}.pdf`
+      filename
     );
 
     const url = URL.createObjectURL(pdf);
@@ -55,6 +63,7 @@ export async function generatePublicInvoicePdf(apiUrl: string, invoice: any, rec
 
     return { success: true };
   } catch (e: any) {
+    reportCartFailure(e, CART_FAILURE_SOURCES.invoicePdf);
     throw e;
   }
 }
