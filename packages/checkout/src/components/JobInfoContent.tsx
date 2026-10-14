@@ -14,6 +14,23 @@ import {
   localePrefersImperial,
 } from '../area';
 import { useMerchiCheckboutContext } from './MerchiCheckoutProvider';
+
+function embroiderySummary(value: any): string {
+  if (value == null || value === '') return '';
+  try {
+    const parsed = JSON.parse(String(value));
+    const parts: string[] = [];
+    if (parsed?.text) parts.push(String(parsed.text));
+    if (parsed?.widthMm && parsed?.heightMm) {
+      parts.push(`${parsed.widthMm} × ${parsed.heightMm} mm`);
+    }
+    const count = Array.isArray(parsed?.colours) ? parsed.colours.length : 0;
+    if (count) parts.push(count === 1 ? '1 colour' : `${count} colours`);
+    return parts.join(' · ') || String(value);
+  } catch {
+    return String(value);
+  }
+}
 import {
   SummaryAmountRow,
   SummaryFieldRow,
@@ -436,7 +453,9 @@ function VariationInfo({ product, variation }: any) {
                   localePrefersImperial() ? 'imperial' : 'metric',
                   variationField.areaUnit || 'mm'
                 ) || variation.value
-              : variation.value
+              : fieldType === FieldType.EMBROIDERY
+                ? embroiderySummary(variation.value)
+                : variation.value
           }
           files={variationFiles}
           product={product}

@@ -15,6 +15,7 @@ export enum FieldType {
   TURNAROUND_TIME = 12,
   COLOUR_EXTRACT = 13,
   AREA = 14,
+  EMBROIDERY = 16,
 }
 
 
@@ -67,6 +68,24 @@ export function valueString(variation: any) {
       return colours ? `${fileLabel} (${colours})` : fileLabel;
     }
     return variationFiles.length > 1 ? 'uploaded files' : 'uploaded file';
+  } else if (field.fieldType === FieldType.EMBROIDERY) {
+    try {
+      const parsed = JSON.parse(String(value || ''));
+      const parts = [];
+      if (parsed?.text) parts.push(parsed.text);
+      if (parsed?.widthMm && parsed?.heightMm) {
+        parts.push(`${parsed.widthMm} × ${parsed.heightMm} mm`);
+      }
+      if (Array.isArray(parsed?.colours) && parsed.colours.length) {
+        parts.push(
+          parsed.colours.length === 1 ? '1 colour' : `${parsed.colours.length} colours`
+        );
+      }
+      if (parts.length) return parts.join(' · ');
+    } catch {
+      // Fall through to the raw value.
+    }
+    return value;
   } else if (field.fieldType === FieldType.AREA) {
     return (
       formatAreaSummary(

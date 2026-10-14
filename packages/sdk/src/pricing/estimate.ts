@@ -183,6 +183,73 @@ function colourExtractCostFactor(
   return { setup, unitList };
 }
 
+function parseEmbroidery(value: string | number | null | undefined): Record<string, any> | null {
+  if (value === undefined || value === null || value === '') return null;
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function embroideryCostFactor(
+  field: PricingField,
+  sel: FieldSelection | undefined,
+  groupQuantities: number[]
+): { setup: number; unitList: number[] } {
+  const n = groupQuantities.length;
+  const zeros = { setup: 0, unitList: new Array(n).fill(0) };
+  const parsed = parseEmbroidery(sel?.value ?? null);
+  const width = Number(parsed?.widthMm);
+  const height = Number(parsed?.heightMm);
+  const coverage = Number(sel?.coverage ?? parsed?.coverage);
+  const colourCount = Number(
+    sel?.colourCount ?? (Array.isArray(parsed?.colours) ? parsed.colours.length : 0)
+  );
+  const hasDesign = Boolean(String(parsed?.text || '').trim()) || Boolean(sel?.hasFiles) || colourCount > 0;
+  if (!(width > 0) || !(height > 0) || !(coverage > 0) || !hasDesign) return zeros;
+
+  const density = Number(field.stitchDensity) > 0 ? Number(field.stitchDensity) : 2.5;
+  const thousands = Math.round(width * height * coverage * density) / 1000;
+  const totalQty = groupQuantities.reduce((a, b) => a + b, 0);
+  let setup = variationSetupCost(field, totalQty);
+  const unitList = variationUnitCosts(field, groupQuantities);
+  const stitchSetup = variationSetupCost(
+    {
+      variationCost: field.stitchVariationCost || 0,
+      variationCostDiscountGroup: field.stitchVariationCostDiscountGroup ?? null,
+    },
+    totalQty
+  );
+  const stitchUnits = variationUnitCosts(
+    {
+      variationUnitCost: field.stitchVariationUnitCost || 0,
+      variationUnitCostDiscountGroup: field.stitchVariationUnitCostDiscountGroup ?? null,
+    },
+    groupQuantities
+  );
+  const colourSetup = variationSetupCost(
+    {
+      variationCost: field.colourVariationCost || 0,
+      variationCostDiscountGroup: field.colourVariationCostDiscountGroup ?? null,
+    },
+    totalQty
+  );
+  const colourUnits = variationUnitCosts(
+    {
+      variationUnitCost: field.colourVariationUnitCost || 0,
+      variationUnitCostDiscountGroup: field.colourVariationUnitCostDiscountGroup ?? null,
+    },
+    groupQuantities
+  );
+  setup += stitchSetup * thousands + colourSetup * colourCount;
+  for (let i = 0; i < n; i++) {
+    unitList[i] += stitchUnits[i] * thousands + colourUnits[i] * colourCount;
+  }
+  return { setup, unitList };
+}
+
 function costFactor(
   field: PricingField,
   sel: FieldSelection | undefined,
@@ -195,6 +262,9 @@ function costFactor(
   }
   if (Number(field.fieldType) === FieldType.COLOUR_EXTRACT) {
     return colourExtractCostFactor(field, sel, groupQuantities);
+  }
+  if (Number(field.fieldType) === FieldType.EMBROIDERY) {
+    return embroideryCostFactor(field, sel, groupQuantities);
   }
   if (isEmpty(field, sel)) {
     return { setup: 0, unitList: new Array(n).fill(0) };

@@ -41,6 +41,7 @@ export enum FieldType {
   COLOUR_EXTRACT = 13,
   AREA = 14,
   PANTONE_COLOUR_SELECT = 15,
+  EMBROIDERY = 16,
 }
 
 export type DraftCanvasObjectType = 'text' | 'image' | 'rect';

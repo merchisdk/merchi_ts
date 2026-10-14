@@ -28,6 +28,12 @@ import {
   variationsForGroup,
 } from '../../utils/draftTemplates';
 import {
+  embroideryMillimetres,
+  embroideryValueJson,
+  parseEmbroideryValue,
+  variationValuePath,
+} from '../../utils/embroidery';
+import {
   loadDrafts,
   pruneDrafts,
   saveDrafts,
@@ -110,6 +116,7 @@ export default function DraftDesignerSheet({
   const {
     apiUrl,
     classNameDraftSheet,
+    getQuote,
     hookForm,
     product,
   } = useMerchiFormContext();
@@ -187,11 +194,36 @@ export default function DraftDesignerSheet({
             && obj.text === other.text
             && obj.src === other.src
             && obj.fill === other.fill
+            && obj.width === other.width
+            && obj.height === other.height
             && obj.merchiFieldId === other.merchiFieldId;
         });
       return same ? current : next;
     });
   }, [open, variationSyncKey, template?.id, groupIndex]);
+
+  function handleCanvasChange(next: DraftCanvasState) {
+    const variations = variationsForGroup(hookForm.getValues(), groupIndex);
+    let wrote = false;
+    for (const obj of next.objects) {
+      if (obj.merchiFieldId == null) continue;
+      const before = state.objects.find((item) => item.id === obj.id);
+      if (before && before.width === obj.width && before.height === obj.height) continue;
+      const variation = variations.find(
+        (item: any) => Number(item?.variationField?.id) === Number(obj.merchiFieldId)
+      );
+      if (Number(variation?.variationField?.fieldType) !== 16) continue;
+      const mm = embroideryMillimetres(obj.width, obj.height, template);
+      if (!mm) continue;
+      const path = variationValuePath(hookForm.getValues(), obj.merchiFieldId);
+      if (!path) continue;
+      const parsed = parseEmbroideryValue(variation?.value) || {};
+      hookForm.setValue(path, embroideryValueJson({ ...parsed, ...mm }), { shouldDirty: true });
+      wrote = true;
+    }
+    setState(next);
+    if (wrote) Promise.resolve().then(() => getQuote());
+  }
 
   const selected = state.objects.find((obj) => obj.id === selectedId) || null;
 
@@ -396,7 +428,7 @@ export default function DraftDesignerSheet({
                 templateSrc={templateSrc(template, apiUrl)}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
-                onChange={setState}
+                onChange={handleCanvasChange}
                 onEditText={(id) => {
                   setLayersOpen(false);
                   setSelectedId(id);

@@ -7,5 +7,8 @@ export const COLOUR_EXTRACT = 13;
 /** Area: height × width stored as millimetres (`"heightMm,widthMm"`). */
 export const AREA = 14;
 
+/** Embroidery: text or an uploaded design, priced by stitches and colours. */
+export const EMBROIDERY = 16;
+
 /** Field types that carry uploaded files on the variation. */
-export const FILE_FIELD_TYPES = new Set([3, COLOUR_EXTRACT]);
+export const FILE_FIELD_TYPES = new Set([3, COLOUR_EXTRACT, EMBROIDERY]);

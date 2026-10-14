@@ -193,6 +193,27 @@ export class VariationField extends Entity {
   public aspectRatio?: number | null;
 
   @VariationField.property()
+  public embroideryInputMode?: string;
+
+  @VariationField.property({type: Number})
+  public stitchDensity?: number;
+
+  @VariationField.property({type: Number})
+  public averageStitchLengthMm?: number;
+
+  @VariationField.property()
+  public stitchVariationCost?: number;
+
+  @VariationField.property({type: 'DiscountGroup'})
+  public stitchVariationCostDiscountGroup?: DiscountGroup | null;
+
+  @VariationField.property()
+  public stitchVariationUnitCost?: number;
+
+  @VariationField.property({type: 'DiscountGroup'})
+  public stitchVariationUnitCostDiscountGroup?: DiscountGroup | null;
+
+  @VariationField.property()
   public product?: Product;
 
   @VariationField.property({arrayType: 'VariationFieldsOption'})
@@ -252,6 +273,10 @@ export class VariationField extends Entity {
     } else if (this.fieldType === FieldType.AREA) {
       result.value = this.defaultValue;
       result.onceOffCost = 0;
+    } else if (this.fieldType === FieldType.EMBROIDERY) {
+      result.value = '';
+      result.onceOffCost = 0;
+      result.variationFiles = [];
     } else if (this.isSelectable()) {
       let onceOffCost = 0;
       const value = [];

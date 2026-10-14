@@ -9,6 +9,7 @@ import {
   FieldType,
 } from './types';
 import { DEFAULT_DRAFT_FONT, cssFontFamily } from './draftFonts';
+import { embroideryPixels, parseEmbroideryValue } from './embroidery';
 import { productHasGroups } from './products';
 import { pantoneByCode } from './pantoneColours';
 
@@ -154,6 +155,13 @@ export function downloadableDraftTemplates(product: any, formValues: any): any[]
   return uniqueFileTemplates(product?.draftTemplates || []);
 }
 
+export function canvasKindForField(field: any): DraftCanvasObjectType | null {
+  if (parseInt(String(field?.fieldType), 10) === FieldType.EMBROIDERY) {
+    return field?.embroideryInputMode === 'text' ? 'text' : 'image';
+  }
+  return canvasKindForFieldType(field?.fieldType);
+}
+
 export function canvasKindForFieldType(
   fieldType: any,
 ): DraftCanvasObjectType | null {
@@ -195,10 +203,19 @@ export function variationCanvasContent(variation: any): {
   fill?: string;
 } {
   const field = variation?.variationField;
-  const kind = canvasKindForFieldType(field?.fieldType);
+  const kind = canvasKindForField(field);
   if (!kind) return { kind: null };
 
   const type = parseInt(String(field.fieldType), 10);
+
+  if (type === FieldType.EMBROIDERY) {
+    const parsed = parseEmbroideryValue(variation?.value);
+    if (kind === 'image') {
+      const file = (variation?.variationFiles || [])[0];
+      return { kind, src: file?.viewUrl || file?.cachedViewUrl || '' };
+    }
+    return { kind, text: parsed?.text || '' };
+  }
 
   if (kind === 'text') {
     if (
@@ -352,7 +369,7 @@ export function inferArtworkRole(
   field: any,
   linkedFields: any[] = [],
 ): DraftArtworkRole {
-  const kind = canvasKindForFieldType(field?.fieldType);
+  const kind = canvasKindForField(field);
   if (kind === 'image') return 'image';
   if (kind === 'text') return 'text';
   if (!isColourKind(kind)) return 'auto';
@@ -360,7 +377,7 @@ export function inferArtworkRole(
   if (/(text|font|letter|copy)/.test(name)) return 'text_fill';
   if (/(wrist|band|base|body|ground|blank)/.test(name)) return 'body_colour_fill';
   const hasText = linkedFields.some(
-    (item) => canvasKindForFieldType(item?.fieldType) === 'text'
+    (item) => canvasKindForField(item) === 'text'
   );
   return hasText ? 'text_fill' : 'body_colour_fill';
 }
@@ -385,7 +402,7 @@ export function inferTextTargetFieldId(
   const binding = bindingForField(fieldBindingsFrom(template), field?.id);
   if (binding?.targetFieldId != null) return Number(binding.targetFieldId);
   const textField = linkedFields.find(
-    (item) => canvasKindForFieldType(item?.fieldType) === 'text' && item?.id != null
+    (item) => canvasKindForField(item) === 'text' && item?.id != null
   );
   return textField?.id != null ? Number(textField.id) : undefined;
 }
@@ -612,6 +629,21 @@ export function seedOrSyncCanvas(
 
     const found = objects.find((obj) => obj.merchiFieldId === fieldId);
     if (found) {
+      if (parseInt(String(field?.fieldType), 10) === FieldType.EMBROIDERY) {
+        const parsed = parseEmbroideryValue(variation?.value);
+        const px = embroideryPixels(
+          Number(parsed?.widthMm),
+          Number(parsed?.heightMm),
+          template,
+        );
+        if (px) {
+          found.width = px.width;
+          found.height = px.height;
+        }
+        if (content.kind === 'text') found.text = content.text || found.text;
+        if (content.kind === 'image' && content.src) found.src = content.src;
+        continue;
+      }
       if (content.kind === 'text' && content.text != null) {
         found.text = content.text;
         Object.assign(found, fitTextBox(found));
