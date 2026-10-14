@@ -45,7 +45,7 @@ interface FromJsonOptions {
   makeDirty?: boolean;
 }
 
-interface CreateOptions {
+export interface CreateOptions {
   withRights?: boolean;
   embed?: EmbedDescriptor;
 }
