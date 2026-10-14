@@ -1,5 +1,9 @@
+export { isExpectedClientError } from "./expectedClientError.js";
+export { resolveReleaseSha, type ReleaseShaEnv } from "./releaseSha.js";
+export { isReportingEnabled } from "./reporting.js";
 export {
   captureException,
+  captureUnexpected,
   configureFrontendErrors,
   createFrontendErrorReporter,
   FrontendErrorReporter,
@@ -19,6 +23,7 @@ export {
   type CaptureContext,
   type FrontendErrorEvent,
   type FrontendErrorReporterConfig,
+  type FrontendErrorShouldReport,
   type FrontendErrorSource,
   type FrontendErrorStackFrame,
   type FrontendErrorTransport,

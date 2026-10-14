@@ -20,12 +20,11 @@ export function installGlobalErrorHandlers(
   }
 
   const onError = (event: ErrorEvent): void => {
-    if (!(event.error instanceof Error)) return;
-    reporter.captureException(event.error, { source: "window_error" });
+    if (event.error == null) return;
+    reporter.captureUnexpected(event.error, { source: "window_error" });
   };
   const onUnhandledRejection = (event: PromiseRejectionEvent): void => {
-    if (!(event.reason instanceof Error)) return;
-    reporter.captureException(event.reason, { source: "unhandled_rejection" });
+    reporter.captureUnexpected(event.reason, { source: "unhandled_rejection" });
   };
 
   window.addEventListener("error", onError);

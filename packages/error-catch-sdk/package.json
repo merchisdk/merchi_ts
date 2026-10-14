@@ -17,6 +17,14 @@
     "./react": {
       "types": "./dist/react.d.ts",
       "import": "./dist/react.js"
+    },
+    "./next": {
+      "types": "./dist/next.d.ts",
+      "import": "./dist/next.js"
+    },
+    "./release": {
+      "types": "./dist/releaseSha.d.ts",
+      "import": "./dist/releaseSha.js"
     }
   },
   "files": [
