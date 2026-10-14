@@ -41,6 +41,12 @@ export class DraftTemplate extends Entity {
   @DraftTemplate.property()
   public width?: number;
 
+  @DraftTemplate.property({type: Number})
+  public widthMm?: number | null;
+
+  @DraftTemplate.property({type: Number})
+  public heightMm?: number | null;
+
   @DraftTemplate.property({type: MerchiFile})
   public file?: MerchiFile;
 

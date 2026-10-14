@@ -8,6 +8,7 @@ interface FieldSelection {
   value?: string | number | null;
   colourCount?: number;
   hasFiles?: boolean;
+  coverage?: number;
 }
 
 interface Selections {
@@ -23,6 +24,7 @@ interface PricingField {
 }
 
 const COLOUR_EXTRACT = 13;
+const EMBROIDERY = 16;
 
 function uploadedFilePresent(variation: any): boolean {
   const files = variation?.variationFiles;
@@ -72,6 +74,22 @@ function buildFieldValues(
     const fieldId = variation?.variationField?.id;
     if (fieldId === undefined || fieldId === null) continue;
     const field = fieldById[fieldId];
+    if (Number(field?.fieldType) === EMBROIDERY) {
+      let parsed: any = null;
+      try {
+        parsed = variation?.value ? JSON.parse(String(variation.value)) : null;
+      } catch {
+        parsed = null;
+      }
+      const colours = Array.isArray(parsed?.colours) ? parsed.colours : [];
+      out[fieldId] = {
+        value: variation?.value ?? null,
+        colourCount: colours.length,
+        coverage: Number(parsed?.coverage) || undefined,
+        hasFiles: uploadedFilePresent(variation),
+      };
+      continue;
+    }
     if (Number(field?.fieldType) === COLOUR_EXTRACT) {
       const colours = colourSelection(variation);
       out[fieldId] = {

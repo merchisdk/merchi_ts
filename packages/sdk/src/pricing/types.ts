@@ -50,6 +50,14 @@ export interface PricingField {
   colourVariationUnitCost?: number;
   colourVariationCostDiscountGroup?: DiscountGroup | null;
   colourVariationUnitCostDiscountGroup?: DiscountGroup | null;
+  /** Embroidery (fieldType 16): per 1,000 stitches, plus the per-colour rates. */
+  embroideryInputMode?: 'text' | 'file' | string;
+  stitchDensity?: number;
+  averageStitchLengthMm?: number;
+  stitchVariationCost?: number;
+  stitchVariationUnitCost?: number;
+  stitchVariationCostDiscountGroup?: DiscountGroup | null;
+  stitchVariationUnitCostDiscountGroup?: DiscountGroup | null;
   options: PricingOption[];
 }
 
@@ -91,6 +99,8 @@ export interface FieldSelection {
   colourCount?: number;
   /** Colour extract: an artwork file is attached, even if no colour was kept. */
   hasFiles?: boolean;
+  /** Embroidery: fraction of the size box that is ink. */
+  coverage?: number;
 }
 
 export interface GroupSelection {

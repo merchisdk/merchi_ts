@@ -21,6 +21,10 @@ export interface VariationFieldJson {
   simplifyColours?: boolean;
   colourVariationCost?: number;
   colourVariationUnitCost?: number;
+  embroideryInputMode?: string;
+  stitchDensity?: number;
+  stitchVariationCost?: number;
+  stitchVariationUnitCost?: number;
 }
 
 /** A variation selection within a job (one chosen field value). */

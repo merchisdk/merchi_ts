@@ -22,6 +22,7 @@ import {
 } from './VariationSelectElements';
 import VariationTurnaroundTime from './VariationTurnaroundTime';
 import VariationAreaInput from './VariationAreaInput';
+import VariationEmbroideryInput from './VariationEmbroideryInput';
 import { VariationPantoneSelect } from './VariationPantoneSelect';
 import { useMerchiFormContext } from '../context/MerchiProductFormProvider';
 import { shouldHideSingleOptionSelection } from '../utils/singleOptionVariation';
@@ -42,6 +43,7 @@ fieldMaps.set(FieldType.NUMBER_INPUT, VariationInputNumber);
 fieldMaps.set(FieldType.FIELD_INSTRUCTIONS, VariationFieldInstructions);
 fieldMaps.set(FieldType.TURNAROUND_TIME, VariationTurnaroundTime);
 fieldMaps.set(FieldType.AREA, VariationAreaInput);
+fieldMaps.set(FieldType.EMBROIDERY, VariationEmbroideryInput);
 
 interface Props {
   disabled?: boolean;

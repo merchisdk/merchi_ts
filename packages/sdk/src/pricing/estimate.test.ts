@@ -555,3 +555,29 @@ test('group field visibility is scoped per group (no cross-group leak)', () => {
   expect(r.groupCosts).toEqual([0, 5]);
   expect(r.cost).toBe(5);
 });
+
+test('embroidery prices stitches and colours from the saved size', () => {
+  const rules: PricingRules = {
+    ...base,
+    fields: [{
+      id: 16, originalId: 16, position: 0, fieldType: 16, independent: true,
+      isSelectable: false, selectedBy: [],
+      variationCost: 15, variationUnitCost: 0,
+      variationCostDiscountGroup: null, variationUnitCostDiscountGroup: null,
+      stitchDensity: 2.5,
+      stitchVariationCost: 12, stitchVariationUnitCost: 0.8,
+      stitchVariationCostDiscountGroup: null, stitchVariationUnitCostDiscountGroup: null,
+      colourVariationCost: 5, colourVariationUnitCost: 0.4,
+      colourVariationCostDiscountGroup: null, colourVariationUnitCostDiscountGroup: null,
+      options: [],
+    }],
+  };
+  const value = JSON.stringify({
+    text: 'ACME', widthMm: 80, heightMm: 40, colours: ['#111111', '#CC0000'], coverage: 0.5,
+  });
+  const r = estimateQuote(rules, {
+    quantity: 1,
+    fieldValues: { 16: { value, colourCount: 2, coverage: 0.5 } },
+  }) as QuoteResult;
+  expect(r.cost).toBe(87);
+});
