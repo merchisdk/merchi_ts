@@ -198,7 +198,7 @@ export function buildEmptyVariationFromField(field: any) {
 export function buildEmptyVariationGroup(product: any) {
   const productEnt = new merchi.Product();
   productEnt.fromJson({...product}, { makeDirty: false});
-  const newGroup = new productEnt.buildEmptyVariationGroup();
+  const newGroup = productEnt.buildEmptyVariationGroup();
   newGroup.groupCost = 0;
   newGroup.quantity = defaultGroupQuantity(product);
   const groupJson = newGroup.toJson();

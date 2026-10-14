@@ -204,8 +204,11 @@ function embroideryCostFactor(
   const width = Number(parsed?.widthMm);
   const height = Number(parsed?.heightMm);
   const coverage = Number(sel?.coverage ?? parsed?.coverage);
+  // An explicit colourCount, including 0, wins. Otherwise count the saved
+  // colour list. A null value or a non-array list contributes no colours.
+  const savedColours = parsed?.colours;
   const colourCount = Number(
-    sel?.colourCount ?? (Array.isArray(parsed?.colours) ? parsed.colours.length : 0)
+    sel?.colourCount ?? (Array.isArray(savedColours) ? savedColours.length : 0)
   );
   const hasDesign = Boolean(String(parsed?.text || '').trim()) || Boolean(sel?.hasFiles) || colourCount > 0;
   if (!(width > 0) || !(height > 0) || !(coverage > 0) || !hasDesign) return zeros;

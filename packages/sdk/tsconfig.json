@@ -8,6 +8,7 @@
     "moduleResolution": "node",
     "rootDir": "./src",
     "outDir": "dist",
+    "declaration": true,
     "module": "ES6",
     "types": ["node", "jest"],
     "baseUrl": ".",

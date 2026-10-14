@@ -581,3 +581,72 @@ test('embroidery prices stitches and colours from the saved size', () => {
   }) as QuoteResult;
   expect(r.cost).toBe(87);
 });
+
+test('embroidery counts colours on the saved value when colourCount is omitted', () => {
+  const rules: PricingRules = {
+    ...base,
+    fields: [{
+      id: 16, originalId: 16, position: 0, fieldType: 16, independent: true,
+      isSelectable: false, selectedBy: [],
+      variationCost: 15, variationUnitCost: 0,
+      variationCostDiscountGroup: null, variationUnitCostDiscountGroup: null,
+      stitchDensity: 2.5,
+      stitchVariationCost: 12, stitchVariationUnitCost: 0.8,
+      stitchVariationCostDiscountGroup: null, stitchVariationUnitCostDiscountGroup: null,
+      colourVariationCost: 5, colourVariationUnitCost: 0.4,
+      colourVariationCostDiscountGroup: null, colourVariationUnitCostDiscountGroup: null,
+      options: [],
+    }],
+  };
+  const value = JSON.stringify({
+    text: 'ACME', widthMm: 80, heightMm: 40, colours: ['#111111', '#CC0000'], coverage: 0.5,
+  });
+  const r = estimateQuote(rules, {
+    quantity: 1,
+    fieldValues: { 16: { value, coverage: 0.5 } },
+  }) as QuoteResult;
+  expect(r.cost).toBe(87);
+});
+
+test('embroidery ignores a null or non-array colour list', () => {
+  const rules: PricingRules = {
+    ...base,
+    fields: [{
+      id: 16, originalId: 16, position: 0, fieldType: 16, independent: true,
+      isSelectable: false, selectedBy: [],
+      variationCost: 15, variationUnitCost: 0,
+      variationCostDiscountGroup: null, variationUnitCostDiscountGroup: null,
+      stitchDensity: 2.5,
+      stitchVariationCost: 12, stitchVariationUnitCost: 0.8,
+      stitchVariationCostDiscountGroup: null, stitchVariationUnitCostDiscountGroup: null,
+      colourVariationCost: 5, colourVariationUnitCost: 0.4,
+      colourVariationCostDiscountGroup: null, colourVariationUnitCostDiscountGroup: null,
+      options: [],
+    }],
+  };
+  const missing = estimateQuote(rules, {
+    quantity: 1,
+    fieldValues: { 16: { value: null, colourCount: 2, coverage: 0.5 } },
+  }) as QuoteResult;
+  // No saved size, so the stitch price cannot be calculated.
+  expect(missing.cost).toBe(10);
+
+  const notColours = JSON.stringify({
+    text: 'ACME', widthMm: 80, heightMm: 40, colours: 'red', coverage: 0.5,
+  });
+  const uncounted = estimateQuote(rules, {
+    quantity: 1,
+    fieldValues: { 16: { value: notColours, coverage: 0.5 } },
+  }) as QuoteResult;
+  // 10 + 15 + 12*4 + 0.8*4 = 76.2; a non-array colour list adds no colour fee.
+  expect(uncounted.cost).toBe(76.2);
+
+  const explicitZero = JSON.stringify({
+    text: 'ACME', widthMm: 80, heightMm: 40, colours: ['#111111', '#CC0000'], coverage: 0.5,
+  });
+  const zero = estimateQuote(rules, {
+    quantity: 1,
+    fieldValues: { 16: { value: explicitZero, colourCount: 0, coverage: 0.5 } },
+  }) as QuoteResult;
+  expect(zero.cost).toBe(76.2);
+});
