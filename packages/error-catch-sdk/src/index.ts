@@ -31,6 +31,8 @@ export {
   FRONTEND_ERROR_SCHEMA_VERSION,
   type CaptureContext,
   type FrontendErrorEvent,
+  type FrontendErrorIntegration,
+  type FrontendErrorReceipt,
   type FrontendErrorReporterConfig,
   type FrontendErrorShouldReport,
   type FrontendErrorSource,

@@ -286,3 +286,48 @@ npm run check
 
 `npm run check` runs type checking, tests, a clean package build, and a package
 contents dry run.
+
+## Optional storefront error recordings
+
+The `@merchi/error-catch/replay` entry point provides `startStorefrontReplay`.
+It adds an integration to an existing reporter without changing its filtering,
+deduplication or normal error transport. The recorder is imported only after
+explicit consent. The root error SDK never imports rrweb into its browser bundle.
+
+```ts
+import { initMerchiStorefrontErrors } from '@merchi/error-catch/next';
+import { startStorefrontReplay } from '@merchi/error-catch/replay';
+
+const reporter = initMerchiStorefrontErrors({
+  apiUrl: 'https://api.staging.merchi.co/v6/', domainId: 42, enabled: true,
+});
+const replay = startStorefrontReplay(reporter, {
+  apiUrl: 'https://api.staging.merchi.co/v6/', enabled: true,
+  consentGranted: false,
+});
+// Connect these to the store's visitor consent controls.
+replay.setConsent(true);
+replay.setConsent(false); // Clears buffers and aborts pending uploads.
+// Call replay.stop() if the host permanently tears down the integration.
+```
+
+A bounded rolling buffer retains approximately 60 seconds, with complete
+snapshots every 10 seconds. Accepted errors upload a baseline immediately and
+append up to 15 seconds afterward. Quiet time is included in the timeline.
+There are at most three clips per document; a reload starts a fresh buffer.
+Recordings are best effort: closing a tab, network failures or large pages can
+shorten them. No recordings upload during normal browsing.
+
+All text/input values are masked, DOM attributes are allowlisted, and media,
+canvas, uploads and iframes are blocked. CSS classes preserve page layout.
+Mark any additional sensitive component with `data-replay-block` or `rr-block`.
+This version has no text-unmasking override. The server applies masking again.
+
+The v6 collector must return an accepted receipt with `replay: { id, uploadToken }`.
+Custom error transports may return that receipt through the extended
+`FrontendErrorTransport` return type; transports returning void still work,
+without replay uploads. A server suppression response never authorizes replay.
+Uploads omit credentials/referrers, have a 10-second timeout and retry once with
+an idempotent part index. They require the API's per-domain replay configuration,
+private bucket and origin registration; see the API's
+`documentation/storefront-error-replays.md` for setup, retention and endpoints.

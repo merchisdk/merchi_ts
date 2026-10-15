@@ -33,6 +33,20 @@ export interface FrontendErrorEvent {
   apiStatusCode?: number;
   apiErrorCode?: number;
   stripeErrorCode?: FrontendErrorStripeCode;
+  replayRequested?: boolean;
+}
+
+export interface FrontendErrorReceipt {
+  accepted?: boolean;
+  reportId?: string;
+  disposition?: string;
+  replay?: { id: string; uploadToken: string };
+}
+
+/** Optional integrations run only after filtering, deduplication and quotas. */
+export interface FrontendErrorIntegration {
+  prepare(event: FrontendErrorEvent): void;
+  accepted(event: FrontendErrorEvent, receipt: FrontendErrorReceipt): void;
 }
 
 export interface CaptureContext {
@@ -51,7 +65,7 @@ export type FrontendErrorShouldReport = (
 export type FrontendErrorTransport = (
   endpoint: string,
   event: FrontendErrorEvent,
-) => void | Promise<void>;
+) => void | Promise<void | FrontendErrorReceipt>;
 
 export interface FrontendErrorReporterConfig {
   endpoint: string;
