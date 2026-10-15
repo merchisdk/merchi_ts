@@ -41,7 +41,7 @@ describe("global browser handlers", () => {
     uninstall();
   });
 
-  it("does not report expected Merchi client errors from global handlers", () => {
+  it("retains unhandled client errors without proof the UI handled them", () => {
     const events: FrontendErrorEvent[] = [];
     const reporter = createFrontendErrorReporter({
       endpoint: "https://api.merchi.co/v6/frontend-errors",
@@ -63,7 +63,8 @@ describe("global browser handlers", () => {
     Object.defineProperty(rejection, "reason", { value: clientError });
     window.dispatchEvent(rejection);
     window.dispatchEvent(new ErrorEvent("error", { error: clientError }));
-    expect(events).toEqual([]);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.apiStatusCode).toBe(409);
     uninstall();
   });
 

@@ -91,6 +91,7 @@
     "react-transition": "^1.0.3",
     "react-transition-group": "^4.4.5",
     "typescript": "5.1.6",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "@merchi/error-catch": "workspace:^"
   }
 }

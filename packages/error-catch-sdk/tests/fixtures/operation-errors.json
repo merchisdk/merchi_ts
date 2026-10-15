@@ -1,0 +1,468 @@
+[
+  {
+    "name": "cart.load failed validation retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 422,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "cart.load",
+      "outcome": "failed"
+    }
+  },
+  {
+    "name": "cart.load failed abort retained",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "cart.load",
+      "outcome": "failed"
+    }
+  },
+  {
+    "name": "cart.load recovered retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "cart.load",
+      "outcome": "recovered",
+      "reason": "retry_succeeded"
+    }
+  },
+  {
+    "name": "cart.load navigation abort retained",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "cart.load",
+      "outcome": "cancelled",
+      "reason": "navigation"
+    }
+  },
+  {
+    "name": "cart.load explicit user cancellation",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": "intentional_cancellation",
+    "operation": {
+      "name": "cart.load",
+      "outcome": "cancelled",
+      "reason": "user_cancelled"
+    }
+  },
+  {
+    "name": "checkout.submit failed validation retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 422,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "failed"
+    }
+  },
+  {
+    "name": "checkout.submit failed abort retained",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "failed"
+    }
+  },
+  {
+    "name": "checkout.submit recovered retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "recovered",
+      "reason": "retry_succeeded"
+    }
+  },
+  {
+    "name": "checkout.submit navigation abort retained",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "cancelled",
+      "reason": "navigation"
+    }
+  },
+  {
+    "name": "checkout.submit explicit user cancellation",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": "intentional_cancellation",
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "cancelled",
+      "reason": "user_cancelled"
+    }
+  },
+  {
+    "name": "payment.confirm failed validation retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 422,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "failed"
+    }
+  },
+  {
+    "name": "payment.confirm failed abort retained",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "failed"
+    }
+  },
+  {
+    "name": "payment.confirm recovered retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "recovered",
+      "reason": "retry_succeeded"
+    }
+  },
+  {
+    "name": "payment.confirm navigation abort retained",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "cancelled",
+      "reason": "navigation"
+    }
+  },
+  {
+    "name": "payment.confirm explicit user cancellation",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": "intentional_cancellation",
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "cancelled",
+      "reason": "user_cancelled"
+    }
+  },
+  {
+    "name": "known input handled by UI",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": "handled_validation",
+    "apiStatusCode": 422,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "known input without handling context",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 422,
+    "apiErrorCode": 6
+  },
+  {
+    "name": "generic client error still retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 400,
+    "apiErrorCode": 2,
+    "operation": {
+      "name": "cart.update",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "status 401 overrides claimed handling",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 401,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "status 403 overrides claimed handling",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 403,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "status 404 overrides claimed handling",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 404,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "status 429 overrides claimed handling",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 429,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "status 500 overrides claimed handling",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 500,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "status 503 overrides claimed handling",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 503,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "React failure overrides handled context",
+    "errorType": "Error",
+    "source": "react_error_boundary",
+    "suppression": null,
+    "apiStatusCode": 422,
+    "apiErrorCode": 6,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "unmarked AbortError retained",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": null
+  },
+  {
+    "name": "abort-shaped message retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "search.load",
+      "outcome": "cancelled",
+      "reason": "superseded"
+    }
+  },
+  {
+    "name": "superseded search abort",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": "intentional_cancellation",
+    "operation": {
+      "name": "search.load",
+      "outcome": "cancelled",
+      "reason": "superseded"
+    }
+  },
+  {
+    "name": "cancelled search without reason retained",
+    "errorType": "AbortError",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "search.load",
+      "outcome": "cancelled"
+    }
+  },
+  {
+    "name": "recovered product fetch",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": "recovered_noncritical",
+    "operation": {
+      "name": "product.load",
+      "outcome": "recovered",
+      "reason": "retry_succeeded"
+    }
+  },
+  {
+    "name": "recovered without confirmation retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "product.load",
+      "outcome": "recovered"
+    }
+  },
+  {
+    "name": "unresolved offline failure retained",
+    "errorType": "TypeError",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "product.load",
+      "outcome": "failed"
+    }
+  },
+  {
+    "name": "server failure despite recovery label",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "apiStatusCode": 503,
+    "operation": {
+      "name": "product.load",
+      "outcome": "recovered",
+      "reason": "retry_succeeded"
+    }
+  },
+  {
+    "name": "handled Stripe card_declined",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": "handled_payment_outcome",
+    "stripeErrorCode": "card_declined",
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "handled Stripe expired_card",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": "handled_payment_outcome",
+    "stripeErrorCode": "expired_card",
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "handled Stripe incorrect_cvc",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": "handled_payment_outcome",
+    "stripeErrorCode": "incorrect_cvc",
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "handled Stripe incorrect_number",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": "handled_payment_outcome",
+    "stripeErrorCode": "incorrect_number",
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "unresolved Stripe decline retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "stripeErrorCode": "card_declined",
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "failed"
+    }
+  },
+  {
+    "name": "Stripe label cannot hide HTTP failure",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "stripeErrorCode": "card_declined",
+    "apiStatusCode": 500,
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "unknown payment result retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "payment.confirm",
+      "outcome": "handled",
+      "reason": "validation"
+    }
+  },
+  {
+    "name": "claimed validation missing HTTP proof retained",
+    "errorType": "Error",
+    "source": "manual",
+    "suppression": null,
+    "operation": {
+      "name": "checkout.submit",
+      "outcome": "handled",
+      "reason": "validation"
+    },
+    "apiErrorCode": 6
+  }
+]

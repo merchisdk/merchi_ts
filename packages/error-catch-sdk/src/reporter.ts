@@ -1,4 +1,5 @@
-import { isExpectedClientError } from "./expectedClientError.js";
+import { isBrowserExtensionError } from "./browserExtension.js";
+import { apiFailureContext, isCriticalOperation, normalizeOperation, safeOperationSuppression } from "./operation.js";
 import {
   errorDetails,
   MAX_COMPONENT_STACK_LENGTH,
@@ -49,7 +50,9 @@ function dedupeKey(event: FrontendErrorEvent): string {
     .slice(0, 5)
     .map((frame) => `${frame.file}:${frame.function}:${frame.line ?? ""}:${frame.column ?? ""}`)
     .join("|");
-  return [event.errorType, event.message, event.route ?? "", event.digest ?? "", frames].join("\n");
+  return [event.errorType, event.message, event.route ?? "", event.digest ?? "", frames,
+    event.operation?.name ?? "", event.operation?.outcome ?? "", event.operation?.reason ?? "",
+    event.apiStatusCode ?? "", event.apiErrorCode ?? "", event.stripeErrorCode ?? ""].join("\n");
 }
 
 export class FrontendErrorReporter {
@@ -63,6 +66,7 @@ export class FrontendErrorReporter {
   readonly #shouldReport: FrontendErrorShouldReport | undefined;
   readonly #seenAt = new Map<string, number>();
   #eventCount = 0;
+  #criticalEventCount = 0;
 
   constructor(config: FrontendErrorReporterConfig) {
     this.#endpoint = typeof config.endpoint === "string" ? config.endpoint.trim() : "";
@@ -82,17 +86,21 @@ export class FrontendErrorReporter {
   captureException(error: unknown, context: CaptureContext = {}): boolean {
     try {
       if (this.#shouldReport && !this.#shouldReport(error, context)) return false;
-      if (!this.#enabled || !this.#endpoint || this.#eventCount >= this.#maxEventsPerPage) {
+      if (!this.#enabled || !this.#endpoint) {
         return false;
       }
       const event = this.#buildEvent(error, context);
+      if (!this.#shouldReport && (safeOperationSuppression(event) || isBrowserExtensionError(event))) return false;
+      const critical = isCriticalOperation(event.operation);
+      if ((critical ? this.#criticalEventCount : this.#eventCount) >= this.#maxEventsPerPage) return false;
       const key = dedupeKey(event);
       const now = Date.now();
       this.#removeExpiredDedupeEntries(now);
       const previous = this.#seenAt.get(key);
       if (previous !== undefined && now - previous < this.#dedupeWindowMs) return false;
       this.#seenAt.set(key, now);
-      this.#eventCount += 1;
+      if (critical) this.#criticalEventCount += 1;
+      else this.#eventCount += 1;
       try {
         void Promise.resolve(this.#transport(this.#endpoint, event)).catch(() => undefined);
       } catch {
@@ -106,16 +114,11 @@ export class FrontendErrorReporter {
 
   /**
    * Report an unexpected failure. Non-Error rejections are normalised by the
-   * same path as `captureException`. Expected Merchi client errors are skipped
-   * unless `shouldReport` is configured.
+   * same path as `captureException`, including operation-aware safe filters.
+   * A status code or error name alone never establishes that a failure was handled.
    */
   captureUnexpected(error: unknown, context: CaptureContext = {}): boolean {
-    try {
-      if (!this.#shouldReport && isExpectedClientError(error)) return false;
-      return this.captureException(error, context);
-    } catch {
-      return false;
-    }
+    return this.captureException(error, context);
   }
 
   #buildEvent(error: unknown, context: CaptureContext): FrontendErrorEvent {
@@ -136,12 +139,15 @@ export class FrontendErrorReporter {
       errorType: details.errorType,
       message: details.message,
       stackFrames: details.stackFrames,
+      ...apiFailureContext(error),
     };
     if (this.#releaseSha) event.releaseSha = this.#releaseSha;
     if (route) event.route = route;
     if (digest) event.digest = digest;
     if (details.stackTrace) event.stackTrace = details.stackTrace;
     if (componentStack) event.componentStack = componentStack;
+    const operation = normalizeOperation(context.operation);
+    if (operation) event.operation = operation;
     return event;
   }
 

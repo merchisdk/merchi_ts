@@ -97,7 +97,7 @@ describe('generatePublicInvoicePdf error reporting', () => {
     expect(JSON.stringify(events[0])).not.toContain('person@example.com');
   });
 
-  it('skips expected client errors and still rejects', async () => {
+  it('retains unresolved invoice failures even with client error codes', async () => {
     const error = apiError(409, 'invoice token rejected');
     global.fetch = jest.fn(async () => {
       throw error;
@@ -109,6 +109,6 @@ describe('generatePublicInvoicePdf error reporting', () => {
       domain: { emailDomain: 'shop.example' },
     })).rejects.toBe(error);
 
-    expect(events).toEqual([]);
+    expect(events[0]).toMatchObject({ operation: { name: 'cart.invoice_pdf', outcome: 'failed' } });
   });
 });

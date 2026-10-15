@@ -2,6 +2,7 @@ import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { StripePaymentForm } from './StripePaymentForm';
+import { configureFrontendErrors, type FrontendErrorEvent } from '@merchi/error-catch';
 
 const mocks = vi.hoisted(() => ({ confirm: vi.fn(), elementOptions: [] as any[], expressOptions: [] as any[] }));
 vi.mock('@stripe/stripe-js', () => ({ loadStripe: () => Promise.resolve({}) }));
@@ -31,8 +32,12 @@ const options = { amountMinor: 5000, currency: 'aud', minorUnitFactor: 100 };
 let requests: Array<{ url: string; method: string; body?: any }>;
 let status: any;
 let postError = false;
+let reported: FrontendErrorEvent[];
 
 beforeEach(() => {
+  reported = [];
+  configureFrontendErrors({ endpoint: 'https://collector.example', application: 'store', enabled: true, dedupeWindowMs: 0,
+    transport: (_, event) => { reported.push(event); } });
   requests = []; status = pending; postError = false;
   mocks.confirm.mockReset().mockResolvedValue({ paymentIntent: { status: 'succeeded' } });
   mocks.elementOptions.length = 0;
@@ -55,6 +60,35 @@ function setup(onSuccess = vi.fn()) {
 }
 
 describe('shared Stripe payment form', () => {
+  it('reports payment initialization network failures with operation context', async () => {
+    postError = true;
+    setup();
+    fireEvent.click(await screen.findByText('Continue to payment'));
+    await screen.findByText('Network disconnected');
+    expect(reported[0]).toMatchObject({ operation: { name: 'payment.initialize', outcome: 'failed' } });
+  });
+
+  it('retains an AbortError from unresolved payment confirmation', async () => {
+    mocks.confirm.mockRejectedValue(new DOMException('payment aborted unexpectedly', 'AbortError'));
+    setup();
+    fireEvent.click(await screen.findByText('Continue to payment'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apple Pay' }));
+    await screen.findByText('payment aborted unexpectedly');
+    expect(reported[0]).toMatchObject({ errorType: 'AbortError', operation: { name: 'payment.confirm', outcome: 'failed' } });
+  });
+
+  it('filters a card decline handled by the UI but retains provider integration errors', async () => {
+    mocks.confirm.mockResolvedValueOnce({ error: { type: 'card_error', code: 'card_declined', message: 'Card declined' } });
+    setup();
+    fireEvent.click(await screen.findByText('Continue to payment'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Apple Pay' }));
+    await screen.findByText('Card declined');
+    expect(reported).toEqual([]);
+    mocks.confirm.mockResolvedValueOnce({ error: { type: 'api_error', code: 'processing_error', message: 'Provider unavailable' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apple Pay' }));
+    await screen.findByText('Provider unavailable');
+    expect(reported[0]).toMatchObject({ operation: { name: 'payment.confirm', outcome: 'handled' }, message: 'Provider unavailable' });
+  });
   it('defaults to full amount, uses account key and presents the wallet selector', async () => {
     setup();
     await screen.findByText('Pay full balance');
