@@ -1,5 +1,13 @@
 export { isExpectedClientError } from "./expectedClientError.js";
 export { isBrowserExtensionError } from "./browserExtension.js";
+export {
+  FRONTEND_ERROR_OPERATIONS,
+  type FrontendErrorOperation,
+  type FrontendErrorOperationContext,
+  type FrontendErrorOutcome,
+  type FrontendErrorReason,
+  type FrontendErrorStripeCode,
+} from "./operation.js";
 export { resolveReleaseSha, type ReleaseShaEnv } from "./releaseSha.js";
 export { isReportingEnabled } from "./reporting.js";
 export {

@@ -1,5 +1,6 @@
 import { MAX_STACK_FRAMES, MAX_STACK_TRACE_LENGTH } from "./normalize.js";
 import type { FrontendErrorEvent } from "./types.js";
+import { isCriticalOperation } from "./operation.js";
 
 const EXTENSION_FILE =
   /^(?:chrome-extension|moz-extension|safari-extension|safari-web-extension|ms-browser-extension):\/\/[^/\s]+\//i;
@@ -11,13 +12,13 @@ const ERROR_HEADING = /^[A-Za-z_$][\w.$-]*:(?:\s|$)/;
 export function isBrowserExtensionError(
   event: Pick<
     FrontendErrorEvent,
-    "source" | "stackFrames" | "stackTrace" | "componentStack" | "digest"
+    "source" | "stackFrames" | "stackTrace" | "componentStack" | "digest" | "operation"
   >,
 ): boolean {
   if (
     !["window_error", "unhandled_rejection"].includes(event.source) ||
     event.componentStack ||
-    event.digest
+    event.digest || isCriticalOperation(event.operation)
   ) return false;
 
   const files = event.stackFrames.map((frame) => frame.file);

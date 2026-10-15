@@ -50,16 +50,16 @@ describe("Next.js storefront helpers", () => {
     window.dispatchEvent(stringRejection);
 
     await Promise.resolve();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     const bodies = fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as FrontendErrorEvent);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.merchi.co/v6/frontend-errors");
-    expect(bodies.map((event) => event.errorType)).toEqual(["TypeError", "NonErrorException"]);
-    expect(bodies[0]).toMatchObject({
+    expect(bodies.map((event) => event.errorType)).toEqual(["ApiError", "TypeError", "NonErrorException"]);
+    expect(bodies[1]).toMatchObject({
       application: "merchi-storefront-42",
       releaseSha: "0123456789abcdef",
       source: "window_error",
     });
-    expect(bodies[1]?.message).toBe("failed for [redacted-email]");
+    expect(bodies[2]?.message).toBe("failed for [redacted-email]");
   });
 
   it("reports route crashes including missing-resource API failures with their digest", () => {

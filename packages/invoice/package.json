@@ -74,6 +74,7 @@
     "react-medium-image-zoom": "^5.1.8",
     "react-square-web-payments-sdk": "^3.2.1",
     "react-transition": "^1.0.3",
-    "react-transition-group": "^4.4.5"
+    "react-transition-group": "^4.4.5",
+    "@merchi/error-catch": "workspace:^"
   }
 }

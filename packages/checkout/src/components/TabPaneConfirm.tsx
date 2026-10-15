@@ -1,6 +1,7 @@
 'use client';
 import * as React from 'react';
 import { useState } from 'react';
+import { reportCheckoutFailure } from '../reportFailure';
 import { submitBuyNow, submitQuoteRequest } from '../actions/confirm';
 import TabPane from './TabPane';
 import TitleStep from './TitleStep';
@@ -208,6 +209,7 @@ function TabPaneConfirm() {
         } else {
           const error = await response.json();
           alertErrorShow(error.message);
+          reportCheckoutFailure(error, response.status);
           setLoading(false);
         }
       } else {
@@ -240,10 +242,12 @@ function TabPaneConfirm() {
         } else {
           const error = await response.json();
           alertErrorShow(error.message);
+          reportCheckoutFailure(error, response.status);
         }
         setLoading(false);
       }
     } catch (e: any) {
+      reportCheckoutFailure(e);
       alertErrorShow(e.message);
       setLoading(false);
     }

@@ -21,7 +21,7 @@ import {
 } from './utilities/local_storage';
 import { makeUser } from './utilities/user';
 import { persistTestCheckoutFlag, readTestCheckoutFlag } from './utilities/test_checkout';
-import { reportAddCartItemFailure } from './utilities/reportFailure';
+import { reportAddCartItemFailure, reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
 import {
   appendJobSourceToFormData,
   captureAndReadJobSource,
@@ -649,6 +649,7 @@ const CartProvider = ({
       setCart({...cartJson});
       if (callback) callback();
     } catch (e: any) {
+      reportCartFailure(e, CART_FAILURE_SOURCES.create);
       alertError(e.errorMessage || e.message || 'Unable to fetch cart.');
     } finally {
       setFetchingCart(false);
@@ -754,6 +755,7 @@ const CartProvider = ({
         shipmentGroups: cartWithShipmentGroups.shipmentGroups || []
       });
     } catch (e: any) {
+      reportCartFailure(e, CART_FAILURE_SOURCES.update);
       alertError(e.errorMessage || e.message || 'Unable to set address');
     } finally {
       setFetchingShipmentGroups(false);
@@ -774,6 +776,7 @@ const CartProvider = ({
         shipmentGroups: cartWithGroups.shipmentGroups || []
       });
     } catch (e: any) {
+      reportCartFailure(e, CART_FAILURE_SOURCES.shipping);
       alertError(e.errorMessage || e.message || 'Unable to fetch shipment options');
     } finally {
       setFetchingShipmentGroups(false);

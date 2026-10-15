@@ -25,7 +25,9 @@ describe("captureUnexpected", () => {
       },
     });
 
-    expect(reporter.captureUnexpected(apiError(409, 3, "email exists"))).toBe(false);
+    expect(reporter.captureUnexpected(apiError(409, 3, "email exists"), {
+      operation: { name: "checkout.submit", outcome: "handled", reason: "validation" },
+    })).toBe(false);
     expect(reporter.captureException(apiError(409, 3, "email exists"))).toBe(true);
     expect(reporter.captureUnexpected(new TypeError("render failed"))).toBe(true);
     expect(events.map((event) => event.errorType)).toEqual(["ApiError", "TypeError"]);

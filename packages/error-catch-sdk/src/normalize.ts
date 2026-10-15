@@ -87,7 +87,7 @@ export function errorDetails(error: unknown): {
   stackFrames: FrontendErrorStackFrame[];
   digest?: string;
 } {
-  if (!(error instanceof Error)) {
+  if (!(error instanceof Error) && !(typeof DOMException !== "undefined" && error instanceof DOMException)) {
     const primitive =
       typeof error === "string" || typeof error === "number" || typeof error === "boolean"
         ? String(error)
@@ -99,8 +99,9 @@ export function errorDetails(error: unknown): {
     };
   }
 
-  const stackTrace = error.stack
-    ? redactText(error.stack, MAX_STACK_TRACE_LENGTH)
+  const exception = error as Error;
+  const stackTrace = exception.stack
+    ? redactText(exception.stack, MAX_STACK_TRACE_LENGTH)
     : undefined;
   const digestValue = (error as Error & { digest?: unknown }).digest;
   const details: {

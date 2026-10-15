@@ -1,3 +1,5 @@
+import type { FrontendErrorOperationContext, FrontendErrorStripeCode } from "./operation.js";
+
 export const FRONTEND_ERROR_SCHEMA_VERSION = 1 as const;
 
 export type FrontendErrorSource =
@@ -27,6 +29,10 @@ export interface FrontendErrorEvent {
   stackTrace?: string;
   stackFrames: FrontendErrorStackFrame[];
   componentStack?: string;
+  operation?: FrontendErrorOperationContext;
+  apiStatusCode?: number;
+  apiErrorCode?: number;
+  stripeErrorCode?: FrontendErrorStripeCode;
 }
 
 export interface CaptureContext {
@@ -34,6 +40,7 @@ export interface CaptureContext {
   route?: string;
   digest?: string;
   componentStack?: string;
+  operation?: FrontendErrorOperationContext;
 }
 
 export type FrontendErrorShouldReport = (
@@ -52,12 +59,14 @@ export interface FrontendErrorReporterConfig {
   releaseSha?: string;
   enabled?: boolean;
   dedupeWindowMs?: number;
+  /** Separate bounded allowances for critical operations and other errors. */
   maxEventsPerPage?: number;
   transport?: FrontendErrorTransport;
   /**
    * Replaces the default unexpected-error filter. When omitted,
    * automatic extension-only events are skipped by both capture methods,
-   * and `captureUnexpected` also skips expected Merchi validation errors.
+   * along with explicitly handled validation, intentional cancellation and
+   * recovered noncritical operations. Unknown/unhandled failures are retained.
    */
   shouldReport?: FrontendErrorShouldReport;
 }

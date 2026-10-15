@@ -121,43 +121,74 @@ reporting therefore cannot create an unhandled rejection or replace the
 application's original failure.
 
 ```ts
-import { captureUnexpected, isExpectedClientError } from "@merchi/error-catch";
+import { captureUnexpected } from "@merchi/error-catch";
 
-captureUnexpected(error, { source: "manual" });
-```
-
-`captureUnexpected` uses the same transport as `captureException`. String,
-number, boolean, and object rejections are normalised into a
-`NonErrorException` event instead of being dropped. It skips expected Merchi
-validation failures unless you pass `shouldReport`. React route/boundary
-failures remain reportable, even when their underlying error is a validation
-error, because the page has already failed.
-
-Those failures are `@merchi/sdk` `ApiError` values and the
-`{ errorMessage, statusCode, errorCode }` objects `@merchi/cart` already
-handles. Known customer input codes `3`, `5`, `6`, and `7` (duplicate/missing
-email, invalid phone/password) are expected only when `statusCode` is absent
-or is `400`, `409`, or `422`. Generic `CLIENT_ERROR` (`2`) is expected only
-with status `400` or `422`. Other failures, including `401`, `403`, `404`,
-`429`, missing domains, unknown errors and server errors, remain reportable.
-Other `status` field names are ignored.
-
-```ts
-configureFrontendErrors({
-  endpoint: "https://api.merchi.co/v6/frontend-errors",
-  application: "merchi-dashboard",
-  enabled: true,
-  shouldReport: (error) => !isExpectedClientError(error),
+captureUnexpected(error, {
+  source: "manual",
+  operation: { name: "cart.load", outcome: "failed" },
 });
 ```
 
-`shouldReport` replaces the default validation and extension filters for both
-`captureException` and `captureUnexpected`. Omit it and explicit/manual
-`captureException` calls keep reporting every enabled event.
+Both capture methods normalize primitive/object rejections without serializing
+arbitrary objects. `DOMException` values retain their name (including AbortError).
+Status codes, cancellation wording, and validation-shaped errors alone do not
+prove a failure is harmless. Unhandled errors without operation context remain
+reportable. The exported `isExpectedClientError` helper is only an input-error
+candidate check, not a complete reporting policy.
 
-Global handlers call `captureUnexpected`, so expected client errors are not
-sent and non-Error rejections are normalised. Resource errors that carry no
-error value are still ignored.
+## Operation context and safe filtering
+
+`CaptureContext.operation` contains an allowlisted `name`, `outcome` (defaults to
+`failed`), and optional `reason`. It never contains customer, request, order,
+payment, token or session identifiers, URLs, bodies, or arbitrary provider data.
+See `FRONTEND_ERROR_OPERATIONS` for the supported names. The SDK independently
+copies only numeric `statusCode` / `errorCode` diagnostics and four known Stripe
+card-error codes; provider objects and original API payloads are never copied.
+
+Safe suppression requires an explicit, consistent combination:
+
+- `handled` + `validation`: a UI handler completed and a known Merchi input code
+  (3/5/6/7) was returned with HTTP status 400/409/422. Generic
+  CLIENT_ERROR (2), unknown errors, and auth/server failures remain reported.
+- For `payment.confirm`, `handled` + `validation` also covers Stripe `card_error`
+  codes `card_declined`, `expired_card`, `incorrect_cvc`, and `incorrect_number`.
+  Unknown provider/processing errors stay reported.
+- `cancelled`: requires AbortError and an explicit `user_cancelled` reason.
+  `navigation` / `superseded` cancellation applies only to noncritical operations.
+- `recovered` + `retry_succeeded`: applies only to noncritical operations without
+  contradictory API error diagnostics.
+
+Failed/default cart, checkout, and payment operations remain reportable even for
+AbortError, client-shaped errors, or extension-only stacks. Their claimed
+recovery does not suppress them. React/component failures and automatic digest
+failures also remain reportable. API errors 401/403/404/429/5xx override benign
+labels. Missing context keeps the error; no message-only network, offline,
+ResizeObserver, analytics, or third-party blanket ignore list exists.
+
+Only mark an operation `handled` after the UI handler returns successfully;
+only mark it `recovered` after the fallback/retry actually succeeds. For example:
+
+```ts
+showValidationError(error); // If this throws, capture the crash as failed.
+captureUnexpected(error, {
+  operation: { name: "checkout.submit", outcome: "handled", reason: "validation" },
+});
+```
+
+Cart create/update/shipping/add-item/PDF failures, checkout submission failures,
+and shared Stripe initialization/status/confirmation/cancellation failures now
+supply operation context. The app's original UI callbacks and payment flow remain
+in control. Normal payment cancellation/validation is not inferred from text.
+
+`shouldReport` remains a full override of default filters. A callback returning
+false can suppress any report, so callers that supply it own that decision.
+Without it, safe filtering runs before dedupe and counting. `maxEventsPerPage`
+(default 20) bounds each of two separate allowances: critical operations and other
+errors. An unrelated error storm cannot consume the critical allowance. Dedupe
+also includes operation/outcome/reason and bounded API/provider codes.
+
+Global handlers retain unhandled input errors lacking explicit handling context.
+Resource events with no error value remain ignored.
 
 ## Browser extension noise
 
@@ -175,8 +206,11 @@ exported `isBrowserExtensionError(event)` helper uses the same rule. A custom
 `shouldReport` callback takes full responsibility for filtering; returning `true`
 also retains extension-only reports.
 
-The collector independently applies the same rule for older clients. Wire schema
-version 1 is unchanged; clients never supply a trusted suppression decision.
+The collector independently applies the same rule for older clients. Schema
+version 1 gains optional operation/API/Stripe diagnostic fields. Deploy the API
+PR before publishing this SDK: an older strict collector rejects the new fields.
+Old clients remain valid against the new API. Context is diagnostic input, never
+a trusted authorization or remediation decision.
 
 ## React boundary
 

@@ -189,6 +189,9 @@ importers:
       '@fortawesome/react-fontawesome':
         specifier: ^0.2.0
         version: 0.2.6(@fortawesome/fontawesome-svg-core@6.4.2)(react@18.2.0)
+      '@merchi/error-catch':
+        specifier: workspace:^
+        version: link:../error-catch-sdk
       '@merchi/invoice':
         specifier: workspace:^
         version: link:../invoice
@@ -362,6 +365,9 @@ importers:
 
   packages/invoice:
     dependencies:
+      '@merchi/error-catch':
+        specifier: workspace:^
+        version: link:../error-catch-sdk
       '@stripe/react-stripe-js':
         specifier: ^5.6.0
         version: 5.6.1(@stripe/stripe-js@8.11.0)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)

@@ -43,6 +43,7 @@ describe('reportAddCartItemFailure', () => {
       errorType: 'TypeError',
       message: 'cart item create failed',
       source: 'manual',
+      operation: { name: 'cart.add_item', outcome: 'handled', reason: 'validation' },
     });
   });
 
@@ -81,6 +82,12 @@ describe('reportAddCartItemFailure', () => {
       errorType: 'ApiError',
       message: 'cart service down',
     });
+  });
+
+  it('retains a client-shaped failure when the UI callback itself fails', () => {
+    const error = apiError(422, 'input error');
+    expect(() => reportAddCartItemFailure(error, () => { throw new Error('UI broke'); })).toThrow('UI broke');
+    expect(events[0]).toMatchObject({ operation: { name: 'cart.add_item', outcome: 'failed' } });
   });
 });
 
