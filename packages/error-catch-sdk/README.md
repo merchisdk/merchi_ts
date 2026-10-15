@@ -291,8 +291,8 @@ contents dry run.
 
 The `@merchi/error-catch/replay` entry point provides `startStorefrontReplay`.
 It adds an integration to an existing reporter without changing its filtering,
-deduplication or normal error transport. The recorder is imported only after
-explicit consent. The root error SDK never imports rrweb into its browser bundle.
+deduplication or normal error transport. The recorder starts automatically when the merchant enables it on an ordinary
+storefront page. There is no visitor permission prompt. The root error SDK never imports rrweb into its browser bundle.
 
 ```ts
 import { initMerchiStorefrontErrors } from '@merchi/error-catch/next';
@@ -303,11 +303,12 @@ const reporter = initMerchiStorefrontErrors({
 });
 const replay = startStorefrontReplay(reporter, {
   apiUrl: 'https://api.staging.merchi.co/v6/', enabled: true,
-  consentGranted: false,
 });
-// Connect these to the store's visitor consent controls.
-replay.setConsent(true);
-replay.setConsent(false); // Clears buffers and aborts pending uploads.
+// Optional runtime merchant configuration changes:
+replay.setEnabled(false); // Clears buffers and aborts pending uploads.
+// Custom payment UI outside the default boundaries:
+replay.setSensitiveContext(true); // Stop before opening payment UI.
+replay.setSensitiveContext(false); // Resume only after that UI is removed.
 // Call replay.stop() if the host permanently tears down the integration.
 ```
 
@@ -321,6 +322,15 @@ shorten them. No recordings upload during normal browsing.
 All text/input values are masked, DOM attributes are allowlisted, and media,
 canvas, uploads and iframes are blocked. CSS classes preserve page layout.
 Mark any additional sensitive component with `data-replay-block` or `rr-block`.
+Checkout, payment, pay, billing and invoice route segments, quote success pages,
+Merchi checkout UI and any mounted `data-replay-payment` element prohibit capture.
+Entering a boundary stops recording, clears buffers and pending clips, aborts
+uploads, and ignores late collector responses. Leaving starts a fresh buffer;
+old clips cannot continue. Payment operation errors retain normal error reporting
+without requesting replay. For custom payment UI, set the sensitive context before
+mounting it or mark its outermost element. These boundaries cannot be disabled
+through storefront configuration. Already uploaded ordinary-page segments remain
+subject to the normal retention period.
 This version has no text-unmasking override. The server applies masking again.
 
 The v6 collector must return an accepted receipt with `replay: { id, uploadToken }`.

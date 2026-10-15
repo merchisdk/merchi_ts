@@ -1,3 +1,5 @@
+import { containsPaymentReplayContent, isPaymentRelatedReplayPath, PAYMENT_REPLAY_SELECTOR } from "./replayPrivacy.js";
+export { isPaymentRelatedReplayPath } from "./replayPrivacy.js";
 import type { FrontendErrorReporter } from "./reporter.js";
 import type { FrontendErrorEvent, FrontendErrorReceipt } from "./types.js";
 
@@ -100,13 +102,14 @@ export class ReplayBuffer {
 
 export interface StorefrontReplayOptions {
   apiUrl: string;
+  /** Controlled by storefront configuration, never by a visitor prompt. */
   enabled: boolean;
-  /** Explicit consent is required before importing or starting the recorder. */
-  consentGranted?: boolean;
 }
 
 export interface StorefrontReplayController {
-  setConsent(granted: boolean): void;
+  setEnabled(enabled: boolean): void;
+  /** For payment UI that mounts outside the default route/DOM boundaries. */
+  setSensitiveContext(active: boolean): void;
   stop(): void;
 }
 
@@ -118,7 +121,9 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
   const buffer = new ReplayBuffer();
   const clips = new Map<string, Clip>();
   const uploads = new Set<AbortController>();
-  let consent = false;
+  let enabled = options.enabled === true;
+  let sensitive = false;
+  let active = false;
   let generation = 0;
   let stopRecord: (() => void) | undefined;
   let takeSnapshot: (() => void) | undefined;
@@ -126,21 +131,38 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
   let count = 0;
   const endpoint = new URL("frontend-replays/", options.apiUrl).href;
 
+  const permitted = (): boolean => {
+    try {
+      return !stopped && enabled && !sensitive && typeof window !== "undefined" &&
+        !isPaymentRelatedReplayPath(window.location.href) && !document.querySelector(PAYMENT_REPLAY_SELECTOR);
+    } catch { return false; }
+  };
+  const pause = (): void => {
+    active = false; generation += 1;
+    for (const upload of uploads) upload.abort();
+    uploads.clear();
+    stopRecord?.(); stopRecord = undefined; takeSnapshot = undefined; buffer.clear();
+    for (const clip of clips.values()) if (clip.timer) clearTimeout(clip.timer);
+    clips.clear();
+  };
+  const mayUseClip = (clip: Clip): boolean => {
+    if (!permitted()) { if (active) pause(); return false; }
+    return active && clip.generation === generation;
+  };
   const upload = (clip: Clip, part: number, events: ReplayEvent[]): void => {
     if (!clip.grant || (!events.length && part === 0)) return;
     const grant = clip.grant;
     clip.chain = clip.chain.then(async () => {
-      if (!consent || stopped || clip.generation !== generation) return;
+      if (!mayUseClip(clip)) return;
       const json = JSON.stringify({ schemaVersion: 1, events, errorAt: clip.errorAt, complete: part === 1 && clip.complete });
       const blob = new Blob([json], { type: "application/json" });
       let body: Blob = blob;
       if (typeof CompressionStream !== "undefined" && typeof blob.stream === "function") {
         body = await new Response(blob.stream().pipeThrough(new CompressionStream("gzip"))).blob();
       }
-      if (body.size > MAX_BYTES || !consent || clip.generation !== generation) return;
-      // Bounded retries use an idempotent part number. Never use cookie auth.
+      if (body.size > MAX_BYTES || !mayUseClip(clip)) return;
       for (let attempt = 0; attempt < 2; attempt += 1) {
-        if (!consent || stopped || clip.generation !== generation) return;
+        if (!mayUseClip(clip)) return;
         const abort = new AbortController();
         uploads.add(abort);
         const timeout = setTimeout(() => abort.abort(), 10_000);
@@ -149,32 +171,31 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
             method: "POST", body, signal: abort.signal,
             headers: { "Content-Type": body === blob ? "application/json" : "application/gzip", "X-Replay-Token": grant.uploadToken },
             credentials: "omit", cache: "no-store", referrerPolicy: "no-referrer",
-            // keepalive has a ~64 KB shared browser budget; avoid it for larger clips.
             keepalive: body.size < 48_000,
           });
           if (response.ok || response.status < 500) return;
-        } catch { /* Retry once while this page is still alive. */ }
+        } catch { /* Retry once while this page is still alive and eligible. */ }
         finally { clearTimeout(timeout); uploads.delete(abort); }
       }
     }).catch(() => undefined);
   };
-
   const finish = (clip: Clip, complete = false): void => {
-    if (clip.closed) return;
-    clip.closed = true;
-    clip.complete = complete;
+    if (clip.closed || !mayUseClip(clip)) return;
+    clip.closed = true; clip.complete = complete;
     if (clip.timer) clearTimeout(clip.timer);
-    // Preserve quiet time after the failure in the playback timeline.
     const end = Math.max(clip.after[clip.after.length - 1]?.timestamp ?? clip.errorAt,
       Math.min(Date.now(), clip.errorAt + AFTER_MS));
     clip.after.push({ type: 0, timestamp: end, data: {} });
     upload(clip, 1, clip.after);
   };
-
   const removeIntegration = reporter.addIntegration({
     prepare(event: FrontendErrorEvent) {
-      if (!consent || stopped || count >= 3 || clips.size >= 3) return;
+      if (!permitted()) { if (active) pause(); return; }
+      if (!active || count >= 3 || clips.size >= 3 ||
+          (event.route && isPaymentRelatedReplayPath(event.route)) ||
+          /^(?:checkout|payment)\./i.test(event.operation?.name ?? "")) return;
       if ((buffer.snapshot()[0]?.timestamp ?? 0) < Date.now() - 75_000) takeSnapshot?.();
+      if (!active || !permitted()) return;
       const before = buffer.snapshot();
       if (!before.some((entry) => entry.type === 2)) return;
       const clip: Clip = {
@@ -184,67 +205,84 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
       clips.set(event.eventId, clip); count += 1;
       event.replayRequested = true;
       clip.timer = setTimeout(() => finish(clip, true), AFTER_MS);
-      // A collector that never responds must not retain per-error buffers indefinitely.
       setTimeout(() => { clips.delete(event.eventId); }, 120_000);
     },
     accepted(event: FrontendErrorEvent, receipt: FrontendErrorReceipt) {
       const clip = clips.get(event.eventId);
-      if (!clip || !receipt.replay || !consent || clip.generation !== generation) return;
+      if (!clip || !receipt.replay || !mayUseClip(clip)) return;
       clip.grant = receipt.replay;
       upload(clip, 0, clip.before);
       if (clip.closed) upload(clip, 1, clip.after);
     },
   });
 
-  const onPageHide = (): void => { for (const clip of clips.values()) finish(clip); };
-  const reset = (): void => {
-    generation += 1;
-    for (const upload of uploads) upload.abort();
-    uploads.clear();
-    stopRecord?.(); stopRecord = undefined; takeSnapshot = undefined; buffer.clear();
-    for (const clip of clips.values()) if (clip.timer) clearTimeout(clip.timer);
-    clips.clear();
+  const refresh = (): void => {
+    if (!permitted()) { if (active) pause(); return; }
+    if (active) return;
+    active = true;
+    const startedGeneration = generation;
+    void import("@rrweb/record").then(({ record }) => {
+      if (!active || generation !== startedGeneration || !permitted()) return;
+      takeSnapshot = () => record.takeFullSnapshot();
+      // record() emits the initial snapshot synchronously, before returning cleanup.
+      const stop = record({
+        maskAllInputs: true, maskTextSelector: "*", recordCanvas: false,
+        recordCrossOriginIframes: false, collectFonts: false,
+        blockSelector: "iframe, img, picture, video, audio, canvas, svg, object, embed, [data-replay-block], [data-replay-payment], .rr-block",
+        checkoutEveryNms: 10_000,
+        sampling: { mousemove: 100, scroll: 150 },
+        emit(raw) {
+          try {
+            if (!active || generation !== startedGeneration) return;
+            if (!permitted() || containsPaymentReplayContent(raw)) { pause(); return; }
+            if (raw.type === 5 || raw.type === 6) return;
+            const event = sanitizeReplayEvent(raw);
+            buffer.push(event);
+            const bytes = new TextEncoder().encode(JSON.stringify(event)).length;
+            for (const clip of clips.values()) {
+              if (clip.closed || event.timestamp > clip.errorAt + AFTER_MS) continue;
+              if (clip.bytes + bytes > MAX_BYTES || clip.after.length >= MAX_EVENTS) { finish(clip); continue; }
+              clip.after.push(event); clip.bytes += bytes;
+            }
+          } catch { /* Never interfere with the storefront. */ }
+        },
+      });
+      if (!active || generation !== startedGeneration || !permitted()) stop?.();
+      else stopRecord = stop;
+    }).catch(() => { if (generation === startedGeneration) pause(); });
   };
+  const onPageHide = (): void => { for (const clip of clips.values()) finish(clip); };
+  const restorers: Array<() => void> = [];
+  let observer: MutationObserver | undefined;
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
+    for (const method of ["pushState", "replaceState"] as const) {
+      const original = window.history[method];
+      const guarded: History[typeof method] = function (this: History, ...args) {
+        original.apply(this, args); refresh();
+      };
+      window.history[method] = guarded;
+      restorers.push(() => { if (window.history[method] === guarded) window.history[method] = original; });
+    }
+    window.addEventListener("popstate", refresh);
+    window.addEventListener("pageshow", refresh);
+    window.addEventListener("pagehide", onPageHide);
+    observer = new MutationObserver(refresh);
+    observer.observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "src", "data-replay-payment"] });
+  }
   const controller: StorefrontReplayController = {
-    setConsent(granted) {
-      if (stopped || !options.enabled || granted === consent || typeof window === "undefined") return;
-      consent = granted;
-      reset();
-      if (!granted) return;
-      const startedGeneration = generation;
-      void import("@rrweb/record").then(({ record }) => {
-        if (!consent || stopped || generation !== startedGeneration) return;
-        takeSnapshot = () => record.takeFullSnapshot();
-        stopRecord = record({
-          maskAllInputs: true, maskTextSelector: "*", recordCanvas: false,
-          recordCrossOriginIframes: false, collectFonts: false,
-          blockSelector: "iframe, img, picture, video, audio, canvas, svg, object, embed, [data-replay-block], .rr-block",
-          checkoutEveryNms: 10_000,
-          sampling: { mousemove: 100, scroll: 150 },
-          emit(raw) {
-            try {
-              if (raw.type === 5 || raw.type === 6) return;
-              const event = sanitizeReplayEvent(raw);
-              buffer.push(event);
-              const bytes = new TextEncoder().encode(JSON.stringify(event)).length;
-              for (const clip of clips.values()) {
-                if (clip.closed || event.timestamp > clip.errorAt + AFTER_MS) continue;
-                if (clip.bytes + bytes > MAX_BYTES || clip.after.length >= MAX_EVENTS) { finish(clip); continue; }
-                clip.after.push(event); clip.bytes += bytes;
-              }
-            } catch { /* Never interfere with the storefront. */ }
-          },
-        });
-      }).catch(() => { /* Error capture continues if recording cannot start. */ });
-    },
+    setEnabled(value) { if (stopped) return; enabled = value; refresh(); },
+    setSensitiveContext(value) { if (stopped) return; sensitive = value; refresh(); },
     stop() {
-      stopped = true; consent = false; reset(); removeIntegration();
-      if (typeof window !== "undefined") window.removeEventListener("pagehide", onPageHide);
+      stopped = true; pause(); removeIntegration(); observer?.disconnect();
+      for (const restore of restorers) restore();
+      if (typeof window !== "undefined") {
+        window.removeEventListener("popstate", refresh);
+        window.removeEventListener("pageshow", refresh);
+        window.removeEventListener("pagehide", onPageHide);
+      }
       controllers.delete(reporter);
     },
   };
-  controllers.set(reporter, controller);
-  if (typeof window !== "undefined") window.addEventListener("pagehide", onPageHide);
-  controller.setConsent(options.consentGranted === true);
+  controllers.set(reporter, controller); refresh();
   return controller;
 }
