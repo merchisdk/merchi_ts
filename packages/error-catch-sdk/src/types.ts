@@ -56,8 +56,8 @@ export interface FrontendErrorReporterConfig {
   transport?: FrontendErrorTransport;
   /**
    * Replaces the default unexpected-error filter. When omitted,
-   * `captureException` reports every enabled event and `captureUnexpected`
-   * skips expected Merchi client errors.
+   * automatic extension-only events are skipped by both capture methods,
+   * and `captureUnexpected` also skips expected Merchi validation errors.
    */
   shouldReport?: FrontendErrorShouldReport;
 }

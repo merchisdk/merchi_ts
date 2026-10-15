@@ -1,4 +1,5 @@
 export { isExpectedClientError } from "./expectedClientError.js";
+export { isBrowserExtensionError } from "./browserExtension.js";
 export { resolveReleaseSha, type ReleaseShaEnv } from "./releaseSha.js";
 export { isReportingEnabled } from "./reporting.js";
 export {

@@ -1,4 +1,5 @@
 import { isExpectedClientError } from "./expectedClientError.js";
+import { isBrowserExtensionError } from "./browserExtension.js";
 import {
   errorDetails,
   MAX_COMPONENT_STACK_LENGTH,
@@ -86,6 +87,7 @@ export class FrontendErrorReporter {
         return false;
       }
       const event = this.#buildEvent(error, context);
+      if (!this.#shouldReport && isBrowserExtensionError(event)) return false;
       const key = dedupeKey(event);
       const now = Date.now();
       this.#removeExpiredDedupeEntries(now);
@@ -106,12 +108,16 @@ export class FrontendErrorReporter {
 
   /**
    * Report an unexpected failure. Non-Error rejections are normalised by the
-   * same path as `captureException`. Expected Merchi client errors are skipped
-   * unless `shouldReport` is configured.
+   * same path as `captureException`. Expected Merchi validation errors are
+   * skipped outside React crash boundaries unless `shouldReport` is configured.
    */
   captureUnexpected(error: unknown, context: CaptureContext = {}): boolean {
     try {
-      if (!this.#shouldReport && isExpectedClientError(error)) return false;
+      if (
+        !this.#shouldReport &&
+        context.source !== "react_error_boundary" &&
+        isExpectedClientError(error)
+      ) return false;
       return this.captureException(error, context);
     } catch {
       return false;

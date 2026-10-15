@@ -62,7 +62,7 @@ describe("Next.js storefront helpers", () => {
     expect(bodies[1]?.message).toBe("failed for [redacted-email]");
   });
 
-  it("reports route errors with their digest and skips expected client errors", () => {
+  it("reports route crashes including missing-resource API failures with their digest", () => {
     const events: FrontendErrorEvent[] = [];
     configureFrontendErrors({
       endpoint: "https://api.merchi.co/v6/frontend-errors",
@@ -84,11 +84,15 @@ describe("Next.js storefront helpers", () => {
     Object.assign(expected, { statusCode: 404, errorCode: 8, errorMessage: "missing" });
     rerender(<RouteError error={expected} />);
 
-    expect(events).toHaveLength(1);
+    expect(events).toHaveLength(2);
     expect(events[0]).toMatchObject({
       source: "react_error_boundary",
       message: "route crashed",
       digest: "digest-123",
+    });
+    expect(events[1]).toMatchObject({
+      source: "react_error_boundary", errorType: "ApiError",
+      message: "missing", digest: "digest-expected",
     });
   });
 });

@@ -77,6 +77,22 @@ describe("captureUnexpected", () => {
     expect(blockedTransport).not.toHaveBeenCalled();
   });
 
+  it("reports authorization failures, missing cart resources and validation errors that crash a React route", () => {
+    const transport = vi.fn();
+    const reporter = createFrontendErrorReporter({
+      endpoint: "https://api.merchi.co/v6/frontend-errors",
+      application: "merchi-storefront-5", enabled: true, transport,
+    });
+    expect(reporter.captureUnexpected(apiError(401, 7, "cart unauthorized"))).toBe(true);
+    expect(reporter.captureUnexpected(apiError(403, 2, "cart forbidden"))).toBe(true);
+    expect(reporter.captureUnexpected(apiError(404, 8, "cart missing"))).toBe(true);
+    expect(reporter.captureUnexpected(apiError(429, 2, "checkout rate limited"))).toBe(true);
+    expect(reporter.captureUnexpected(apiError(422, 6, "invalid phone"), {
+      source: "react_error_boundary",
+    })).toBe(true);
+    expect(transport).toHaveBeenCalledTimes(5);
+  });
+
   it("returns the existing reporter when configureFrontendErrors is called with the same config", () => {
     const transport = vi.fn();
     const config = {

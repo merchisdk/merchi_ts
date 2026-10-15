@@ -1,0 +1,187 @@
+[
+  {
+    "name": "MetaMask rejection",
+    "source": "unhandled_rejection",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js"
+    ],
+    "trace": "i: Failed to connect to MetaMask\n    at Object.connect (chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js:7:84292)",
+    "expected": true
+  },
+  {
+    "name": "Firefox extension",
+    "source": "window_error",
+    "frames": [],
+    "trace": "connect@moz-extension://extension-id/inpage.js:7:10",
+    "expected": true
+  },
+  {
+    "name": "Safari extension",
+    "source": "unhandled_rejection",
+    "frames": [],
+    "trace": "connect@safari-web-extension://extension-id/inpage.js:7:10",
+    "expected": true
+  },
+  {
+    "name": "legacy Safari extension",
+    "source": "window_error",
+    "frames": [
+      "safari-extension://extension-id/script.js"
+    ],
+    "trace": "",
+    "expected": true
+  },
+  {
+    "name": "Edge extension",
+    "source": "window_error",
+    "frames": [
+      "ms-browser-extension://extension-id/script.js"
+    ],
+    "trace": "",
+    "expected": true
+  },
+  {
+    "name": "mixed stack",
+    "source": "unhandled_rejection",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "https://unitix.com.au/_next/static/chunks/cart.js"
+    ],
+    "trace": "",
+    "expected": false
+  },
+  {
+    "name": "application frame beyond parsed frames",
+    "source": "window_error",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js"
+    ],
+    "trace": "Error: fail\n    at connect (chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js:7:2)\n    at checkout (https://unitix.com.au/_next/static/chunks/cart.js:1:2)",
+    "expected": false
+  },
+  {
+    "name": "unknown frame",
+    "source": "window_error",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js"
+    ],
+    "trace": "Error: fail\n    at connect (chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js:7:2)\n    at checkout (native)",
+    "expected": false
+  },
+  {
+    "name": "stackless wallet wording",
+    "source": "unhandled_rejection",
+    "frames": [],
+    "trace": "",
+    "expected": false
+  },
+  {
+    "name": "first party wallet wording",
+    "source": "unhandled_rejection",
+    "frames": [
+      "https://unitix.com.au/_next/static/chunks/cart.js"
+    ],
+    "trace": "Error: Failed to connect to MetaMask\n    at checkout (https://unitix.com.au/_next/static/chunks/cart.js:1:2)",
+    "expected": false
+  },
+  {
+    "name": "explicit business capture",
+    "source": "manual",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js"
+    ],
+    "trace": "",
+    "expected": false
+  },
+  {
+    "name": "React failure",
+    "source": "react_error_boundary",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js"
+    ],
+    "trace": "",
+    "expected": false
+  },
+  {
+    "name": "component context",
+    "source": "window_error",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js"
+    ],
+    "trace": "",
+    "componentStack": "at Checkout",
+    "expected": false
+  },
+  {
+    "name": "Next digest context",
+    "source": "unhandled_rejection",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js"
+    ],
+    "trace": "",
+    "digest": "next-crash",
+    "expected": false
+  },
+  {
+    "name": "extension URL in message is not a frame",
+    "source": "window_error",
+    "frames": [],
+    "trace": "Error: chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+    "expected": false
+  },
+  {
+    "name": "unparsed multiline stack",
+    "source": "window_error",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js"
+    ],
+    "trace": "Error: failure\nadditional detail\n    at connect (chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js:7:2)",
+    "expected": false
+  },
+  {
+    "name": "extension text in HTTPS URL",
+    "source": "window_error",
+    "frames": [
+      "https://shop.example/chrome-extension://id/inpage.js"
+    ],
+    "trace": "",
+    "expected": false
+  },
+  {
+    "name": "ambiguous capped frame list",
+    "source": "window_error",
+    "frames": [
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js",
+      "chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn/scripts/inpage.js"
+    ],
+    "trace": "",
+    "expected": false
+  },
+  {
+    "name": "unrecognized first stack line",
+    "source": "window_error",
+    "frames": [
+      "chrome-extension://id/inpage.js"
+    ],
+    "trace": "checkout (https://unitix.com.au/cart.js:1:2)",
+    "expected": false
+  }
+]

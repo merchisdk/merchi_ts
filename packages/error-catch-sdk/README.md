@@ -129,15 +129,18 @@ captureUnexpected(error, { source: "manual" });
 `captureUnexpected` uses the same transport as `captureException`. String,
 number, boolean, and object rejections are normalised into a
 `NonErrorException` event instead of being dropped. It skips expected Merchi
-client failures unless you pass `shouldReport`.
+validation failures unless you pass `shouldReport`. React route/boundary
+failures remain reportable, even when their underlying error is a validation
+error, because the page has already failed.
 
 Those failures are `@merchi/sdk` `ApiError` values and the
 `{ errorMessage, statusCode, errorCode }` objects `@merchi/cart` already
-handles. A numeric `statusCode` from 400 to 499 is expected. When `statusCode`
-is absent, `errorCode` values 2 through 22 (`ErrorType.CLIENT_ERROR` through
-`ErrorType.DOMAIN_NOT_FOUND`) are expected. `statusCode` of 500 or more, and
-`errorCode` `0` (unknown) or `1` (server), are reported. Other `status` field
-names are ignored.
+handles. Known customer input codes `3`, `5`, `6`, and `7` (duplicate/missing
+email, invalid phone/password) are expected only when `statusCode` is absent
+or is `400`, `409`, or `422`. Generic `CLIENT_ERROR` (`2`) is expected only
+with status `400` or `422`. Other failures, including `401`, `403`, `404`,
+`429`, missing domains, unknown errors and server errors, remain reportable.
+Other `status` field names are ignored.
 
 ```ts
 configureFrontendErrors({
@@ -148,13 +151,32 @@ configureFrontendErrors({
 });
 ```
 
-`shouldReport` replaces that default filter for both `captureException` and
-`captureUnexpected`. Omit it and `captureException` keeps reporting every
-enabled event.
+`shouldReport` replaces the default validation and extension filters for both
+`captureException` and `captureUnexpected`. Omit it and explicit/manual
+`captureException` calls keep reporting every enabled event.
 
 Global handlers call `captureUnexpected`, so expected client errors are not
 sent and non-Error rejections are normalised. Resource errors that carry no
 error value are still ignored.
+
+## Browser extension noise
+
+Both capture methods suppress automatic `window_error` / `unhandled_rejection`
+events only when **every** available stack frame belongs to a browser extension
+(`chrome-extension`, `moz-extension`, `safari-extension`, `safari-web-extension`,
+or `ms-browser-extension`). The MetaMask `Failed to connect to MetaMask` error
+with an extension-only `inpage.js` stack is one example. Filtering happens before
+deduplication and the page event allowance, so extension noise cannot exhaust it.
+
+Mixed stacks, missing stacks, unparseable/truncated stacks, ordinary HTTPS
+third-party scripts, explicit/manual captures and React/component/digest failures
+are retained. Message text alone never establishes extension ownership. The
+exported `isBrowserExtensionError(event)` helper uses the same rule. A custom
+`shouldReport` callback takes full responsibility for filtering; returning `true`
+also retains extension-only reports.
+
+The collector independently applies the same rule for older clients. Wire schema
+version 1 is unchanged; clients never supply a trusted suppression decision.
 
 ## React boundary
 
