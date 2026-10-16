@@ -256,26 +256,62 @@ The collector receives schema version 1 with only allowlisted fields:
       "line": 42,
       "column": 7
     }
-  ]
+  ],
+  "client": {
+    "userAgent": "Mozilla/5.0 ... Chrome/120.0.6099.130 Safari/537.36",
+    "browser": "Chrome",
+    "browserVersion": "120.0.6099.130",
+    "os": "macOS",
+    "osVersion": "14.5.0",
+    "platform": "macOS",
+    "mobile": false,
+    "deviceType": "desktop",
+    "language": "en-AU",
+    "languages": ["en-AU", "en"],
+    "timezone": "Australia/Sydney",
+    "screenWidth": 1440,
+    "screenHeight": 900,
+    "viewportWidth": 1280,
+    "viewportHeight": 720,
+    "devicePixelRatio": 2
+  }
 }
 ```
 
-The browser never supplies a trusted environment, severity, repository, or
-System Agent credential. The collector derives those values from its own
-project registry and runtime configuration.
+`client` is optional and contains only allowlisted environment fields: browser,
+OS, locale, timezone, screen, viewport, and coarse device hints. Browser and OS
+names come from a fixed list. The browser never supplies a trusted environment,
+severity, repository, or System Agent credential. The collector derives those
+values from its own project registry and runtime configuration.
+
+Schema version 1 gains this optional `client` object. Deploy the API change
+that accepts and stores it before publishing this SDK: an older strict
+collector rejects unknown fields. Old clients remain valid against the new API.
+
+## Stored client IP
+
+The SDK does not put an IP address in the event. A client-supplied address can
+be spoofed, and public IP lookup would be a separate network call. When the
+collector persists the report it must store `clientIp` from the trusted
+connection (the immediate peer, or `X-Forwarded-For` only when the proxy is
+already trusted). Keep that value next to `client` and do not copy an `ip`
+field out of the JSON body.
 
 ## Privacy boundary
 
-The package intentionally does not collect:
+The package collects a bounded client fingerprint so a stored report can show
+which browser, operating system, and device produced the error. It still does
+not collect:
 
 - cookies, authorization headers, or browser storage;
 - request and response bodies;
 - form values or DOM snapshots;
-- user IDs, email addresses, IP addresses, or session identifiers;
-- query strings or URL fragments.
+- user IDs, email addresses, session identifiers, or a client-supplied IP;
+- query strings, URL fragments, canvas data, or WebGL identifiers.
 
-Client redaction is only the first layer. The collector must validate and
-redact every event again before persistence or forwarding.
+The user agent is length-capped and passed through the same redaction as error
+messages. Client redaction is only the first layer. The collector must validate
+and redact every event again before persistence or forwarding.
 
 ## Development
 

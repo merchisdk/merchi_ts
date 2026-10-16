@@ -6,6 +6,7 @@ import {
   normalizeIdentifier,
   normalizeRoute,
 } from "./normalize.js";
+import { collectClientFingerprint } from "./clientFingerprint.js";
 import { redactText } from "./redact.js";
 import { fetchTransport } from "./transport.js";
 import {
@@ -164,6 +165,8 @@ export class FrontendErrorReporter {
     if (componentStack) event.componentStack = componentStack;
     const operation = normalizeOperation(context.operation);
     if (operation) event.operation = operation;
+    const client = collectClientFingerprint();
+    if (client) event.client = client;
     return event;
   }
 
