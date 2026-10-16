@@ -347,7 +347,7 @@ export class Entity {
       const get = () => {
         return info.currentValue;
       };
-      const set = (newValue?: Entity) => {
+      const set = (newValue?: Entity | null) => {
         info.currentValue = newValue;
         this.addBackObject(newValue);
         this.markDirty(info.property, newValue);
@@ -1040,8 +1040,8 @@ export class Entity {
     return result;
   };
 
-  protected addBackObject = (remote?: Entity) => {
-    if (remote !== undefined) {
+  protected addBackObject = (remote?: Entity | null) => {
+    if (remote !== undefined && remote !== null) {
       remote.backObjects.add(this);
     }
   };
