@@ -13,6 +13,7 @@ import {
   FRONTEND_ERROR_SCHEMA_VERSION,
   type CaptureContext,
   type FrontendErrorEvent,
+  type FrontendErrorIntegration,
   type FrontendErrorReporterConfig,
   type FrontendErrorShouldReport,
   type FrontendErrorSource,
@@ -57,6 +58,12 @@ function dedupeKey(event: FrontendErrorEvent): string {
 }
 
 export class FrontendErrorReporter {
+  readonly #integrations = new Set<FrontendErrorIntegration>();
+
+  addIntegration(integration: FrontendErrorIntegration): () => void {
+    this.#integrations.add(integration);
+    return () => { this.#integrations.delete(integration); };
+  }
   readonly #endpoint: string;
   readonly #application: string;
   readonly #releaseSha?: string;
@@ -102,8 +109,17 @@ export class FrontendErrorReporter {
       this.#seenAt.set(key, now);
       if (critical) this.#criticalEventCount += 1;
       else this.#eventCount += 1;
+      const integrations = [...this.#integrations];
+      for (const integration of integrations) {
+        try { integration.prepare(event); } catch { /* Diagnostics are best effort. */ }
+      }
       try {
-        void Promise.resolve(this.#transport(this.#endpoint, event)).catch(() => undefined);
+        void Promise.resolve(this.#transport(this.#endpoint, event)).then((receipt) => {
+          if (!receipt || receipt.accepted !== true || receipt.disposition === "suppressed") return;
+          for (const integration of integrations) {
+            try { integration.accepted(event, receipt); } catch { /* Diagnostics are best effort. */ }
+          }
+        }).catch(() => undefined);
       } catch {
         // Error reporting must never interfere with the host application.
       }

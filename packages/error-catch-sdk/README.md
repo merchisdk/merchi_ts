@@ -322,3 +322,58 @@ npm run check
 
 `npm run check` runs type checking, tests, a clean package build, and a package
 contents dry run.
+
+## Optional storefront error recordings
+
+The `@merchi/error-catch/replay` entry point provides `startStorefrontReplay`.
+It adds an integration to an existing reporter without changing its filtering,
+deduplication or normal error transport. The recorder starts automatically when the merchant enables it on an ordinary
+storefront page. There is no visitor permission prompt. The root error SDK never imports rrweb into its browser bundle.
+
+```ts
+import { initMerchiStorefrontErrors } from '@merchi/error-catch/next';
+import { startStorefrontReplay } from '@merchi/error-catch/replay';
+
+const reporter = initMerchiStorefrontErrors({
+  apiUrl: 'https://api.staging.merchi.co/v6/', domainId: 42, enabled: true,
+});
+const replay = startStorefrontReplay(reporter, {
+  apiUrl: 'https://api.staging.merchi.co/v6/', enabled: true,
+});
+// Optional runtime merchant configuration changes:
+replay.setEnabled(false); // Clears buffers and aborts pending uploads.
+// Custom payment UI outside the default boundaries:
+replay.setSensitiveContext(true); // Stop before opening payment UI.
+replay.setSensitiveContext(false); // Resume only after that UI is removed.
+// Call replay.stop() if the host permanently tears down the integration.
+```
+
+A bounded rolling buffer retains approximately 60 seconds, with complete
+snapshots every 10 seconds. Accepted errors upload a baseline immediately and
+append up to 15 seconds afterward. Quiet time is included in the timeline.
+There are at most three clips per document; a reload starts a fresh buffer.
+Recordings are best effort: closing a tab, network failures or large pages can
+shorten them. No recordings upload during normal browsing.
+
+All text/input values are masked, DOM attributes are allowlisted, and media,
+canvas, uploads and iframes are blocked. CSS classes preserve page layout.
+Mark any additional sensitive component with `data-replay-block` or `rr-block`.
+Checkout, payment, pay, billing and invoice route segments, quote success pages,
+Merchi checkout UI and any mounted `data-replay-payment` element prohibit capture.
+Entering a boundary stops recording, clears buffers and pending clips, aborts
+uploads, and ignores late collector responses. Leaving starts a fresh buffer;
+old clips cannot continue. Payment operation errors retain normal error reporting
+without requesting replay. For custom payment UI, set the sensitive context before
+mounting it or mark its outermost element. These boundaries cannot be disabled
+through storefront configuration. Already uploaded ordinary-page segments remain
+subject to the normal retention period.
+This version has no text-unmasking override. The server applies masking again.
+
+The v6 collector must return an accepted receipt with `replay: { id, uploadToken }`.
+Custom error transports may return that receipt through the extended
+`FrontendErrorTransport` return type; transports returning void still work,
+without replay uploads. A server suppression response never authorizes replay.
+Uploads omit credentials/referrers, have a 10-second timeout and retry once with
+an idempotent part index. They require the API's per-domain replay configuration,
+private bucket and origin registration; see the API's
+`documentation/storefront-error-replays.md` for setup, retention and endpoints.
