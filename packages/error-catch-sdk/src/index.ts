@@ -25,12 +25,19 @@ export {
   normalizeRoute,
   parseStackFrames,
 } from "./normalize.js";
+export { clientFingerprintFrom, collectClientFingerprint } from "./clientFingerprint.js";
+export type { ClientFingerprintInput } from "./clientFingerprint.js";
 export { redactText } from "./redact.js";
 export { fetchTransport } from "./transport.js";
 export {
   FRONTEND_ERROR_SCHEMA_VERSION,
   type CaptureContext,
+  type FrontendErrorBrowser,
+  type FrontendErrorClient,
+  type FrontendErrorColorScheme,
+  type FrontendErrorDeviceType,
   type FrontendErrorEvent,
+  type FrontendErrorOs,
   type FrontendErrorReporterConfig,
   type FrontendErrorShouldReport,
   type FrontendErrorSource,
