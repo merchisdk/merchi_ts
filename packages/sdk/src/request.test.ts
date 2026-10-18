@@ -1,4 +1,4 @@
-import { apiFetch, ApiError } from './request.js';
+import { apiFetch, backendFetch, ApiError } from './request.js';
 import { ErrorType } from './constants/errors.js';
 import { setup, mockFetch } from './test_util.js';
 
@@ -21,11 +21,11 @@ test('can pass through data from server with override url', () => {
 
 test('404 creates ApiError', () => {
   mockFetch(false, {'statusCode': 404, 'errorCode': ErrorType.RESOURCE_NOT_FOUND}, 404);
-  apiFetch('https://api.merchi.co/', '/test').catch(e => {
+  return apiFetch('https://api.merchi.co/', '/test').catch(e => {
     expect(e.statusCode).toBe(404);
     expect(e.name).toBe('ApiError');
     expect(e.errorCode).toBe(ErrorType.RESOURCE_NOT_FOUND);
-    expect(e.errorMessage).toBe('No error message');
+    expect(e.errorMessage).toBe('Request failed (HTTP 404)');
   });
 });
 
@@ -97,4 +97,90 @@ test('ApiError leaves details undefined when the server omits them', () => {
     expect(e.name).toBe('ApiError');
     expect(e.details).toBeUndefined();
   });
+});
+
+test.each([null, undefined])('ApiError accepts an empty response body (%s)', value => {
+  const error = new ApiError(value);
+  expect(error.message).toBe('No error message');
+  expect(error.statusCode).toBeUndefined();
+});
+
+test.each(['GET', 'HEAD', undefined])('retries one lost %s response', async method => {
+  const response = { status: 200, json: () => Promise.resolve({ cart: { id: 42 } }) };
+  const fetch = jest.fn().mockRejectedValueOnce(new TypeError('Load failed')).mockResolvedValue(response);
+  (global as any).fetch = fetch;
+  await expect(apiFetch('https://api.merchi.co/', '/carts/42/', { method })).resolves.toEqual({ cart: { id: 42 } });
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(fetch.mock.calls[0]).toEqual(fetch.mock.calls[1]);
+});
+
+test('retries Safari NetworkError reads', async () => {
+  const error = Object.assign(new Error('A network error occurred.'), { name: 'NetworkError' });
+  const fetch = jest.fn().mockRejectedValueOnce(error).mockResolvedValue({ status: 200, json: async () => ({}) });
+  (global as any).fetch = fetch;
+  await apiFetch('https://api.merchi.co/', '/carts/42/');
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
+
+test('read retry is bounded and preserves the final failure', async () => {
+  const error = new TypeError('Failed to fetch');
+  const fetch = jest.fn().mockRejectedValue(error);
+  (global as any).fetch = fetch;
+  await expect(apiFetch('https://api.merchi.co/', '/carts/42/')).rejects.toBe(error);
+  expect(fetch).toHaveBeenCalledTimes(2);
+});
+
+test.each(['POST', 'PATCH', 'PUT', 'DELETE'])('never retries %s after a lost response', async method => {
+  const error = new TypeError('Load failed');
+  const fetch = jest.fn().mockRejectedValue(error);
+  (global as any).fetch = fetch;
+  await expect(apiFetch('https://api.merchi.co/', '/carts/', { method })).rejects.toBe(error);
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+test('does not retry aborts or unrelated exceptions', async () => {
+  for (const error of [Object.assign(new Error('Cancelled'), { name: 'AbortError' }), new Error('unexpected failure')]) {
+    const fetch = jest.fn().mockRejectedValue(error);
+    (global as any).fetch = fetch;
+    await expect(apiFetch('https://api.merchi.co/', '/carts/42/')).rejects.toBe(error);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  }
+});
+
+test('does not retry a network error after its signal is aborted', async () => {
+  const controller = new AbortController();
+  const error = new TypeError('Load failed');
+  (global as any).fetch = jest.fn().mockImplementation(async () => { controller.abort(); throw error; });
+  await expect(apiFetch('https://api.merchi.co/', '/carts/42/', { signal: controller.signal })).rejects.toBe(error);
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+test('cancelling during the retry delay prevents a second request', async () => {
+  const controller = new AbortController();
+  const error = new TypeError('Load failed');
+  (global as any).fetch = jest.fn().mockRejectedValue(error);
+  const pending = apiFetch('https://api.merchi.co/', '/carts/42/', { signal: controller.signal });
+  await Promise.resolve();
+  controller.abort();
+  await expect(pending).rejects.toBe(error);
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+test('query parameters survive retries without duplication', async () => {
+  const fetch = jest.fn().mockRejectedValueOnce(new TypeError('Load failed')).mockResolvedValue({ status: 200 });
+  (global as any).fetch = fetch;
+  await backendFetch('https://api.merchi.co/v6/', '/carts/42/', { query: [['cart_token', 'test-token']], method: 'GET' });
+  expect(fetch).toHaveBeenCalledWith('https://api.merchi.co/v6/carts/42/?cart_token=test-token', { method: 'GET', query: [['cart_token', 'test-token']] });
+});
+
+test('non-JSON gateway failures preserve their HTTP status without exposing HTML', async () => {
+  const fetch = jest.fn().mockResolvedValue({ status: 502, json: async () => { throw new SyntaxError('private gateway HTML'); } });
+  (global as any).fetch = fetch;
+  await expect(apiFetch('https://api.merchi.co/', '/carts/42/')).rejects.toMatchObject({ name: 'ApiError', statusCode: 502, message: 'Request failed (HTTP 502)' });
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
+
+test.each([null, 'Service unavailable', { statusCode: 200, message: 'Service unavailable' }])('HTTP status is authoritative for error body %s', async body => {
+  mockFetch(false, body, 503);
+  await expect(apiFetch('https://api.merchi.co/', '/carts/42/')).rejects.toMatchObject({ name: 'ApiError', statusCode: 503 });
 });

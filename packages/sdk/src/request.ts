@@ -65,10 +65,11 @@ export class ApiError extends Error {
     const message = resolveApiErrorMessage(err);
     /* istanbul ignore next */
     super(message);
-    this.statusCode = err.statusCode;
-    this.errorCode = getErrorFromCode(err.errorCode);
+    const fields = err && typeof err === 'object' ? err : {};
+    this.statusCode = fields.statusCode;
+    this.errorCode = getErrorFromCode(fields.errorCode);
     this.errorMessage = message;
-    this.details = err.details;
+    this.details = fields.details;
     this.name = 'ApiError';
     this.original = err;
   }
@@ -108,17 +109,32 @@ function ensureVersionInUri(baseUrl: string): UriComponents {
   };
 }
 
-export function backendFetch(baseUrl: string, resource: string, options?: RequestOptions) {
+export async function backendFetch(baseUrl: string, resource: string, options?: RequestOptions) {
   const { baseUrl: cleanBaseUrl, version: apiVersion } = ensureVersionInUri(baseUrl);
   // Remove leading slash from resource if it exists to prevent double slashes
   const cleanResource = resource.startsWith('/') ? resource.slice(1) : resource;
   const url = new URL(cleanBaseUrl + apiVersion + '/' + cleanResource);
-  if (options && options.query) {
-    for (const entry of options.query) {
+  const query = options?.query;
+  if (query) {
+    for (const entry of query) {
       url.searchParams.append(entry[0], entry[1]);
     }
   }
-  return fetch(url.toString(), options);
+  const method = (options?.method || 'GET').toUpperCase();
+  try {
+    return await fetch(url.toString(), options);
+  } catch (error) {
+    // Only reads are safe to repeat when the browser loses a response. A cart
+    // creation or payment may already have succeeded on the server.
+    const networkError = error instanceof TypeError ||
+      (error && typeof error === 'object' && (error as Error).name === 'NetworkError');
+    if (!networkError || !['GET', 'HEAD'].includes(method) || options?.signal?.aborted) {
+      throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, 250));
+    if (options?.signal?.aborted) throw error;
+    return fetch(url.toString(), options);
+  }
 }
 
 export function apiFetch(
@@ -130,9 +146,14 @@ export function apiFetch(
   return backendFetch(baseUrl, resource, options as RequestInit | undefined).then(
     function (response) {
       if (response.status < 200 || response.status > 299) {
-        return response.json().then(function (json) {
-          const err = new ApiError(json);
-          return Promise.reject(err);
+        return response.json().catch(() => null).then(function (json) {
+          const fields = json && typeof json === 'object' ? json : {};
+          throw new ApiError({
+            ...fields,
+            statusCode: response.status,
+            message: typeof json === 'string' && json ? json : fields.message ||
+              `Request failed (HTTP ${response.status})`,
+          });
         });
       } else {
         return expectEmptyResponse ? '' : response.json();

@@ -22,6 +22,7 @@ import {
 import { makeUser } from './utilities/user';
 import { persistTestCheckoutFlag, readTestCheckoutFlag } from './utilities/test_checkout';
 import { reportAddCartItemFailure, reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
+import { canReplaceMissingCart } from './utilities/cartLoadFailure';
 import {
   appendJobSourceToFormData,
   captureAndReadJobSource,
@@ -696,7 +697,14 @@ const CartProvider = ({
         setCartSettingsInvalid(true);
       }
     } catch(e: any){
-      await createCartAndCookie();
+      if (canReplaceMissingCart(e)) {
+        await createCartAndCookie();
+      } else {
+        // A network/server/auth failure does not mean the saved cart is gone.
+        // Preserve its cookie and contents so the shopper can retry the read.
+        reportCartFailure(e, CART_FAILURE_SOURCES.load);
+        alertError(e?.errorMessage || e?.message || 'Unable to load cart. Please try again.');
+      }
     } finally {
       setFetchingCart(false);
     }
@@ -718,9 +726,9 @@ const CartProvider = ({
     await adoptHandoffCart();
     const cartIdAndToken = await getCartCookie((domainId as number));
     if (cartIdAndToken) {
-      getCart(cartIdAndToken);
+      await getCart(cartIdAndToken);
     } else {
-      createCartAndCookie();
+      await createCartAndCookie();
     }
   }
 

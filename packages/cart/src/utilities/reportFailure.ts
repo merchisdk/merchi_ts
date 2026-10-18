@@ -9,6 +9,7 @@ import { captureUnexpected, type FrontendErrorOperation } from '@merchi/error-ca
  * the legacy `digest` as well as bounded operation context.
  */
 export const CART_FAILURE_SOURCES = {
+  load: 'cart.load',
   addItem: 'cart.addItem',
   invoicePdf: 'cart.invoicePdf',
   create: 'cart.create',
@@ -16,6 +17,7 @@ export const CART_FAILURE_SOURCES = {
   shipping: 'cart.shipping',
 } as const;
 const OPERATIONS: Record<CartFailureSource, FrontendErrorOperation> = {
+  'cart.load': 'cart.load',
   'cart.addItem': 'cart.add_item', 'cart.invoicePdf': 'cart.invoice_pdf',
   'cart.create': 'cart.create', 'cart.update': 'cart.update', 'cart.shipping': 'cart.shipping',
 };
