@@ -5,10 +5,22 @@ export interface EmbroideryValue {
   text?: string;
   widthMm?: number;
   heightMm?: number;
+  /** Thread colours the buyer chose. One per detected source colour. */
   colours?: string[];
+  /** Colours measured from the artwork. Stays put while the buyer recolours. */
+  sourceColours?: string[];
   coverage?: number;
   pixelWidth?: number;
   pixelHeight?: number;
+}
+
+export function embroideryHex(value: string): string {
+  const text = String(value || '').trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{3}$/.test(text)) {
+    return `#${text.split('').map((part) => part + part).join('')}`.toUpperCase();
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(text)) return `#${text.toUpperCase()}`;
+  return '#111111';
 }
 
 export function parseEmbroideryValue(value: any): EmbroideryValue | null {
@@ -28,6 +40,47 @@ export function embroideryValueJson(value: EmbroideryValue): string {
 
 export function roundMm(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+export function fitEmbroiderySize({
+  width,
+  height,
+  changed,
+  maxWidth,
+  maxHeight,
+  lock,
+  ratio,
+}: {
+  width?: number;
+  height?: number;
+  changed?: 'width' | 'height';
+  maxWidth?: number | null;
+  maxHeight?: number | null;
+  lock: boolean;
+  ratio?: number | null;
+}): { width?: number; height?: number } {
+  let nextWidth = width;
+  let nextHeight = height;
+  if (lock && ratio && ratio > 0) {
+    if (changed === 'width' && nextWidth) nextHeight = nextWidth / ratio;
+    if (changed === 'height' && nextHeight) nextWidth = nextHeight * ratio;
+  }
+  if (!(nextWidth && nextHeight && nextWidth > 0 && nextHeight > 0)) {
+    return { width: nextWidth, height: nextHeight };
+  }
+  if (lock) {
+    let scale = 1;
+    if (maxWidth && nextWidth > maxWidth) scale = Math.min(scale, maxWidth / nextWidth);
+    if (maxHeight && nextHeight > maxHeight) scale = Math.min(scale, maxHeight / nextHeight);
+    if (scale < 1) {
+      nextWidth *= scale;
+      nextHeight *= scale;
+    }
+  } else {
+    if (maxWidth && nextWidth > maxWidth) nextWidth = maxWidth;
+    if (maxHeight && nextHeight > maxHeight) nextHeight = maxHeight;
+  }
+  return { width: roundMm(nextWidth), height: roundMm(nextHeight) };
 }
 
 export function effectiveDpi(pixels?: number, mm?: number): number | null {

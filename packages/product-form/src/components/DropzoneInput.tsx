@@ -70,11 +70,6 @@ function DropzoneInput({
     multiple,
   });
 
-  const spinnerStyleFix = {
-    marginLeft: '-12px',
-    top: '13px',
-  };
-
   return (
     <>
       <div {...getRootProps()} className={classNameFileUpload}>
@@ -83,11 +78,9 @@ function DropzoneInput({
         <div className={classNameFileUploadTextContainer}>
           <div className={classNameFileUploadIconContainer}>
             {loading ? (
-              <CgSpinner
-                style={spinnerStyleFix}
-                className={classNameFileUploadIcon + ' animate_spin'}
-                fontSize='1.5rem'
-              />
+              <span className={classNameFileUploadIcon}>
+                <CgSpinner className='animate_spin' fontSize='1.5rem' />
+              </span>
             ) : (
               <FaRegImage
                 className={classNameFileUploadIcon}

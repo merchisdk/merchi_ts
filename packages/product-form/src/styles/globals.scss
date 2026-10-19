@@ -1857,6 +1857,139 @@
   animation: merchi-product-form-spin 0.8s linear infinite;
 }
 
+.merchi-embed-form_dropzone-icon .animate_spin {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.merchi-embroidery-measure {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.merchi-embroidery-measure .animate_spin {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: 0 0 auto;
+}
+
+.merchi-embroidery-size-input::-webkit-outer-spin-button,
+.merchi-embroidery-size-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.merchi-embroidery-size-input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.merchi-embroidery-previews {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  padding-right: 1.5rem;
+}
+
+.merchi-embroidery-previews figure {
+  margin: 0;
+  text-align: center;
+}
+
+.merchi-embroidery-previews figcaption {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.merchi-embroidery-previews img,
+.merchi-embroidery-previews canvas {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 180px;
+  max-height: 160px;
+  object-fit: contain;
+  background: #f4f4f5;
+  border-radius: 0.25rem;
+}
+
+.merchi-embroidery-previews .merchi-embed-form_file-preview-icon-wrapper,
+.merchi-embroidery-previews button[aria-label='Remove artwork'] {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.merchi-embroidery-preview-note {
+  margin: 0;
+  max-width: 140px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.merchi-embroidery-threads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.merchi-embroidery-thread {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.merchi-embroidery-thread input[type='color'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  overflow: hidden;
+  background: transparent;
+  cursor: pointer;
+}
+
+.merchi-embroidery-thread input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.merchi-embroidery-thread input[type='color']::-webkit-color-swatch,
+.merchi-embroidery-thread input[type='color']::-moz-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+
+.merchi-embroidery-thread button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.merchi-embroidery-thread button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 @keyframes merchi-product-form-spin {
   to {
     transform: rotate(360deg);
