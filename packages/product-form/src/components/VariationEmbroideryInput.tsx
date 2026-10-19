@@ -13,6 +13,7 @@ import {
   EmbroideryValue,
   embroideryQualityWarning,
   embroideryValueJson,
+  fitEmbroiderySize,
   parseEmbroideryValue,
 } from '../utils/embroidery';
 
@@ -39,6 +40,15 @@ function VariationEmbroideryInput({ disabled, name, variation }: Props) {
   const { setValue, watch } = hookForm;
   const variationField = variation.variationField || {};
   const fileMode = variationField.embroideryInputMode !== 'text';
+  const ratioLocked = variationField.aspectRatioLock == null
+    ? true
+    : Boolean(variationField.aspectRatioLock);
+  const maxWidth = Number(variationField.widthFieldMax) > 0
+    ? Number(variationField.widthFieldMax)
+    : null;
+  const maxHeight = Number(variationField.heightFieldMax) > 0
+    ? Number(variationField.heightFieldMax)
+    : null;
   const maxColours = Number(variationField.maxColours) > 0
     ? Number(variationField.maxColours)
     : 4;
@@ -113,19 +123,19 @@ function VariationEmbroideryInput({ disabled, name, variation }: Props) {
       if (!response.ok) throw new Error(`Measure failed (${response.status})`);
       const data = await response.json();
       if (current !== requestId.current) return;
+      const measuredWidth = data.widthMm || data.measuredWidthMm;
+      const measuredHeight = data.heightMm || data.measuredHeightMm;
       const merged: EmbroideryValue = {
         ...next,
         colours: data.colours || next.colours,
         coverage: data.coverage,
         pixelWidth: data.pixelWidth || next.pixelWidth,
         pixelHeight: data.pixelHeight || next.pixelHeight,
-        widthMm: next.widthMm || data.widthMm || data.measuredWidthMm,
-        heightMm: next.heightMm || data.heightMm || data.measuredHeightMm,
+        widthMm: measuredWidth || next.widthMm,
+        heightMm: measuredHeight || next.heightMm,
       };
-      const measuredWidth = data.widthMm || data.measuredWidthMm;
-      const measuredHeight = data.heightMm || data.measuredHeightMm;
-      if (!next.widthMm && measuredWidth) setWidth(String(measuredWidth));
-      if (!next.heightMm && measuredHeight) setHeight(String(measuredHeight));
+      if (measuredWidth) setWidth(String(measuredWidth));
+      if (measuredHeight) setHeight(String(measuredHeight));
       writeValue(merged);
     } catch (err: any) {
       if (current === requestId.current) {
@@ -152,13 +162,50 @@ function VariationEmbroideryInput({ disabled, name, variation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wording, width, height, colours.join('|'), file?.id, fileMode]);
 
+  const sizeRatio = () => {
+    const pixelWidth = Number(saved.pixelWidth);
+    const pixelHeight = Number(saved.pixelHeight);
+    if (pixelWidth > 0 && pixelHeight > 0) return pixelWidth / pixelHeight;
+    const configured = Number(variationField.aspectRatio);
+    if (configured > 0) return configured;
+    const currentWidth = Number(width);
+    const currentHeight = Number(height);
+    if (currentWidth > 0 && currentHeight > 0) return currentWidth / currentHeight;
+    return null;
+  };
+
   const updateSize = (axis: 'width' | 'height', raw: string) => {
-    if (axis === 'width') setWidth(raw);
-    else setHeight(raw);
+    if (raw === '') {
+      if (axis === 'width') setWidth('');
+      else setHeight('');
+      writeValue({
+        ...draft,
+        widthMm: axis === 'width' ? undefined : draft.widthMm,
+        heightMm: axis === 'height' ? undefined : draft.heightMm,
+      }, false);
+      return;
+    }
+    const typed = Number(raw);
+    if (!Number.isFinite(typed) || typed <= 0) {
+      if (axis === 'width') setWidth(raw);
+      else setHeight(raw);
+      return;
+    }
+    const fitted = fitEmbroiderySize({
+      width: axis === 'width' ? typed : Number(width) || undefined,
+      height: axis === 'height' ? typed : Number(height) || undefined,
+      changed: axis,
+      maxWidth,
+      maxHeight,
+      lock: ratioLocked,
+      ratio: sizeRatio(),
+    });
+    setWidth(fitted.width ? String(fitted.width) : '');
+    setHeight(fitted.height ? String(fitted.height) : '');
     writeValue({
       ...draft,
-      widthMm: Number(axis === 'width' ? raw : width) || undefined,
-      heightMm: Number(axis === 'height' ? raw : height) || undefined,
+      widthMm: fitted.width,
+      heightMm: fitted.height,
     }, false);
   };
 
@@ -283,6 +330,7 @@ function VariationEmbroideryInput({ disabled, name, variation }: Props) {
             className='form-control'
             type='number'
             min={0}
+            max={maxWidth ?? undefined}
             disabled={disabled}
             placeholder='Width (mm)'
             value={width}
@@ -295,6 +343,7 @@ function VariationEmbroideryInput({ disabled, name, variation }: Props) {
             className='form-control'
             type='number'
             min={0}
+            max={maxHeight ?? undefined}
             disabled={disabled}
             placeholder='Height (mm)'
             value={height}

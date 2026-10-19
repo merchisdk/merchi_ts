@@ -30,6 +30,47 @@ export function roundMm(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+export function fitEmbroiderySize({
+  width,
+  height,
+  changed,
+  maxWidth,
+  maxHeight,
+  lock,
+  ratio,
+}: {
+  width?: number;
+  height?: number;
+  changed?: 'width' | 'height';
+  maxWidth?: number | null;
+  maxHeight?: number | null;
+  lock: boolean;
+  ratio?: number | null;
+}): { width?: number; height?: number } {
+  let nextWidth = width;
+  let nextHeight = height;
+  if (lock && ratio && ratio > 0) {
+    if (changed === 'width' && nextWidth) nextHeight = nextWidth / ratio;
+    if (changed === 'height' && nextHeight) nextWidth = nextHeight * ratio;
+  }
+  if (!(nextWidth && nextHeight && nextWidth > 0 && nextHeight > 0)) {
+    return { width: nextWidth, height: nextHeight };
+  }
+  if (lock) {
+    let scale = 1;
+    if (maxWidth && nextWidth > maxWidth) scale = Math.min(scale, maxWidth / nextWidth);
+    if (maxHeight && nextHeight > maxHeight) scale = Math.min(scale, maxHeight / nextHeight);
+    if (scale < 1) {
+      nextWidth *= scale;
+      nextHeight *= scale;
+    }
+  } else {
+    if (maxWidth && nextWidth > maxWidth) nextWidth = maxWidth;
+    if (maxHeight && nextHeight > maxHeight) nextHeight = maxHeight;
+  }
+  return { width: roundMm(nextWidth), height: roundMm(nextHeight) };
+}
+
 export function effectiveDpi(pixels?: number, mm?: number): number | null {
   if (!pixels || !mm || mm <= 0) return null;
   return pixels / (mm / 25.4);
