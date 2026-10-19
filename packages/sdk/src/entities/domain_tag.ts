@@ -1,3 +1,4 @@
+import { Category } from './category.js';
 import { Domain } from './domain.js';
 import { Entity } from '../entity.js';
 import { Invoice } from './invoice.js';
@@ -39,4 +40,7 @@ export class DomainTag extends Entity {
 
   @DomainTag.property({arrayType: 'Shipment'})
   public shipments?: Shipment[];
+
+  @DomainTag.property({arrayType: 'Category'})
+  public categories?: Category[];
 }

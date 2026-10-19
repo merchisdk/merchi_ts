@@ -204,6 +204,9 @@ export class User extends Entity {
   @User.property({ arrayType: 'Category' })
   public categories?: Category[];
 
+  @User.property({ arrayType: 'Category' })
+  public assignedCategories?: Category[];
+
   @User.property({ arrayType: 'Product' })
   public products?: Product[];
 
