@@ -1,4 +1,5 @@
 import { Domain } from './domain.js';
+import { DomainTag } from './domain_tag.js';
 import { Entity } from '../entity.js';
 import { MerchiFile } from './file.js';
 import { Product } from './product.js';
@@ -47,6 +48,12 @@ export class Category extends Entity {
 
   @Category.property({arrayType: 'User'})
   public users?: User[];
+
+  @Category.property({arrayType: 'DomainTag'})
+  public tags?: DomainTag[];
+
+  @Category.property({arrayType: 'User'})
+  public assigned?: User[];
 
   @Category.property({arrayType: 'Category'})
   public subcategories?: Category[];

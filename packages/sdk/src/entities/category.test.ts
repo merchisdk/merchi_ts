@@ -38,6 +38,19 @@ test('can get and set product', () => {
   expect(p1.categories).toBe(undefined);
 });
 
+test('can set tags and assigned team members', () => {
+  const merchi = new Merchi();
+  const category = new merchi.Category();
+  const tag = new merchi.DomainTag();
+  const user = new merchi.User();
+  tag.id = 4;
+  user.id = 9;
+  category.tags = [tag];
+  category.assigned = [user];
+  expect(category.tags?.map((item) => item.id)).toEqual([4]);
+  expect(category.assigned?.map((item) => item.id)).toEqual([9]);
+});
+
 test('independence of entities', () => {
   const merchi = new Merchi();
   const c1 = new merchi.Category();

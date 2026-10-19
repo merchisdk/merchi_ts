@@ -15,6 +15,15 @@ test('can make User', () => {
   expect(user).toBeTruthy();
 });
 
+test('can set assignedCategories', () => {
+  const merchi = new Merchi();
+  const user = new merchi.User();
+  const category = new merchi.Category();
+  category.id = 3;
+  user.assignedCategories = [category];
+  expect(user.assignedCategories?.map((item) => item.id)).toEqual([3]);
+});
+
 test('can issue public create request to server', () => {
   const merchi = new Merchi();
   const user = new merchi.User();
