@@ -5,10 +5,22 @@ export interface EmbroideryValue {
   text?: string;
   widthMm?: number;
   heightMm?: number;
+  /** Thread colours the buyer chose. One per detected source colour. */
   colours?: string[];
+  /** Colours measured from the artwork. Stays put while the buyer recolours. */
+  sourceColours?: string[];
   coverage?: number;
   pixelWidth?: number;
   pixelHeight?: number;
+}
+
+export function embroideryHex(value: string): string {
+  const text = String(value || '').trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{3}$/.test(text)) {
+    return `#${text.split('').map((part) => part + part).join('')}`.toUpperCase();
+  }
+  if (/^[0-9a-fA-F]{6}$/.test(text)) return `#${text.toUpperCase()}`;
+  return '#111111';
 }
 
 export function parseEmbroideryValue(value: any): EmbroideryValue | null {
