@@ -1,5 +1,6 @@
 export { isExpectedClientError } from "./expectedClientError.js";
 export { isBrowserExtensionError } from "./browserExtension.js";
+export { isEmbeddedBrowserBridgeError } from "./embeddedBrowser.js";
 export {
   FRONTEND_ERROR_OPERATIONS,
   type FrontendErrorOperation,

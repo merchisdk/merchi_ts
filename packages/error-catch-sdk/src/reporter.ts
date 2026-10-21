@@ -1,4 +1,5 @@
 import { isBrowserExtensionError } from "./browserExtension.js";
+import { isEmbeddedBrowserBridgeError } from "./embeddedBrowser.js";
 import { apiFailureContext, isCriticalOperation, normalizeOperation, safeOperationSuppression } from "./operation.js";
 import {
   errorDetails,
@@ -98,7 +99,7 @@ export class FrontendErrorReporter {
         return false;
       }
       const event = this.#buildEvent(error, context);
-      if (!this.#shouldReport && (safeOperationSuppression(event) || isBrowserExtensionError(event))) return false;
+      if (!this.#shouldReport && (safeOperationSuppression(event) || isBrowserExtensionError(event) || isEmbeddedBrowserBridgeError(event))) return false;
       const critical = isCriticalOperation(event.operation);
       if ((critical ? this.#criticalEventCount : this.#eventCount) >= this.#maxEventsPerPage) return false;
       const key = dedupeKey(event);

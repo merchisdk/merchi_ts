@@ -206,6 +206,18 @@ exported `isBrowserExtensionError(event)` helper uses the same rule. A custom
 `shouldReport` callback takes full responsibility for filtering; returning `true`
 also retains extension-only reports.
 
+The collector independently applies the same rule for older clients.
+
+## Embedded Chromium / CefSharp noise
+
+Automatic `window_error` / `unhandled_rejection` events whose entire message is
+the known CefSharp bridge rejection (`Object Not Found Matching Id:<digits>`,
+optionally with `MethodName` and `ParamCount`) are suppressed before transport.
+This is Outlook Safe Links and similar embedded Chromium hosts, not storefront
+code. Manual captures, React/component/digest failures, critical purchase
+operations, and any other "Object Not Found" wording stay reportable. The
+exported `isEmbeddedBrowserBridgeError(event)` helper uses the same rule.
+
 The collector independently applies the same rule for older clients. Schema
 version 1 gains optional operation/API/Stripe diagnostic fields. Deploy the API
 PR before publishing this SDK: an older strict collector rejects the new fields.
