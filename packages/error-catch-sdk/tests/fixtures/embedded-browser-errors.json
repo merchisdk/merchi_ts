@@ -1,0 +1,67 @@
+[
+  {
+    "name": "CefSharp unhandled rejection",
+    "source": "unhandled_rejection",
+    "errorType": "NonErrorException",
+    "message": "Object Not Found Matching Id:2, MethodName:update, ParamCount:4",
+    "expected": true
+  },
+  {
+    "name": "CefSharp short form",
+    "source": "unhandled_rejection",
+    "errorType": "NonErrorException",
+    "message": "Object Not Found Matching Id:1",
+    "expected": true
+  },
+  {
+    "name": "window_error same signature",
+    "source": "window_error",
+    "errorType": "Error",
+    "message": "Object Not Found Matching Id:2, MethodName:update, ParamCount:4",
+    "expected": true
+  },
+  {
+    "name": "manual capture retained",
+    "source": "manual",
+    "errorType": "NonErrorException",
+    "message": "Object Not Found Matching Id:2, MethodName:update, ParamCount:4",
+    "expected": false
+  },
+  {
+    "name": "React boundary retained",
+    "source": "react_error_boundary",
+    "errorType": "NonErrorException",
+    "message": "Object Not Found Matching Id:2, MethodName:update, ParamCount:4",
+    "expected": false
+  },
+  {
+    "name": "unrelated object not found retained",
+    "source": "unhandled_rejection",
+    "errorType": "Error",
+    "message": "Object Not Found",
+    "expected": false
+  },
+  {
+    "name": "prefixed message retained",
+    "source": "unhandled_rejection",
+    "errorType": "Error",
+    "message": "Cart failed: Object Not Found Matching Id:2, MethodName:update, ParamCount:4",
+    "expected": false
+  },
+  {
+    "name": "digest context retained",
+    "source": "unhandled_rejection",
+    "errorType": "NonErrorException",
+    "message": "Object Not Found Matching Id:2, MethodName:update, ParamCount:4",
+    "digest": "next-crash",
+    "expected": false
+  },
+  {
+    "name": "component stack retained",
+    "source": "unhandled_rejection",
+    "errorType": "NonErrorException",
+    "message": "Object Not Found Matching Id:2, MethodName:update, ParamCount:4",
+    "componentStack": "at Checkout",
+    "expected": false
+  }
+]
