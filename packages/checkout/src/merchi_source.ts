@@ -5,19 +5,24 @@ function cleanIds(raw: any[]) {
 }
 
 export function getMerchiSourceJobTagEntities(): any[] {
-  if (typeof localStorage !== 'undefined' && localStorage !== null) {
-    const merchiSource = localStorage.getItem('merchi_source');
-
-    if (merchiSource) {
-      const ids = cleanIds(merchiSource.split(','));
-      return ids.map((id: number) => ({ id }));
-    }
-    // If "merchi_source" is not found in localStorage, return an empty array.
+  let merchiSource: string | null;
+  try {
+    merchiSource = typeof localStorage === 'undefined' || localStorage === null
+      ? null
+      : localStorage.getItem('merchi_source');
+  } catch {
+    // Optional attribution must not interrupt checkout when storage is blocked.
     return [];
   }
-  return [];
+  return merchiSource ? cleanIds(merchiSource.split(',')).map(id => ({ id })) : [];
 }
 
 export function clearMerchiSource() {
-  localStorage.removeItem('merchi_source');
+  try {
+    if (typeof localStorage !== 'undefined' && localStorage !== null) {
+      localStorage.removeItem('merchi_source');
+    }
+  } catch {
+    // Checkout can still complete when attribution storage is unavailable.
+  }
 }
