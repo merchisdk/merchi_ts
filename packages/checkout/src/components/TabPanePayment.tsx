@@ -1,12 +1,13 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import { useMerchiCheckboutContext } from './MerchiCheckoutProvider';
 import { tabIdPayment } from '../tabs_utils';
 import TitleStep from './TitleStep';
 import TabPane from './TabPane';
-import MerchiInvoice from '@merchi/invoice';
 import CancelOrderConfirmModal from './CancelOrderConfirmModal';
 import { getClientEmail, redirectOnSuccess } from '../utils';
+
+const MerchiInvoice = lazy(() => import('@merchi/invoice'));
 
 function TabPanePayment() {
   const {
@@ -39,39 +40,41 @@ function TabPanePayment() {
         <div className='w-100 mt-3'>
           {invoice?.id && (
             <>
-              <MerchiInvoice
-                alertErrorShow={alertErrorShow}
-                callbackCreditCardPaymentSuccess={(i: any) => {
-                  const paidInvoice = i?.invoice ?? i;
-                  setInvoice(paidInvoice);
-                  if (paidInvoice?.unpaid) return;
-                  if (redirectAfterSuccessUrl) {
-                    redirectOnSuccess(
-                      redirectAfterSuccessUrl,
-                      redirectWithValue,
-                      paidInvoice?.totalCost,
-                      {
-                        invoiceId: paidInvoice?.id ?? invoice?.id,
-                        email:
-                          getClientEmail(paidInvoice?.client) ||
-                          getClientEmail(invoice?.client) ||
-                          getClientEmail(job?.client),
-                      },
-                    );
-                  } else {
-                    setInvoice(i?.invoice ?? i);
-                    nextTab();
+              <Suspense fallback={<div className='spinner' />}>
+                <MerchiInvoice
+                  alertErrorShow={alertErrorShow}
+                  callbackCreditCardPaymentSuccess={(i: any) => {
+                    const paidInvoice = i?.invoice ?? i;
+                    setInvoice(paidInvoice);
+                    if (paidInvoice?.unpaid) return;
+                    if (redirectAfterSuccessUrl) {
+                      redirectOnSuccess(
+                        redirectAfterSuccessUrl,
+                        redirectWithValue,
+                        paidInvoice?.totalCost,
+                        {
+                          invoiceId: paidInvoice?.id ?? invoice?.id,
+                          email:
+                            getClientEmail(paidInvoice?.client) ||
+                            getClientEmail(invoice?.client) ||
+                            getClientEmail(job?.client),
+                        },
+                      );
+                    } else {
+                      setInvoice(i?.invoice ?? i);
+                      nextTab();
+                    }
+                  }}
+                  classNameMerchiInvoiceButtonDownloadInvoice={
+                    classNameMerchiCheckoutButtonDownloadInvoice
                   }
-                }}
-                classNameMerchiInvoiceButtonDownloadInvoice={
-                  classNameMerchiCheckoutButtonDownloadInvoice
-                }
-                classNameMerchiInvoiceButtonPayInvoice={
-                  classNameMerchiInvoiceButtonPayInvoice
-                }
-                invoice={invoice}
-                urlApi={urlApi}
-              />
+                  classNameMerchiInvoiceButtonPayInvoice={
+                    classNameMerchiInvoiceButtonPayInvoice
+                  }
+                  invoice={invoice}
+                  urlApi={urlApi}
+                />
+              </Suspense>
               <div className='merchi-checkout-cancel-order'>
                 <button
                   type='button'

@@ -1,12 +1,17 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 import Container from './Container';
 import { ButtonPayInvoice } from './buttons';
 import InvoiceInfo from './InvoiceInfo';
 import TabTile from './TabTile';
 import { IconsPayments } from './icons';
-import SquareCard from './square/SquareCard';
+import { hardenStitchesCssom } from './square/hardenStitchesCssom';
 import StripeCardForm from './stripe/StripeCardForm';
+
+const SquareCard = lazy(() => {
+  hardenStitchesCssom();
+  return import('./square/SquareCard');
+});
 
 const payWithStripe = 'stripe-tab';
 const payWithUtrust = 'utrust-tab';
@@ -63,12 +68,14 @@ function MerchiInvoice({
           <div className='m-auto pt-2' style={{ maxWidth: 400 }}>
             {!!acceptSquare && (
               <Container description='Secure credit card payments powered by Square.'>
-                <SquareCard
-                  alertErrorShow={alertErrorShow}
-                  invoice={invoice}
-                  callbackPaymentSuccess={callbackCreditCardPaymentSuccess}
-                  urlApi={urlApi}
-                />
+                <Suspense fallback={null}>
+                  <SquareCard
+                    alertErrorShow={alertErrorShow}
+                    invoice={invoice}
+                    callbackPaymentSuccess={callbackCreditCardPaymentSuccess}
+                    urlApi={urlApi}
+                  />
+                </Suspense>
               </Container>
             )}
             {acceptStripe && (
