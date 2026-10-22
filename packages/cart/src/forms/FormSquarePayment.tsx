@@ -2,8 +2,12 @@ import * as React from 'react';
 import { Suspense, lazy } from 'react';
 import { useCartContext } from '../CartProvider';
 import { LoadingTemplateSm } from '../components/LoadingTemplate';
+import { hardenStitchesCssom } from '../square/hardenStitchesCssom';
 
-const SquareCard = lazy(() => import('../square/SquareCard'));
+const SquareCard = lazy(() => {
+  hardenStitchesCssom();
+  return import('../square/SquareCard');
+});
 
 function FormSquarePayment() {
   const { cart } = useCartContext();
