@@ -63,6 +63,54 @@ test('preserves isTest', () => {
   expect(entity.toJson()).toMatchObject({ isTest: true });
 });
 
+test('serialises a new cart when FormData has no set', () => {
+  class AppendOnlyFormData {
+    fields = new Map<string, string>();
+    append(name: string, value: any) {
+      this.fields.set(name, String(value));
+    }
+    get(name: string) {
+      return this.fields.has(name) ? this.fields.get(name) : null;
+    }
+    entries() {
+      return this.fields.entries();
+    }
+  }
+  class ReplacingFormData extends AppendOnlyFormData {
+    private ready = false;
+    append(name: string, value: any) {
+      if (!this.ready) {
+        throw new Error(`delete was not called before append(${name})`);
+      }
+      this.ready = false;
+      super.append(name, value);
+    }
+    delete() {
+      this.ready = true;
+    }
+  }
+  const serialise = (form: AppendOnlyFormData) => {
+    const merchi = new Merchi();
+    const cart = new merchi.Cart();
+    cart.isTest = false;
+    const domain = new merchi.Domain();
+    domain.id = 9;
+    cart.domain = domain;
+    cart.toFormData({existing: form as unknown as FormData});
+    return form;
+  };
+
+  const appended = serialise(new AppendOnlyFormData());
+  expect(appended.get('isTest')).toBe('false');
+  expect(appended.get('domain-0-id')).toBe('9');
+  expect(appended.get('domain-count')).toBe('1');
+
+  const replaced = serialise(new ReplacingFormData());
+  expect(replaced.get('isTest')).toBe('false');
+  expect(replaced.get('domain-0-id')).toBe('9');
+  expect(replaced.get('domain-count')).toBe('1');
+});
+
 test('preserves source attribution', () => {
   const merchi = new Merchi();
   const entity = new merchi.Cart();

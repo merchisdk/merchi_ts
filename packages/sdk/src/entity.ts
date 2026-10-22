@@ -928,6 +928,19 @@ export class Entity {
     if (fileIndex === undefined) {
       fileIndex = {value: 0};
     }
+    // Prefer set so a repeated key is replaced. Fall back to append for
+    // FormData implementations that never added set.
+    const writeField = (target: FormData, name: string, value: any) => {
+      if (typeof target.set === 'function') {
+        target.set(name, value);
+        return;
+      }
+      const legacy = target as FormData & {delete?: (field: string) => void};
+      if (typeof legacy.delete === 'function') {
+        legacy.delete(name);
+      }
+      target.append(name, value);
+    };
     const appendData = (name: string, value: any) => {
       /* istanbul ignore next */
       if (name === undefined || value === undefined) {
@@ -937,10 +950,10 @@ export class Entity {
       if (prefix) {
         name = prefix + '-' + name;
       }
-      result.set(name, value);
+      writeField(result, name, value);
     };
     if ((this as any).fileData !== undefined) {
-      result.set(String(fileIndex.value), (this as any).fileData);
+      writeField(result, String(fileIndex.value), (this as any).fileData);
       appendData('fileDataIndex', fileIndex.value);
       fileIndex.value++;
     }
