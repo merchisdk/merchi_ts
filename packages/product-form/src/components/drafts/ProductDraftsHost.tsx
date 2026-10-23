@@ -72,10 +72,13 @@ export function ProductDraftsCta() {
   const [artworkPath, setArtworkPath] = useState<ArtworkPath>('self');
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [uploads, setUploads] = useState<TemplateUpload[]>([]);
+  const [hasMounted, setHasMounted] = useState(false);
 
   const allowed = productAllowsClientDesign(product);
   const formValues = hookForm.watch ? hookForm.watch() : hookForm.getValues?.() || {};
-  const drafts = typeof window !== 'undefined' && product?.id
+  // Keep the first client render identical to SSR. Saved artwork is browser-only
+  // state and must not add the saved-draft status until hydration has completed.
+  const drafts = hasMounted && product?.id
     ? loadDrafts(product.id)
     : [];
   const status = useMemo(
@@ -101,6 +104,7 @@ export function ProductDraftsCta() {
   }, [apiUrl, formValues, product]);
 
   React.useEffect(() => {
+    setHasMounted(true);
     if (!product?.id) return;
     clearOtherProductDrafts(product.id);
     setArtworkPath(loadArtworkPath(product.id));
