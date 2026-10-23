@@ -12,7 +12,8 @@
     "compile-sass": "sass src/styles/globals.scss lib/styles/globals.css",
     "start": "react-scripts start",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "test:dom": "node --test test/*.test.mjs"
   },
   "repository": {
     "type": "git",
@@ -65,7 +66,9 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sass": "1.99.0",
-    "typescript": "^5.1.6"
+    "typescript": "^5.1.6",
+    "esbuild": "0.28.2",
+    "jsdom": "26.1.0"
   },
   "dependencies": {
     "@draft-js-plugins/alignment": "^5.0.3",
