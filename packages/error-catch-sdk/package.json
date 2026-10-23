@@ -1,6 +1,6 @@
 {
   "name": "@merchi/error-catch",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Privacy-conscious browser and React error capture for Merchi frontends",
   "type": "module",
   "main": "./dist/index.js",
