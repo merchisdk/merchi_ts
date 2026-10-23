@@ -183,5 +183,73 @@
     ],
     "trace": "checkout (https://unitix.com.au/cart.js:1:2)",
     "expected": false
+  },
+  {
+    "name": "extension wrapped redacted Google tag frame",
+    "source": "unhandled_rejection",
+    "frames": [
+      "chrome-extension://bhmmomiinigofkjcapegjjndpbikblnp/scripts/content/activeContent.js"
+    ],
+    "trace": "TypeError: Failed to fetch\n    at chrome-extension://bhmmomiinigofkjcapegjjndpbikblnp/scripts/content/activeContent.js:1:995\n    at wp.sendRequest (https://www.googletagmanager.com/gtag/js)",
+    "expected": true
+  },
+  {
+    "name": "extension wrapped Google tag request",
+    "source": "unhandled_rejection",
+    "frames": [
+      "chrome-extension://bhmmomiinigofkjcapegjjndpbikblnp/scripts/content/activeContent.js",
+      "https://www.googletagmanager.com/gtag/js"
+    ],
+    "trace": "TypeError: Failed to fetch\n    at chrome-extension://bhmmomiinigofkjcapegjjndpbikblnp/scripts/content/activeContent.js:1:995\n    at wp.sendRequest (https://www.googletagmanager.com/gtag/js?id=G-TEST&cx=c&gtm=4e6al1:457:919)",
+    "expected": true
+  },
+  {
+    "name": "extension wrapped analytics script",
+    "source": "window_error",
+    "frames": [
+      "chrome-extension://id/content.js"
+    ],
+    "trace": "TypeError: Failed to fetch\n    at fetch (chrome-extension://id/content.js:1:2)\n    at send (https://www.google-analytics.com/analytics.js:3:4)",
+    "expected": true
+  },
+  {
+    "name": "Google tag without an extension",
+    "source": "unhandled_rejection",
+    "frames": [
+      "https://www.googletagmanager.com/gtag/js"
+    ],
+    "trace": "TypeError: Failed to fetch\n    at wp.sendRequest (https://www.googletagmanager.com/gtag/js:457:919)",
+    "expected": false
+  },
+  {
+    "name": "extension wrapped Google tag with application frame",
+    "source": "unhandled_rejection",
+    "frames": [
+      "chrome-extension://bhmmomiinigofkjcapegjjndpbikblnp/scripts/content/activeContent.js",
+      "https://www.googletagmanager.com/gtag/js",
+      "https://unitix.com.au/_next/static/chunks/cart.js"
+    ],
+    "trace": "",
+    "expected": false
+  },
+  {
+    "name": "extension wrapped unknown script",
+    "source": "unhandled_rejection",
+    "frames": [
+      "chrome-extension://id/content.js",
+      "https://cdn.example.com/widget.js"
+    ],
+    "trace": "",
+    "expected": false
+  },
+  {
+    "name": "extension wrapped payment script",
+    "source": "unhandled_rejection",
+    "frames": [
+      "chrome-extension://id/content.js",
+      "https://js.stripe.com/v3"
+    ],
+    "trace": "",
+    "expected": false
   }
 ]

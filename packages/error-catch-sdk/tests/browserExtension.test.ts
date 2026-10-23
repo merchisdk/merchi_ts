@@ -48,6 +48,19 @@ describe("extension-only browser errors", () => {
     }
   });
 
+  it("drops an extension failure whose other frames are only Google tag scripts", () => {
+    const transport = vi.fn();
+    const reporter = createFrontendErrorReporter({
+      endpoint: "https://api.merchi.co/v6/frontend-errors",
+      application: "merchi-storefront-7", enabled: true, transport,
+    });
+    const fixture = fixtures.find((item) => item.name === "extension wrapped Google tag request");
+    const extension = new TypeError("Failed to fetch");
+    extension.stack = fixture!.trace;
+    expect(reporter.captureUnexpected(extension, { source: "unhandled_rejection" })).toBe(false);
+    expect(transport).not.toHaveBeenCalled();
+  });
+
   it("keeps explicit captures and lets shouldReport override automatic filtering", () => {
     const transport = vi.fn();
     const config = { endpoint: "https://collector.example", application: "store", enabled: true, transport };
