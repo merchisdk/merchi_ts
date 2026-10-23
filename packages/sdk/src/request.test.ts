@@ -43,6 +43,38 @@ test('will get default errorCode', () => {
   });
 });
 
+test('lead spam rejection keeps its API code through apiFetch', async () => {
+  mockFetch(false, {
+    statusCode: 400,
+    errorCode: 227,
+    message: 'Invalid submission',
+  }, 400);
+  await expect(apiFetch('https://api.merchi.co/', '/create_new_lead/', {
+    method: 'POST',
+  })).rejects.toMatchObject({
+    name: 'ApiError',
+    statusCode: 400,
+    errorCode: 227,
+    message: 'Invalid submission',
+    errorMessage: 'Invalid submission',
+  });
+});
+
+test.each([226, 1000])('ApiError preserves new numeric API code %s', errorCode => {
+  const error = new ApiError({ statusCode: 400, errorCode, message: 'Rejected' });
+  expect(error.errorCode).toBe(errorCode);
+  expect(error.original.errorCode).toBe(errorCode);
+});
+
+test.each(['227', 'INVALID_PHONE_NUMBER', NaN, -1])(
+  'ApiError rejects malformed API code %p', errorCode => {
+    const error = new ApiError({ statusCode: 400, errorCode, message: 'Rejected' });
+    expect(error.errorCode).toBe(ErrorType.UNKNOWN_ERROR);
+    expect(error.statusCode).toBe(400);
+    expect(error.message).toBe('Rejected');
+  },
+);
+
 test('ApiError keeps plain string messages', () => {
   const e = new ApiError('empty response');
   expect(e.message).toBe('empty response');
