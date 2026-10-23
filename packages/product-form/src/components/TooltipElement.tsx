@@ -1,8 +1,8 @@
 "use client";
 import * as React from 'react';
 import { FC, ReactNode } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import { Tooltip } from 'react-tooltip';
+import { useTooltipBody } from '../hooks/useTooltipBody';
 
 interface Props {
   children: ReactNode;
@@ -12,12 +12,18 @@ interface Props {
 }
 
 const TooltipElement: FC<Props> = ({ children, id, place = 'top', tooltip }) => {
-  // Generate a unique ID immediately for the tooltip anchor.
-  const ttid = id || `id-${uuidv4()}`;
+  // Keep the server, hydration and later renders attached to the same anchor.
+  // React 18 IDs contain colons, which need removing for anchorSelect.
+  const generatedId = React.useId();
+  const ttid = id || `id-${generatedId.replace(/:/g, '')}`;
 
-  // Only render the Tooltip if a tooltip text is provided.
-  const renderTooltip = tooltip ? (
+  const { body, revision } = useTooltipBody(Boolean(tooltip));
+
+  // react-tooltip observes document.body in an effect. Keep the anchor usable
+  // while body is absent, and reconnect its observer after body replacement.
+  const renderTooltip = tooltip && body ? (
     <Tooltip
+      key={revision}
       anchorSelect={`#${ttid}`}
       place={place}
       style={{ zIndex: 2, display: 'block' }}
