@@ -6,9 +6,40 @@ const EXTENSION_FILE =
   /^(?:chrome-extension|moz-extension|safari-extension|safari-web-extension|ms-browser-extension):\/\/[^/\s]+\//i;
 const CHROME_FRAME = /^at\s+(?:(.*?)\s+\()?(.+?):\d+:\d+\)?$/;
 const FIREFOX_FRAME = /^(.*?)@(.+?):\d+:\d+$/;
+// Query redaction removes ?...:line:col, leaving a bare URL in parentheses.
+const REDACTED_CHROME_FRAME =
+  /^at\s+(?:(.*?)\s+\()?((?:https?|chrome-extension|moz-extension|safari-extension|safari-web-extension|ms-browser-extension):\/\/[^)\s]+)\)?$/i;
+const REDACTED_FIREFOX_FRAME =
+  /^(.*?)@((?:https?|chrome-extension|moz-extension|safari-extension|safari-web-extension|ms-browser-extension):\/\/[^)\s]+)$/i;
 const ERROR_HEADING = /^[A-Za-z_$][\w.$-]*:(?:\s|$)/;
+// Tag scripts an extension wraps when its own fetch fails. Not payment code.
+const TAG_SCRIPT_HOSTS = new Set([
+  "www.googletagmanager.com",
+  "www.google-analytics.com",
+  "ssl.google-analytics.com",
+  "www.googleadservices.com",
+  "googleads.g.doubleclick.net",
+  "stats.g.doubleclick.net",
+  "www.googletagservices.com",
+]);
 
-/** Only automatic, entirely extension-owned stacks are safe to discard. */
+function frameOwner(file: string): "extension" | "tag" | undefined {
+  if (EXTENSION_FILE.test(file)) return "extension";
+  try {
+    const url = new URL(file);
+    if (url.protocol === "https:" && TAG_SCRIPT_HOSTS.has(url.hostname.toLowerCase())) {
+      return "tag";
+    }
+  } catch {
+    // Unknown or relative frames can still be application code.
+  }
+  return undefined;
+}
+
+/**
+ * Automatic reports whose frames are only an extension, or an extension plus
+ * the tag script it wrapped. A first-party or unknown frame stays reportable.
+ */
 export function isBrowserExtensionError(
   event: Pick<
     FrontendErrorEvent,
@@ -29,10 +60,18 @@ export function isBrowserExtensionError(
   for (const [index, rawLine] of trace.split("\n").entries()) {
     const line = rawLine.trim();
     if (!line) continue;
-    const match = CHROME_FRAME.exec(line) ?? FIREFOX_FRAME.exec(line);
+    const match =
+      CHROME_FRAME.exec(line) ??
+      FIREFOX_FRAME.exec(line) ??
+      REDACTED_CHROME_FRAME.exec(line) ??
+      REDACTED_FIREFOX_FRAME.exec(line);
     if (match) files.push(match[2] ?? "");
     // V8 starts with an error heading. Every other non-frame is ambiguous.
     else if (index !== 0 || !ERROR_HEADING.test(line)) return false;
   }
-  return files.length > 0 && files.every((file) => EXTENSION_FILE.test(file));
+  const owners = files.map(frameOwner);
+  return (
+    owners.some((owner) => owner === "extension") &&
+    owners.every((owner) => owner !== undefined)
+  );
 }
