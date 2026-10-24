@@ -131,6 +131,15 @@ captureUnexpected(error, {
 
 Both capture methods normalize primitive/object rejections without serializing
 arbitrary objects. `DOMException` values retain their name (including AbortError).
+Cross-realm errors retain the same bounded, redacted diagnostics when the runtime
+provides a standards-conforming `Error.isError`. Obvious tag-based compatibility
+shims are rejected; there is no tag/duck-typing fallback. The SDK assumes that
+realm intrinsics have not been maliciously replaced. On older runtimes without
+that check, cross-realm errors retain the existing generic `NonErrorException`
+fallback; same-realm Error/DOMException handling remains available. This does not
+identify or repair the source of a historical stackless rejection. Each field is
+directly read once, only strings are accepted, and throwing accessors are
+contained. A runtime's lazy stack formatter may itself read name/message.
 Status codes, cancellation wording, and validation-shaped errors alone do not
 prove a failure is harmless. Unhandled errors without operation context remain
 reportable. The exported `isExpectedClientError` helper is only an input-error
