@@ -1,0 +1,45 @@
+name: Error capture checks
+
+on:
+  pull_request:
+    paths:
+      - packages/error-catch-sdk/**
+      - .github/workflows/error-catch.yml
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        node-version: [20, 24]
+    steps:
+      - uses: actions/checkout@v4
+      # The repository pins pnpm 11, which needs a modern Node runtime. Install
+      # with Node 24, then run the actual package checks with each target runtime.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --filter @merchi/error-catch... --frozen-lockfile --ignore-scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Verify test runtime and modern brand-check coverage
+        env:
+          EXPECTED_NODE: ${{ matrix.node-version }}
+        run: |
+          node -e "const target = Number(process.env.EXPECTED_NODE); if (Number(process.versions.node.split('.')[0]) !== target) throw new Error('Unexpected Node runtime'); if (target === 24 && typeof Error.isError !== 'function') throw new Error('Error.isError coverage is required'); console.log(process.version, typeof Error.isError)"
+      - run: npm run check
+        working-directory: packages/error-catch-sdk
+      # pnpm/action-setup's post-job cleanup must also run with supported Node.
+      - uses: actions/setup-node@v4
+        if: always()
+        with:
+          node-version: 24

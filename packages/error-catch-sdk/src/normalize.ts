@@ -12,6 +12,46 @@ export const MAX_STACK_TRACE_LENGTH = 32_000;
 export const MAX_COMPONENT_STACK_LENGTH = 16_000;
 export const MAX_STACK_FRAMES = 20;
 
+type ErrorBrandCheck = (value: unknown) => boolean;
+
+function runtimeErrorBrandCheck(): ErrorBrandCheck | undefined {
+  // Error.isError checks the internal error brand across realms. Do not replace
+  // it with toString/duck typing: Symbol.toStringTag and proxies can spoof those.
+  try {
+    const check = (Error as ErrorConstructor & { isError?: ErrorBrandCheck }).isError;
+    if (typeof check !== "function") return undefined;
+    const probe = new Error();
+    // Reject obvious compatibility shims, not arbitrary hostile replacement of
+    // realm intrinsics. A standards-conforming runtime remains the assumption.
+    if (check(probe) !== true || check(Object.create(Error.prototype)) !== false ||
+        check({ [Symbol.toStringTag]: "Error" }) !== false ||
+        check(new Proxy(probe, {})) !== false) return undefined;
+    return check;
+  } catch {
+    return undefined;
+  }
+}
+
+const errorBrandCheck = runtimeErrorBrandCheck();
+
+function isException(value: unknown): boolean {
+  try {
+    const isError = errorBrandCheck ? errorBrandCheck(value) : value instanceof Error;
+    return isError || (typeof DOMException !== "undefined" && value instanceof DOMException);
+  } catch {
+    return false;
+  }
+}
+
+function stringProperty(value: unknown, key: string): string | undefined {
+  try {
+    const field = (value as Record<string, unknown>)[key];
+    return typeof field === "string" ? field : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizedPathSegment(segment: string): string {
   if (UUID_SEGMENT.test(segment)) return "{uuid}";
   if (NUMERIC_SEGMENT.test(segment)) return "{id}";
@@ -87,7 +127,7 @@ export function errorDetails(error: unknown): {
   stackFrames: FrontendErrorStackFrame[];
   digest?: string;
 } {
-  if (!(error instanceof Error) && !(typeof DOMException !== "undefined" && error instanceof DOMException)) {
+  if (!isException(error)) {
     const primitive =
       typeof error === "string" || typeof error === "number" || typeof error === "boolean"
         ? String(error)
@@ -99,11 +139,16 @@ export function errorDetails(error: unknown): {
     };
   }
 
-  const exception = error as Error;
-  const stackTrace = exception.stack
-    ? redactText(exception.stack, MAX_STACK_TRACE_LENGTH)
+  // Even a branded Error may contain custom getters or non-string properties.
+  // Read each diagnostic once, contain accessor failures, and never coerce or
+  // serialize arbitrary values (including cause, AggregateError.errors, etc.).
+  const name = stringProperty(error, "name");
+  const message = stringProperty(error, "message");
+  const stack = stringProperty(error, "stack");
+  const digestValue = stringProperty(error, "digest");
+  const stackTrace = stack
+    ? redactText(stack, MAX_STACK_TRACE_LENGTH)
     : undefined;
-  const digestValue = (error as Error & { digest?: unknown }).digest;
   const details: {
     errorType: string;
     message: string;
@@ -111,9 +156,9 @@ export function errorDetails(error: unknown): {
     stackFrames: FrontendErrorStackFrame[];
     digest?: string;
   } = {
-    errorType: normalizeIdentifier(error.name, "Error"),
-    message: redactText(error.message || "Unhandled application error", MAX_MESSAGE_LENGTH),
-    stackFrames: parseStackFrames(error.stack),
+    errorType: normalizeIdentifier(name, "Error"),
+    message: redactText(message || "Unhandled application error", MAX_MESSAGE_LENGTH),
+    stackFrames: parseStackFrames(stack),
   };
   if (stackTrace) details.stackTrace = stackTrace;
   if (typeof digestValue === "string" && digestValue.trim()) {

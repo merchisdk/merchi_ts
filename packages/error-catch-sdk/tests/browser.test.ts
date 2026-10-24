@@ -7,6 +7,33 @@ import {
 } from "../src/index.js";
 
 describe("global browser handlers", () => {
+  it.skipIf(typeof (Error as ErrorConstructor & { isError?: unknown }).isError !== "function")(
+    "preserves an iframe Error through the unhandled rejection listener", () => {
+      const events: FrontendErrorEvent[] = [];
+      const reporter = createFrontendErrorReporter({
+        endpoint: "https://example.invalid/errors", application: "test", enabled: true,
+        transport: (_endpoint, event) => { events.push(event); },
+      });
+      const iframe = document.createElement("iframe");
+      document.body.appendChild(iframe);
+      const uninstall = installGlobalErrorHandlers(reporter);
+      try {
+        const ForeignError = (iframe.contentWindow as unknown as { Error: ErrorConstructor }).Error;
+        const error = new ForeignError("iframe failed for person@example.com");
+        expect(error instanceof Error).toBe(false);
+        const rejection = new Event("unhandledrejection");
+        Object.defineProperty(rejection, "reason", { value: error });
+        window.dispatchEvent(rejection);
+        expect(events).toHaveLength(1);
+        expect(events[0]).toMatchObject({ source: "unhandled_rejection", errorType: "Error",
+          message: "iframe failed for [redacted-email]" });
+      } finally {
+        uninstall();
+        iframe.remove();
+      }
+    },
+  );
+
   it("captures Error objects, normalises non-Error rejections, and ignores resource errors", () => {
     const events: FrontendErrorEvent[] = [];
     const reporter = createFrontendErrorReporter({
