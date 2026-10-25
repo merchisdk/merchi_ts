@@ -1,6 +1,6 @@
 {
   "name": "@merchi/cart",
-  "version": "1.4.53",
+  "version": "1.4.54",
   "description": "Merchi's cart",
   "source": "src/index.ts",
   "main": "lib/index.js",
