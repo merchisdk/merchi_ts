@@ -1,0 +1,82 @@
+[
+  {
+    "name": "Turbopack chunk load in the React boundary",
+    "source": "react_error_boundary",
+    "errorType": "ChunkLoadError",
+    "message": "Failed to load chunk /_next/static/chunks/0d2ijvs3tsjg..js?dpl=dpl_AGdcEpsxCi4J5REVzHMECrhwNhpL from module 64893",
+    "componentStack": "at RootLayout",
+    "expected": true
+  },
+  {
+    "name": "webpack chunk load",
+    "source": "unhandled_rejection",
+    "errorType": "ChunkLoadError",
+    "message": "Loading chunk 5760 failed.",
+    "expected": true
+  },
+  {
+    "name": "CSS chunk load",
+    "source": "window_error",
+    "errorType": "ChunkLoadError",
+    "message": "Loading CSS chunk 12 failed. (error: https://shop.example/_next/static/chunks/12.css)",
+    "expected": true
+  },
+  {
+    "name": "Safari dynamic import",
+    "source": "unhandled_rejection",
+    "errorType": "TypeError",
+    "message": "Importing a module script failed.",
+    "expected": true
+  },
+  {
+    "name": "Firefox dynamic import",
+    "source": "window_error",
+    "errorType": "TypeError",
+    "message": "error loading dynamically imported module: https://shop.example/_next/static/chunks/app.js",
+    "expected": true
+  },
+  {
+    "name": "Chrome dynamic import",
+    "source": "unhandled_rejection",
+    "errorType": "TypeError",
+    "message": "Failed to fetch dynamically imported module: https://shop.example/_next/static/chunks/app.js",
+    "expected": true
+  },
+  {
+    "name": "chunk load with a Next digest",
+    "source": "react_error_boundary",
+    "errorType": "ChunkLoadError",
+    "message": "Failed to load chunk /_next/static/chunks/app.js from module 12",
+    "digest": "next-crash",
+    "expected": true
+  },
+  {
+    "name": "manual capture retained",
+    "source": "manual",
+    "errorType": "ChunkLoadError",
+    "message": "Failed to load chunk /_next/static/chunks/app.js from module 12",
+    "expected": false
+  },
+  {
+    "name": "plain fetch failure retained",
+    "source": "unhandled_rejection",
+    "errorType": "TypeError",
+    "message": "Failed to fetch",
+    "expected": false
+  },
+  {
+    "name": "unrelated chunk wording retained",
+    "source": "window_error",
+    "errorType": "TypeError",
+    "message": "Loading chunk of data failed to render the product",
+    "expected": false
+  },
+  {
+    "name": "critical purchase retains a chunk load",
+    "source": "react_error_boundary",
+    "errorType": "ChunkLoadError",
+    "message": "Failed to load chunk /_next/static/chunks/checkout.js from module 12",
+    "operation": { "name": "payment.confirm", "outcome": "failed" },
+    "expected": false
+  }
+]
