@@ -1,5 +1,4 @@
-// eslint-disable-next-line no-unused-vars
-import { ErrorType, getErrorFromCode } from './constants/errors.js';
+import { getErrorFromCode } from './constants/errors.js';
 
 export interface RequestOptions extends RequestInit {
   query?: string[][];
@@ -50,7 +49,8 @@ function resolveApiErrorMessage(err: any): string {
 
 export class ApiError extends Error {
   public statusCode?: number;
-  public errorCode?: ErrorType;
+  /** Numeric API code, including values added after this SDK was published. */
+  public errorCode?: number;
   public errorMessage: string;
   /**
    * Structured context the API may include alongside the error

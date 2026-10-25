@@ -24,8 +24,10 @@ export enum ErrorType {
   DOMAIN_NOT_FOUND = 22,
 }
 
-export function getErrorFromCode(code: number): ErrorType {
-  if (code in ErrorType) {
+export function getErrorFromCode(code: unknown): number {
+  // The API can add error codes before this SDK's named constants are updated.
+  // Preserve those numeric diagnostics instead of turning them into UNKNOWN.
+  if (typeof code === 'number' && Number.isSafeInteger(code) && code >= 0) {
     return code;
   }
   return ErrorType.UNKNOWN_ERROR;
