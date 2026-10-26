@@ -1,4 +1,5 @@
 export { isExpectedClientError } from "./expectedClientError.js";
+export { isChunkLoadError } from "./chunkLoad.js";
 export { isBrowserExtensionError } from "./browserExtension.js";
 export { isEmbeddedBrowserBridgeError } from "./embeddedBrowser.js";
 export {
