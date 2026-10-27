@@ -6,6 +6,8 @@ import {
 import { AutomaticPaymentRelationship } from './entities/automatic_payment_relationship.js';
 import { Session } from './entities/session.js';
 import { JobComment } from './entities/job_comment.js';
+import { JobFollowup } from './entities/job_followup.js';
+import { JobFollowupTemplate } from './entities/job_followup_template.js';
 import { JobNote } from './entities/job_note.js';
 import { JobOperationLog } from './entities/job_operation_log.js';
 import { Domain } from './entities/domain.js';
@@ -130,6 +132,8 @@ export class Merchi {
   public Inventory: typeof Inventory;
   public InventoryGroup: typeof InventoryGroup;
   public JobComment: typeof JobComment;
+  public JobFollowup: typeof JobFollowup;
+  public JobFollowupTemplate: typeof JobFollowupTemplate;
   public JobNote: typeof JobNote;
   public JobOperationLog: typeof JobOperationLog;
   public VariationOption: typeof VariationOption;
@@ -365,6 +369,10 @@ export class Merchi {
     this.MerchiFile = this.setupClass(MerchiFile) as typeof MerchiFile;
     this.User = this.setupClass(User) as typeof User;
     this.JobComment = this.setupClass(JobComment) as typeof JobComment;
+    this.JobFollowup = this.setupClass(JobFollowup) as typeof JobFollowup;
+    this.JobFollowupTemplate = this.setupClass(
+      JobFollowupTemplate
+    ) as typeof JobFollowupTemplate;
     this.JobNote = this.setupClass(JobNote) as typeof JobNote;
     this.JobOperationLog = this.setupClass(JobOperationLog) as typeof JobOperationLog;
     this.VariationOption = this.setupClass(

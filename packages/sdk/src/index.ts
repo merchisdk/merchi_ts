@@ -10,6 +10,10 @@ export type {
   DomainAnalyticsResponse,
   ProfileAnalyticsSummaryMetric,
 } from './entities/agent_token_analytics.js';
+export type {
+  JobFollowupUpdate,
+  ScheduledJobFollowup,
+} from './entities/job_followup.js';
 import { AgentSkill } from './entities/agent_skill.js';
 import { AgentSkillVersion } from './entities/agent_skill_version.js';
 import { AgentSkillApproval } from './entities/agent_skill_approval.js';
@@ -49,6 +53,8 @@ import { Invoice } from './entities/invoice.js';
 import { Item } from './entities/item.js';
 import { Job } from './entities/job.js';
 import { JobComment } from './entities/job_comment.js';
+import { JobFollowup } from './entities/job_followup.js';
+import { JobFollowupTemplate } from './entities/job_followup_template.js';
 import { JobNote } from './entities/job_note.js';
 import { JobOperationLog } from './entities/job_operation_log.js';
 import { MatchingInventory } from './entities/matching_inventory.js';
@@ -146,6 +152,8 @@ export {
   Item,
   Job,
   JobComment,
+  JobFollowup,
+  JobFollowupTemplate,
   JobNote,
   JobOperationLog,
   MatchingInventory,

@@ -13,6 +13,7 @@ import { MatchingInventory } from './matching_inventory.js';
 import { InternalTag } from './internal_tag.js';
 import { Invoice } from './invoice.js';
 import { JobComment } from './job_comment.js';
+import { JobFollowup, JobFollowupUpdate, ScheduledJobFollowup } from './job_followup.js';
 import { JobNote } from './job_note.js';
 import { JobOperationLog } from './job_operation_log.js';
 import { Notification } from './notification.js';
@@ -375,6 +376,9 @@ export class Job extends Entity {
   @Job.property({arrayType: 'Reminder'})
   public reminders?: Reminder[];
 
+  @Job.property({arrayType: 'JobFollowup'})
+  public jobFollowups?: JobFollowup[];
+
   @Job.property()
   public supplyAssignment?: Assignment;
 
@@ -439,5 +443,57 @@ export class Job extends Entity {
       throw new Error(err);
     }
     return this.deduct(this.matchingInventories);
+  };
+
+  private jobResourceId = () => {
+    if (this.id === undefined || this.id === null) {
+      throw new Error('id is undefined, did you forget to set it?');
+    }
+    return this.id;
+  };
+
+  private readFollowups = (data: any): JobFollowup[] => {
+    const rows = data?.jobFollowups ?? [];
+    return rows.map((row: any) => new this.merchi.JobFollowup().fromJson(row));
+  };
+
+  private readFollowup = (data: any): JobFollowup => {
+    return new this.merchi.JobFollowup().fromJson(data?.jobFollowup ?? data);
+  };
+
+  public listFollowups = () => {
+    const resource = `/jobs/${this.jobResourceId()}/followups/`;
+    const fetchOptions: RequestOptions = {method: 'GET', query: []};
+    return this.merchi.authenticatedFetch(resource, fetchOptions).
+      then((data: any) => this.readFollowups(data));
+  };
+
+  public complete = (followups: ScheduledJobFollowup[] = []) => {
+    const resource = `/jobs/${this.jobResourceId()}/complete/`;
+    const data = new FormData();
+    data.append('followups', JSON.stringify(followups));
+    const fetchOptions: RequestOptions = {method: 'POST', body: data, query: []};
+    return this.merchi.authenticatedFetch(resource, fetchOptions).
+      then((payload: any) => this.readFollowups(payload));
+  };
+
+  public updateFollowup = (followupId: number, changes: JobFollowupUpdate) => {
+    const resource = `/jobs/${this.jobResourceId()}/followups/${followupId}/`;
+    const fetchOptions: RequestOptions = {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(changes),
+      query: [],
+    };
+    return this.merchi.authenticatedFetch(resource, fetchOptions).
+      then((data: any) => this.readFollowup(data));
+  };
+
+  public cancelFollowup = (followupId: number) => {
+    const resource =
+      `/jobs/${this.jobResourceId()}/followups/${followupId}/cancel/`;
+    const fetchOptions: RequestOptions = {method: 'POST', query: []};
+    return this.merchi.authenticatedFetch(resource, fetchOptions).
+      then((data: any) => this.readFollowup(data));
   };
 }
