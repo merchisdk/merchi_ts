@@ -40,7 +40,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Test release orchestration
-        run: pnpm release:test
+        run: |
+          pnpm release:test
+          python3 -B -m unittest discover -s .github/actions/report-upstream-release -p 'test_*.py'
 
       - name: Plan changed package releases
         id: plan
@@ -72,3 +74,18 @@ jobs:
       - name: Publish in dependency order
         if: steps.plan.outputs.work == 'true'
         run: node .github/scripts/publish-release.mjs
+
+      - name: Save verified release evidence
+        if: ${{ always() && hashFiles('.release/system-agent-releases.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-system-agent-releases
+          path: .release/system-agent-releases.json
+          retention-days: 90
+
+      - name: Report verified packages to System Agent
+        if: ${{ !cancelled() && hashFiles('.release/system-agent-releases.json') != '' }}
+        uses: ./.github/actions/report-upstream-release
+        with:
+          manifest: .release/system-agent-releases.json
+          release-token: ${{ secrets.SYSTEM_AGENT_RELEASE_TOKEN }}

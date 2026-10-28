@@ -182,6 +182,38 @@ test('emits the unverified-publish warning on stdout', async () => {
   ]);
 });
 
+test('reports only registry-verified and tagged packages, preserving partial success', async () => {
+  const reported = [];
+  const tagged = [];
+  await assert.rejects(() => publishPlannedReleases([sdk, cart], 'ours', versions, {
+    ioFor: item => queueIo({ item, delay: item.name === cart.name ? 99 : 0 }),
+    publishPackage: item => item.name === cart.name ? 1 : 0,
+    recordTag: item => tagged.push(item.name),
+    onVerified: item => reported.push(item.name),
+    log() {},
+  }));
+  assert.deepEqual(tagged, [sdk.name]);
+  assert.deepEqual(reported, [sdk.name]);
+});
+
+test('never reports an unverified publication or failed source tag', async () => {
+  const reported = [];
+  const options = {
+    ioFor: item => queueIo({ item, delay: 99 }),
+    publishPackage: () => 0,
+    recordTag() { throw new Error('must not tag'); },
+    onVerified: item => reported.push(item.name),
+    log() {},
+  };
+  await publishPlannedReleases([sdk], 'ours', versions, options);
+  assert.deepEqual(reported, []);
+  await assert.rejects(() => publishPlannedReleases([sdk], 'ours', versions, {
+    ...options, ioFor: item => queueIo({ item }),
+    recordTag() { throw new Error('tag push failed'); },
+  }), /tag push failed/);
+  assert.deepEqual(reported, []);
+});
+
 test('continues dependents after an unverified publish and leaves it untagged', async () => {
   const published = [];
   const tagged = [];
