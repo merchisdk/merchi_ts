@@ -1,95 +1,81 @@
 'use client';
 import * as React from 'react'
-import { useState } from 'react';
 import { isBoolean, isArray } from 'lodash';
-import { IconFile } from './icons';
+import { FileListThumbnail, IconFile } from './icons';
 import { allowedFileTypes } from './utils';
+import { formatUploadFileSize } from '../utils/formatUploadFileSize';
 import DropzoneInput from './DropzoneInput';
 import InputHiddenStatic from './InputHiddenStatic';
 import VariationError from './VariationError';
 import VariationLabel from './VariationLabel';
-import Collapse from './Collapse';
 import { useFieldArray } from 'react-hook-form';
-import {
-  FaChevronDown,
-  FaChevronUp,
-  FaDownload,
-  FaTimes,
-  FaTrash,
-} from 'react-icons/fa';
-import { CgSpinner } from 'react-icons/cg';
+import { FaDownload, FaTimes } from 'react-icons/fa';
 import { useMerchiFormContext } from '../context/MerchiProductFormProvider';
-
-const LoadingIcon = () => <CgSpinner className='animate_spin' />;
 
 interface PropsFileListItem {
   file: any;
   disabled?: boolean;
   doDelete?: () => void;
-  loading?: boolean;
 }
 
-function FileListItem({
-  file,
-  disabled,
-  doDelete,
-  loading,
-}: PropsFileListItem) {
-  const {
-    classNameFileListItem,
-    classNameFileButtonDownload,
-    classNameFileButtonDelete,
-  } = useMerchiFormContext();
+function FileListItem({ file, disabled, doDelete }: PropsFileListItem) {
+  const fileSizeLabel = formatUploadFileSize(file);
+
   return (
-    <li className={classNameFileListItem}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '2.5rem',
-        }}
-      >
-        <span className='ml-3'>{file.name}</span>
-        {!disabled && (
-          <div style={{ marginLeft: 'auto' }}>
+    <li className='merchi-embed-form_uploaded-file-row'>
+      <FileListThumbnail file={file} />
+      <div className='merchi-embed-form_uploaded-file-meta'>
+        <span className='merchi-embed-form_uploaded-file-name' title={file.name}>
+          {file.name}
+        </span>
+        {fileSizeLabel ? (
+          <span className='merchi-embed-form_uploaded-file-size'>{fileSizeLabel}</span>
+        ) : null}
+      </div>
+      {!disabled && (
+        <div className='merchi-embed-form_uploaded-file-actions'>
+          {file.downloadUrl ? (
             <a
-              className={classNameFileButtonDownload}
+              className='merchi-embed-form_uploaded-file-action'
               href={file.downloadUrl}
               download
+              aria-label={`Download ${file.name}`}
             >
               <FaDownload />
             </a>
-            {doDelete && (
-              <button
-                className={classNameFileButtonDelete}
-                onClick={doDelete}
-                disabled={Boolean(loading)}
-              >
-                {loading ? (
-                  <LoadingIcon />
-                ) : (
-                  <FaTrash />
-                )}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+          ) : null}
+          {doDelete ? (
+            <button
+              type='button'
+              className='merchi-embed-form_uploaded-file-action'
+              onClick={doDelete}
+              aria-label={`Remove ${file.name}`}
+            >
+              <FaTimes />
+            </button>
+          ) : null}
+        </div>
+      )}
     </li>
   );
 }
 
 interface VariationFilesListProps {
+  disabled?: boolean;
   files: Array<any>;
+  onRemove?: (index: number) => void;
 }
 
-function VariationFilesList({ files }: VariationFilesListProps) {
-  const { classNameFileListItemContainer } = useMerchiFormContext();
+function VariationFilesList({ disabled, files, onRemove }: VariationFilesListProps) {
   return (
-    <ul className={classNameFileListItemContainer}>
+    <ul className='merchi-embed-form_uploaded-files-list'>
       {files.map((f: any, i: number) => (
-        <FileListItem key={`${i}-publicfile`} file={f} />
+        <FileListItem
+          key={`${f.id ?? i}-publicfile`}
+          disabled={disabled}
+          doDelete={onRemove ? () => onRemove(i) : undefined}
+          file={f}
+        />
       ))}
     </ul>
   );
@@ -137,35 +123,6 @@ function VariationFile({
   );
 }
 
-interface ButtonUploadedFilesProps {
-  files: Array<any>;
-  isOpen?: boolean;
-  onClick: () => void;
-}
-
-function ButtonUploadedFiles({
-  files,
-  isOpen,
-  onClick,
-}: ButtonUploadedFilesProps) {
-  const hasFiles = Array.isArray(files) && files.length > 0;
-  const text =
-    files.length !== 1 ? `${files.length} files selected` : '1 file selected';
-  const Icon = isOpen ? FaChevronUp : FaChevronDown;
-  const { classNameFileUploadButton } = useMerchiFormContext();
-  return (
-    <button
-      type='button'
-      className={classNameFileUploadButton}
-      disabled={files.length === 0}
-      onClick={onClick}
-    >
-      {hasFiles ? text : 'No files selected'}{' '}
-      {hasFiles && <Icon />}
-    </button>
-  );
-}
-
 interface Props {
   disabled?: boolean;
   name: string;
@@ -184,9 +141,7 @@ function VariationFileInput({ disabled, name, variation }: Props) {
     name: inputName,
     rules: { required },
   });
-  const hasFiles = isArray(fields) && fields.length;
-  const [isOpen, setIsOpen] = useState(Boolean(hasFiles));
-  const toggle = () => setIsOpen(!isOpen);
+  const hasFiles = isArray(fields) && fields.length > 0;
   const _allowFileMultiple = determineBoolean(allowFileMultiple);
   const _showFilePreview = determineBoolean(showFilePreview);
   function handleUploadSuccess(fs: any) {
@@ -204,13 +159,22 @@ function VariationFileInput({ disabled, name, variation }: Props) {
         variationClassName='merchi-embed-form_input-file'
         variation={variation}
       />
-      <DropzoneInput
-        accept={allowedFileTypes(variationField)}
-        disabled={disabled}
-        multiple={allowFileMultiple}
-        onUploadSuccess={handleUploadSuccess}
-        placeholder={placeholder}
-      />
+      <div className='merchi-embed-form_file-upload-box'>
+        <DropzoneInput
+          accept={allowedFileTypes(variationField)}
+          disabled={disabled}
+          multiple={allowFileMultiple}
+          onUploadSuccess={handleUploadSuccess}
+          placeholder={placeholder || 'Drag and drop files here, or click to upload'}
+        />
+        {!_showFilePreview && hasFiles ? (
+          <VariationFilesList
+            disabled={disabled}
+            files={fields}
+            onRemove={(index) => remove(index)}
+          />
+        ) : null}
+      </div>
       <VariationError name={name} />
       <div className='uploaded-variation-files'>
         {fields.map((file: any, index: number) =>
@@ -234,20 +198,6 @@ function VariationFileInput({ disabled, name, variation }: Props) {
           )
         )}
       </div>
-      {!_showFilePreview && (
-        <>
-          <Collapse isOpen={Boolean(isOpen)}>
-            <VariationFilesList files={fields} />
-          </Collapse>
-          <div className='clearfix mb-3'>
-            <ButtonUploadedFiles
-              files={fields}
-              isOpen={isOpen}
-              onClick={toggle}
-            />
-          </div>
-        </>
-      )}
     </div>
   );
 }
