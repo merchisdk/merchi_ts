@@ -15,6 +15,7 @@ interface Props {
   variationClassName?: string;
   /** Live field value shown beside the name (e.g. Area dimensions). */
   valueSummary?: string | null;
+  optionCountLabel?: string | null;
 }
 
 function VariationLabel({
@@ -23,6 +24,7 @@ function VariationLabel({
   variation = {},
   variationClassName,
   valueSummary,
+  optionCountLabel,
 }: Props) {
   const { cost, variationField = {} } = variation;
   const { instructions, sellerProductEditable } = variationField;
@@ -87,6 +89,9 @@ function VariationLabel({
             ''
           )}
         </div>
+        {optionCountLabel ? (
+          <span className='merchi-embed-form_option-count'>{optionCountLabel}</span>
+        ) : null}
       </div>
       {instructions && (
         <VariationFieldInputInstructions instructions={instructions} />

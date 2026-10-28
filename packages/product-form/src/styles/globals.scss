@@ -331,6 +331,10 @@
     }
   }
 
+  &_option-count {
+    display: none;
+  }
+
   /* variation checkbox and radio */
   &_checkbox_radio {
     &-container {
@@ -2189,4 +2193,108 @@
   font-size: 0.7rem;
   font-weight: 600;
   line-height: 1.2;
+}
+
+@media (max-width: 767px) {
+  .d-flex:has(> .merchi-embed-form_option-count) {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    width: 100% !important;
+  }
+
+  .d-flex:has(> .merchi-embed-form_option-count) > :first-child {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .d-flex > .merchi-embed-form_option-count {
+    display: inline;
+    flex: 0 0 auto;
+    margin-left: auto;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1.25rem;
+    color: #71717a;
+    white-space: nowrap;
+  }
+
+  .merchi-embed-form_image-select-option-container.merchi-embed-form_options--grid[data-option-layout='grid'][data-option-count] {
+    display: grid !important;
+    flex-wrap: unset !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+  }
+
+  .merchi-embed-form_image-select-option-container.merchi-embed-form_options--grid[data-option-layout='grid'][data-option-count='1'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .merchi-embed-form_image-select-option-container.merchi-embed-form_options--grid[data-option-layout='grid'][data-option-count='2'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .merchi-embed-form_image-select-option-container.merchi-embed-form_options--grid[data-option-layout='grid'][data-option-count='3'] {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .merchi-embed-form_image-select-option-container.merchi-embed-form_options--grid[data-option-layout='grid'][data-option-count] > .merchi-embed-form_image-select-option-item-container {
+    flex: unset !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .merchi-embed-form_image-select-option-container.merchi-embed-form_options--scroll[data-option-layout='scroll'][data-option-count],
+  .merchi-embed-form_color-select-container.merchi-embed-form_options--scroll[data-option-layout='scroll'][data-option-count] {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    justify-content: flex-start !important;
+    justify-items: unset !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 0.5rem;
+    scrollbar-width: none;
+  }
+
+  .merchi-embed-form_image-select-option-container.merchi-embed-form_options--scroll[data-option-layout='scroll'][data-option-count]::-webkit-scrollbar,
+  .merchi-embed-form_color-select-container.merchi-embed-form_options--scroll[data-option-layout='scroll'][data-option-count]::-webkit-scrollbar {
+    display: none;
+  }
+
+  .merchi-embed-form_image-select-option-container.merchi-embed-form_options--scroll[data-option-layout='scroll'][data-option-count] {
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+  }
+
+  .merchi-embed-form_image-select-option-container.merchi-embed-form_options--scroll[data-option-layout='scroll'][data-option-count] > .merchi-embed-form_image-select-option-item-container {
+    flex: 0 0 38% !important;
+    width: 38% !important;
+    min-width: 38% !important;
+    max-width: none !important;
+    scroll-snap-align: start;
+  }
+
+  .merchi-embed-form_color-select-container.merchi-embed-form_options--scroll[data-option-layout='scroll'][data-option-count] {
+    align-items: flex-start !important;
+    gap: 0.375rem !important;
+  }
+
+  .merchi-embed-form_color-select-container.merchi-embed-form_options--scroll[data-option-layout='scroll'][data-option-count] > .merchi-embed-form_color-select-item {
+    flex: 0 0 calc((100% - 4 * 0.375rem) / 4.5) !important;
+    width: calc((100% - 4 * 0.375rem) / 4.5) !important;
+    min-width: 3.5rem !important;
+    max-width: none !important;
+    scroll-snap-align: start;
+  }
+
+  .merchi-embed-form_color-select-container.merchi-embed-form_options--scroll[data-option-layout='scroll'][data-option-count] > .merchi-embed-form_color-select-item svg {
+    right: 0.375rem !important;
+  }
 }

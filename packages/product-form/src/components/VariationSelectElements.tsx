@@ -10,6 +10,29 @@ import { useMerchiFormContext } from '../context/MerchiProductFormProvider';
 import { quoteAfterFieldChange } from './quoteAfterFieldChange';
 import { sortByPosition, splitSelectedOptions } from './utils';
 
+const MAX_GRID_OPTION_COUNT = 3;
+
+function optionCountLabel(count: number) {
+  return count === 1 ? '1 option' : `${count} options`;
+}
+
+function scrollSelectedOptionIntoView(container: HTMLDivElement) {
+  if (container.scrollWidth <= container.clientWidth) return;
+
+  const selected = container.querySelector('.image-checked');
+  const item = selected?.closest(
+    '.merchi-embed-form_image-select-option-item-container, .merchi-embed-form_color-select-item'
+  );
+  if (!(item instanceof HTMLElement)) return;
+
+  const containerRect = container.getBoundingClientRect();
+  const itemRect = item.getBoundingClientRect();
+  if (itemRect.left >= containerRect.left && itemRect.right <= containerRect.right) return;
+
+  const offset = itemRect.left - containerRect.left + container.scrollLeft;
+  container.scrollLeft = offset - (container.clientWidth - item.offsetWidth) / 2;
+}
+
 function determineBoolean(value: any) {
   return isBoolean(value) ? value : value === 'true' ? true : false;
 }
@@ -116,6 +139,17 @@ export const VariationSelectElements: React.FC<Props> = ({
 }) => {
   const { selectableOptions = [] } = variation;
   const isImage = inputType === 'image';
+  const optionCount = selectableOptions.length;
+  const optionLayout = optionCount > MAX_GRID_OPTION_COUNT ? 'scroll' : 'grid';
+  const optionsRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const container = optionsRef.current;
+    if (!container || optionLayout !== 'scroll') return;
+    const frame = requestAnimationFrame(() => scrollSelectedOptionIntoView(container));
+    return () => cancelAnimationFrame(frame);
+  }, [optionLayout, optionCount]);
+
   return (
     <div className={isImage ? 'merchi-image-select-container' : ''}>
       <VariationLabel
@@ -124,13 +158,17 @@ export const VariationSelectElements: React.FC<Props> = ({
           isImage ? '-image' : ''
         }-select`}
         variation={variation}
+        optionCountLabel={optionCount > 0 ? optionCountLabel(optionCount) : null}
       />
       <div
-        className={
+        ref={optionsRef}
+        className={`${
           isImage
             ? 'merchi-embed-form_image-select-option-container'
             : 'merchi-embed-form_color-select-container'
-        }
+        } merchi-embed-form_options--${optionLayout}`}
+        data-option-layout={optionLayout}
+        data-option-count={optionCount}
       >
         {sortByPosition(selectableOptions).map((option: any, index: number) => (
           <VariationFieldOptionElement
