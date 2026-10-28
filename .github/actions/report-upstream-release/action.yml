@@ -1,0 +1,34 @@
+name: Report verified upstream releases
+description: Send completed release manifests to Merchi System Agent without executing downstream code.
+inputs:
+  manifest:
+    description: Path to a JSON release manifest or array of verified release manifests.
+    required: false
+    default: ''
+  kind:
+    description: Build api_deployment or template evidence from this trusted workflow after successful deployment/validation.
+    required: false
+    default: ''
+  release-token:
+    description: Dedicated System Agent release-ingress credential.
+    required: true
+  endpoint:
+    description: Exact System Agent release-ingress URL.
+    default: https://system-agent.merchi.co/v1/repository-workflow/releases
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        REPORT_MANIFEST: ${{ inputs.manifest }}
+        REPORT_KIND: ${{ inputs.kind }}
+        SYSTEM_AGENT_RELEASE_TOKEN: ${{ inputs.release-token }}
+        SYSTEM_AGENT_RELEASE_URL: ${{ inputs.endpoint }}
+      run: python3 -B "$GITHUB_ACTION_PATH/report_release.py" --manifest "$REPORT_MANIFEST" --kind "$REPORT_KIND"
+    - uses: actions/upload-artifact@v4
+      if: ${{ always() && inputs.kind != '' }}
+      with:
+        name: verified-system-agent-release-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/system-agent-release.json
+        if-no-files-found: ignore
+        retention-days: 90
