@@ -12,6 +12,7 @@ permissions:
 jobs:
   cart-diagnostics:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -19,6 +20,5 @@ jobs:
         with:
           node-version: '24'
       - run: pnpm install --frozen-lockfile
-      # These are transport/classification tests; they do not require a canvas
-      # or a DOM and must not depend on optional native jsdom integrations.
-      - run: pnpm --filter @merchi/cart test src/utilities/reportFailure.test.ts --runInBand --env=node
+      - run: pnpm exec turbo run build --filter=@merchi/cart...
+      - run: pnpm --filter @merchi/cart test --runInBand

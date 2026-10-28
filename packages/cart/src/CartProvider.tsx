@@ -651,7 +651,7 @@ const CartProvider = ({
       if (callback) callback();
     } catch (e: any) {
       reportCartFailure(e, CART_FAILURE_SOURCES.create);
-      alertError(e.errorMessage || e.message || 'Unable to fetch cart.');
+      alertError(e?.errorMessage || e?.message || 'Unable to fetch cart.');
     } finally {
       setFetchingCart(false);
     }
@@ -733,9 +733,11 @@ const CartProvider = ({
   }
 
   async function clearCart(callback?: () => void) {
-    await createCartAndCookie();
-    if (callback) callback();
-    closeClearCart();
+    await createCartAndCookie(() => {
+      setAlert(previous => ({ ...previous, show: false }));
+      if (callback) callback();
+      closeClearCart();
+    });
   }
 
   const [fetchingShipmentGroups, setFetchingShipmentGroups] = useState(false);

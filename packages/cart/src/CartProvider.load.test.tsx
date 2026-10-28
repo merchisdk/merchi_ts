@@ -5,6 +5,7 @@ import { act } from 'react-dom/test-utils';
 import CartProvider, { useCartContext } from './CartProvider';
 import { getCartCookie, setCartCookie } from './utilities/cookie';
 import { reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
+import { tabIdClearCart, tabIdItems } from './utilities/tabs';
 
 const mockGet = jest.fn();
 const mockPost = jest.fn();
@@ -48,7 +49,7 @@ function Probe() {
   return null;
 }
 
-describe('existing-cart load failures', () => {
+describe('cart load and replacement failures', () => {
   let root: Root;
   let container: HTMLDivElement;
   beforeEach(() => {
@@ -70,6 +71,17 @@ describe('existing-cart load failures', () => {
         <Probe />
       </CartProvider>);
     });
+  }
+  async function mountSavedCart() {
+    mockGet.mockResolvedValue({
+      toJson: () => ({ id: 42, isTest: false, cartItems: [{ id: 7 }] }),
+    });
+    await act(async () => {
+      root.render(<CartProvider domainId={5} createCartAndCookie={() => {}}>
+        <Probe />
+      </CartProvider>);
+    });
+    await act(async () => context.setActiveTabIndex(tabIdClearCart));
   }
   it.each([new TypeError('Load failed'), { statusCode: 502, message: 'Gateway unavailable' }, { statusCode: 403, message: 'Forbidden' }])('preserves the saved cart and never POSTs a replacement after %s', async error => {
     await mount(error);
@@ -94,5 +106,40 @@ describe('existing-cart load failures', () => {
     expect(context.cart.id).toBe(42);
     expect(context.cart.cartItems).toHaveLength(1);
     expect(mockPost).not.toHaveBeenCalled();
+  });
+  it.each([
+    new TypeError('Failed to fetch'),
+    { statusCode: 503, message: 'Service unavailable' },
+    null,
+    undefined,
+  ])('keeps the clear-cart panel and saved cart when replacement fails with %s', async error => {
+    await mountSavedCart();
+    mockPost.mockRejectedValueOnce(error);
+
+    await act(async () => { await context.clearCart(); });
+
+    expect(context.activeTabIndex).toBe(tabIdClearCart);
+    expect(context.cart).toEqual({ id: 42, isTest: false, cartItems: [{ id: 7 }] });
+    expect(setCartCookie).not.toHaveBeenCalled();
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(reportCartFailure).toHaveBeenCalledWith(error, CART_FAILURE_SOURCES.create);
+    expect(context.alert.show).toBe(true);
+    expect(context.alert.message).toBe(error?.message || 'Unable to fetch cart.');
+    expect(context.fetchingCart).toBe(false);
+  });
+  it('finishes clearing only after an explicit retry successfully creates the replacement', async () => {
+    await mountSavedCart();
+    mockPost.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await act(async () => { await context.clearCart(); });
+    expect(context.activeTabIndex).toBe(tabIdClearCart);
+
+    await act(async () => { await context.clearCart(); });
+
+    expect(mockPost).toHaveBeenCalledTimes(2);
+    expect(context.cart.id).toBe(99);
+    expect(setCartCookie).toHaveBeenCalledTimes(1);
+    expect(context.activeTabIndex).toBe(tabIdItems);
+    expect(context.alert.show).toBe(false);
+    expect(context.fetchingCart).toBe(false);
   });
 });
