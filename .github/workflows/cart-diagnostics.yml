@@ -12,6 +12,7 @@ permissions:
 jobs:
   cart-diagnostics:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -19,4 +20,5 @@ jobs:
         with:
           node-version: '24'
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec turbo run build --filter=@merchi/cart...
       - run: pnpm --filter @merchi/cart test --runInBand
