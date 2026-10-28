@@ -43,8 +43,32 @@ describe('reportAddCartItemFailure', () => {
       errorType: 'TypeError',
       message: 'cart item create failed',
       source: 'manual',
-      operation: { name: 'cart.add_item', outcome: 'handled', reason: 'validation' },
+      operation: { name: 'cart.add_item', outcome: 'failed' },
     });
+  });
+
+  it.each(['Load failed', 'Failed to fetch'])('does not label %s as handled validation', (message) => {
+    reportAddCartItemFailure(new TypeError(message), jest.fn());
+    expect(events).toHaveLength(1);
+    expect(events[0].operation).toEqual({ name: 'cart.add_item', outcome: 'failed' });
+  });
+
+  it.each([400, 409, 422])('preserves handled known-input suppression for status %s', (status) => {
+    for (const code of [3, 5, 6, 7]) {
+      const error = Object.assign(apiError(status, 'input error'), { errorCode: code });
+      reportAddCartItemFailure(error, jest.fn());
+    }
+    expect(events).toEqual([]);
+  });
+
+  it.each([
+    [400, 2], [400, 0], [400, 1], [401, 3], [403, 3], [404, 3],
+    [429, 3], [500, 3], [undefined, 3], [422, undefined], ['422', 3], [422, '3'],
+  ])('retains unresolved API failure (%s, %s) without a validation label', (statusCode, errorCode) => {
+    const error = Object.assign(new Error('request failed'), { statusCode, errorCode });
+    reportAddCartItemFailure(error, jest.fn());
+    expect(events).toHaveLength(1);
+    expect(events[0].operation).toEqual({ name: 'cart.add_item', outcome: 'failed' });
   });
 
   it('normalises a non-Error rejection and forwards the original value', () => {
@@ -57,6 +81,7 @@ describe('reportAddCartItemFailure', () => {
       digest: 'cart.addItem',
       errorType: 'NonErrorException',
       message: 'stock check failed',
+      operation: { name: 'cart.add_item', outcome: 'failed' },
     });
   });
 
@@ -68,6 +93,12 @@ describe('reportAddCartItemFailure', () => {
 
     expect(onError).toHaveBeenCalledWith(error);
     expect(events).toEqual([]);
+  });
+
+  it('retains validation-shaped failures without confirmed UI handling', () => {
+    reportCartFailure(apiError(422, 'input error'), 'cart.addItem');
+    expect(events).toHaveLength(1);
+    expect(events[0].operation).toEqual({ name: 'cart.add_item', outcome: 'failed' });
   });
 
   it('reports a server error', () => {
@@ -106,6 +137,26 @@ describe('reportCartFailure before error-catch is configured', () => {
 
       expect(onError).toHaveBeenCalledWith('plain failure');
       expect(errorCatch.getDefaultFrontendErrorReporter()).toBeUndefined();
+    });
+  });
+});
+
+describe('classification failures', () => {
+  it('still calls the reporter when a diagnostic getter throws', () => {
+    jest.isolateModules(() => {
+      const capture = jest.fn();
+      jest.doMock('@merchi/error-catch', () => ({ captureUnexpected: capture }));
+      const reporting = require('./reportFailure');
+      const error = Object.defineProperty(new TypeError('Load failed'), 'statusCode', {
+        get() { throw new Error('unreadable status'); },
+      });
+      const callback = jest.fn();
+      reporting.reportAddCartItemFailure(error, callback);
+      expect(callback).toHaveBeenCalledWith(error);
+      expect(capture).toHaveBeenCalledWith(error, expect.objectContaining({
+        operation: { name: 'cart.add_item', outcome: 'failed' },
+      }));
+      jest.dontMock('@merchi/error-catch');
     });
   });
 });

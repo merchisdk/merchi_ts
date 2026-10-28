@@ -35,13 +35,24 @@ export type CartFailureSource =
  */
 export function reportCartFailure(error: unknown, source: CartFailureSource, handledValidation = false): void {
   try {
+    // A UI callback returning only confirms display, not a validation failure.
+    // Keep this predicate aligned with error-catch safeOperationSuppression.
+    const failure = error as { statusCode?: unknown; errorCode?: unknown } | null;
+    let validation = false;
+    try {
+      validation = handledValidation && failure !== null && typeof failure === 'object' &&
+        [400, 409, 422].includes(failure.statusCode as number) &&
+        [3, 5, 6, 7].includes(failure.errorCode as number);
+    } catch {
+      // Classification must not prevent the reporter from handling this value.
+    }
     captureUnexpected(error, {
       source: 'manual',
       digest: source,
       operation: {
         name: OPERATIONS[source],
-        outcome: handledValidation ? 'handled' : 'failed',
-        ...(handledValidation ? { reason: 'validation' as const } : {}),
+        outcome: validation ? 'handled' : 'failed',
+        ...(validation ? { reason: 'validation' as const } : {}),
       },
     });
   } catch {
