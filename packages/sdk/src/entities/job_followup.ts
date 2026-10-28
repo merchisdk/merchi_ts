@@ -11,6 +11,8 @@ export interface ScheduledJobFollowup {
   timezone: string;
   sendEmail: boolean;
   sendSms: boolean;
+  subject?: string;
+  body?: string;
 }
 
 export interface JobFollowupUpdate {
@@ -18,6 +20,8 @@ export interface JobFollowupUpdate {
   timezone?: string;
   sendEmail?: boolean;
   sendSms?: boolean;
+  subject?: string;
+  body?: string;
 }
 
 export class JobFollowup extends Entity {
