@@ -17,6 +17,7 @@ import * as production_status from './job/production_status.js';
 import * as shipment_status from './job/shipment_status.js';
 import * as call_to_actions from './call_to_actions.js';
 import * as domain_types from './domain_types.js';
+import * as job_followup_types from './job_followup_types.js';
 import * as job_status from './job_status.js';
 import * as white_label_accessibilities from './white_label_accessibilities.js';
 import * as robots_meta_directives from './robots_meta_directives.js';
@@ -41,6 +42,7 @@ export {
   auto_assign_production_on_actions,
   product_types,
   drafting_status,
+  job_followup_types,
   job_types,
   payment_status,
   production_status,
