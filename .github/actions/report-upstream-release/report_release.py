@@ -21,6 +21,30 @@ class NoRedirects(request.HTTPRedirectHandler):
         return None
 
 
+def deployment_manifest(repository, head, kind, ref, notes=None):
+    expected = {
+        "merchisdk/merchi_api": ("api_deployment", "merchi-api", "refs/heads/production"),
+        "merchisdk/merchi_store_boilerplate": ("template", "storefront-template", "refs/heads/main"),
+    }
+    if repository not in expected or not re.fullmatch(r"[a-f0-9]{40}", head):
+        raise ValueError("A verified upstream repository and commit are required")
+    expected_kind, component, expected_ref = expected[repository]
+    if kind != expected_kind or ref != expected_ref:
+        raise ValueError("Release kind or workflow branch does not match the upstream")
+    fixed_issues = (notes or {}).get(component, {}).get("fixed_issues", [])
+    if not isinstance(fixed_issues, list) or len(fixed_issues) > 100 or any(type(n) is not int or n < 1 for n in fixed_issues):
+        raise ValueError("Fixed issues require explicit positive issue numbers")
+    return {
+        "upstream": repository, "component": component, "version": head,
+        "kind": kind, "commit_sha": head,
+        "availability_url": f"https://github.com/{repository}/commit/{head}",
+        "summary": "Production API deployment completed successfully." if kind == "api_deployment" else "Storefront template commit passed repository tests and type checking.",
+        "migration": "Inspect this API change for applicability and verify the deployed storefront against the live API; code changes may not be required." if kind == "api_deployment" else "Compare this template commit with the site's verified baseline, preserve customizations and create a tested adoption PR for applicable changes.",
+        "verification": "The upstream pipeline completed its release gate. The external coding agent must verify its own repository and deployment, then record adoption. This notice does not resolve an incident or execute code.",
+        "affected_versions": [], "fixed_issues": sorted(set(fixed_issues)),
+    }
+
+
 def report_release(endpoint, token, manifest):
     if endpoint not in ENDPOINTS or not token or any(c in token for c in "\r\n"):
         raise ValueError("Use the exact release endpoint and dedicated credential")
@@ -51,12 +75,27 @@ def report_release(endpoint, token, manifest):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manifest", required=True, type=Path)
+    parser.add_argument("--manifest", default="")
+    parser.add_argument("--kind", default="")
     args = parser.parse_args()
     try:
-        if args.manifest.stat().st_size > 1800000:
-            raise ValueError("Release batch is too large")
-        payload = json.loads(args.manifest.read_text(encoding="utf-8"))
+        if bool(args.manifest) == bool(args.kind):
+            raise ValueError("Supply either saved evidence or a completed deployment kind")
+        if args.kind:
+            notes_path = Path(".github/system-agent-release-notes.json")
+            notes = json.loads(notes_path.read_text()) if notes_path.exists() else {}
+            payload = deployment_manifest(
+                os.environ.get("GITHUB_REPOSITORY", ""), os.environ.get("GITHUB_SHA", ""),
+                args.kind, os.environ.get("GITHUB_REF", ""), notes,
+            )
+            saved = Path(os.environ.get("RUNNER_TEMP", ".release")) / "system-agent-release.json"
+            saved.parent.mkdir(parents=True, exist_ok=True)
+            saved.write_text(json.dumps(payload, indent=2) + "\n")
+        else:
+            manifest_path = Path(args.manifest)
+            if manifest_path.stat().st_size > 1800000:
+                raise ValueError("Release batch is too large")
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifests = payload if isinstance(payload, list) else [payload]
         if len(manifests) > 30 or any(not isinstance(m, dict) for m in manifests):
             raise ValueError("Invalid release batch")

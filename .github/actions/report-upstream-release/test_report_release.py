@@ -11,6 +11,34 @@ import report_release as helper
 
 
 class ReleaseReporterTests(unittest.TestCase):
+    def test_failed_deployment_report_preserves_the_exact_manifest_for_replay(self):
+        with tempfile.TemporaryDirectory() as directory:
+            saved = Path(directory) / "system-agent-release.json"
+            environment = {"GITHUB_REPOSITORY": "merchisdk/merchi_api", "GITHUB_SHA": "c" * 40,
+                           "GITHUB_REF": "refs/heads/production", "RUNNER_TEMP": directory}
+            with patch.dict(helper.os.environ, environment), patch.object(helper.sys, "argv", ["report_release.py", "--kind", "api_deployment"]), patch.object(helper, "report_release", side_effect=error.URLError("lost")), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(helper.main(), 1)
+            self.assertTrue(saved.exists())
+            manifest = json.loads(saved.read_text())
+            self.assertEqual(manifest["commit_sha"], "c" * 40)
+            self.assertNotIn("token", saved.read_text())
+
+    def test_deployment_evidence_requires_the_correct_repository_branch_and_kind(self):
+        head = "b" * 40
+        manifest = helper.deployment_manifest("merchisdk/merchi_api", head, "api_deployment", "refs/heads/production")
+        self.assertEqual(manifest["commit_sha"], head)
+        self.assertEqual(manifest["version"], head)
+        self.assertEqual(manifest["fixed_issues"], [])
+        template = helper.deployment_manifest("merchisdk/merchi_store_boilerplate", head, "template", "refs/heads/main")
+        self.assertEqual(template["component"], "storefront-template")
+        for repository, kind, ref in [
+            ("merchisdk/merchi_api", "api_deployment", "refs/heads/main"),
+            ("merchisdk/merchi_api", "template", "refs/heads/production"),
+            ("merchisdk/other", "template", "refs/heads/main"),
+        ]:
+            with self.assertRaises(ValueError):
+                helper.deployment_manifest(repository, head, kind, ref)
+
     def response(self):
         response = Mock()
         response.__enter__ = lambda self: self

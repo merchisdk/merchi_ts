@@ -12,6 +12,14 @@ failures, rate limits and server errors retry identical immutable evidence;
 authentication and validation failures do not retry. Credentials and response
 bodies are never printed. An empty verified batch makes no requests.
 
+API and template callers can supply `kind` instead of `manifest`, after their
+production deployment or template test/type-check gate succeeds. The helper
+requires the expected repository/branch, derives immutable evidence from the
+full source SHA, and saves it in `runner.temp` before sending. API main/preview
+builds cannot generate production deployment evidence. The action archives the
+generated manifest even when its report fails. Consumers should pin this public
+action to an explicitly reviewed full commit SHA.
+
 The TypeScript publisher persists each registry-verified, successfully tagged
 package to `.release/system-agent-releases.json`. A later package failure does
 not erase earlier confirmed releases. The workflow saves this evidence before
