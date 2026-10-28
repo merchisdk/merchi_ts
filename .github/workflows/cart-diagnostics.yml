@@ -19,6 +19,4 @@ jobs:
         with:
           node-version: '24'
       - run: pnpm install --frozen-lockfile
-      # These are transport/classification tests; they do not require a canvas
-      # or a DOM and must not depend on optional native jsdom integrations.
-      - run: pnpm --filter @merchi/cart test src/utilities/reportFailure.test.ts --runInBand --env=node
+      - run: pnpm --filter @merchi/cart test --runInBand
