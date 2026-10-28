@@ -1,0 +1,24 @@
+name: Cart diagnostic regression checks
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - packages/cart/**
+      - packages/error-catch-sdk/**
+      - .github/workflows/cart-diagnostics.yml
+      - .github/system-agent-release-notes.json
+permissions:
+  contents: read
+jobs:
+  cart-diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: pnpm install --frozen-lockfile
+      # These are transport/classification tests; they do not require a canvas
+      # or a DOM and must not depend on optional native jsdom integrations.
+      - run: pnpm --filter @merchi/cart test src/utilities/reportFailure.test.ts --runInBand --env=node
