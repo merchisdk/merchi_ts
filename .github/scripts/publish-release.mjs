@@ -1,7 +1,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { releaseNotice } from './release-notice.mjs';
 
 const REGISTRY = 'https://registry.npmjs.org';
 const NPM_CACHE = join(process.cwd(), '.release', 'npm-cache');
@@ -74,6 +75,7 @@ export async function publishPlannedReleases(items, head, versions, {
   ioFor,
   publishPackage: publishOne,
   recordTag: tagOne,
+  onVerified = () => {},
   log = console.log,
 }) {
   for (const item of items) {
@@ -84,6 +86,7 @@ export async function publishPlannedReleases(items, head, versions, {
         throw new Error(`${item.name}@${item.version}: cannot recover tag without matching npm gitHead.`);
       }
       tagOne(item, head);
+      await onVerified(item, head);
       continue;
     }
 
@@ -99,6 +102,7 @@ export async function publishPlannedReleases(items, head, versions, {
     }
     log(`${item.name}@${item.version}: ${result.recovered ? 'reconciled' : 'published'}.`);
     tagOne(item, head);
+    await onVerified(item, head);
   }
 }
 
@@ -191,6 +195,13 @@ async function main() {
   if (verifyOnly) return;
 
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const notesPath = '.github/system-agent-release-notes.json';
+  const notes = existsSync(notesPath) ? JSON.parse(readFileSync(notesPath, 'utf8')) : {};
+  // Validate all declared evidence before attempting any irreversible publication.
+  const notices = new Map(plan.items.map(item => [item.name, releaseNotice(item, head, notes)]));
+  const verified = [];
+  const noticePath = '.release/system-agent-releases.json';
+  writeFileSync(noticePath, '[]\n');
   await publishPlannedReleases(plan.items, head, plan.versions, {
     ioFor: item => ({
       exactOrNull: async () => npmView(`${item.name}@${item.version}`),
@@ -204,6 +215,13 @@ async function main() {
     }),
     publishPackage,
     recordTag,
+    onVerified: item => {
+      const notice = notices.get(item.name);
+      if (!notice) return;
+      verified.push(notice);
+      // Persist each verified package even if a later package fails to publish.
+      writeFileSync(noticePath, `${JSON.stringify(verified, null, 2)}\n`);
+    },
   });
 }
 
