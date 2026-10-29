@@ -8,6 +8,7 @@ import {
   normalizeRoute,
 } from "./normalize.js";
 import { collectClientFingerprint } from "./clientFingerprint.js";
+import { sanitizeEvidenceUrl } from "./evidenceUrl.js";
 import { redactText } from "./redact.js";
 import { fetchTransport } from "./transport.js";
 import {
@@ -38,7 +39,7 @@ function normalizeSource(value: unknown): FrontendErrorSource {
 
 function currentRoute(): string | undefined {
   if (typeof window === "undefined") return undefined;
-  return normalizeRoute(window.location.pathname);
+  return sanitizeEvidenceUrl(window.location.pathname, true);
 }
 
 function eventId(): string {
@@ -53,7 +54,7 @@ function dedupeKey(event: FrontendErrorEvent): string {
     .slice(0, 5)
     .map((frame) => `${frame.file}:${frame.function}:${frame.line ?? ""}:${frame.column ?? ""}`)
     .join("|");
-  return [event.errorType, event.message, event.route ?? "", event.digest ?? "", frames,
+  return [event.errorType, event.message, normalizeRoute(event.route) ?? "", event.digest ?? "", frames,
     event.operation?.name ?? "", event.operation?.outcome ?? "", event.operation?.reason ?? "",
     event.apiStatusCode ?? "", event.apiErrorCode ?? "", event.stripeErrorCode ?? ""].join("\n");
 }
@@ -146,7 +147,14 @@ export class FrontendErrorReporter {
 
   #buildEvent(error: unknown, context: CaptureContext): FrontendErrorEvent {
     const details = errorDetails(error);
-    const route = normalizeRoute(context.route) ?? currentRoute();
+    const route = sanitizeEvidenceUrl(context.route, true) ?? currentRoute();
+    const pageUrlSource = sanitizeEvidenceUrl(context.route) ??
+      (typeof window === "undefined" ? undefined : window.location.href);
+    const pageUrl = sanitizeEvidenceUrl(
+      pageUrlSource?.startsWith("/") && typeof window !== "undefined"
+        ? `${window.location.origin}${pageUrlSource}`
+        : pageUrlSource,
+    );
     const digest = context.digest
       ? redactText(context.digest, 200)
       : details.digest;
@@ -166,6 +174,7 @@ export class FrontendErrorReporter {
     };
     if (this.#releaseSha) event.releaseSha = this.#releaseSha;
     if (route) event.route = route;
+    if (pageUrl) event.pageUrl = pageUrl;
     if (digest) event.digest = digest;
     if (details.stackTrace) event.stackTrace = details.stackTrace;
     if (componentStack) event.componentStack = componentStack;

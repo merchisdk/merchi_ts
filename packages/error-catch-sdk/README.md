@@ -406,3 +406,15 @@ an idempotent part index. They require the API's per-domain replay configuration
 private bucket and origin registration; see the API's
 `documentation/storefront-error-replays.md` for setup, retention and endpoints.
 
+
+### Navigation evidence and rollout order
+
+Reports retain the affected resource path (including numeric IDs and UUIDs) in
+`route`, and the sanitized hostname/path in `pageUrl`. Only numeric/UUID resource
+query IDs and pagination values are retained; other query values, URL userinfo,
+fragments, and known credential-bearing path segments are removed or redacted.
+`normalizeRoute` remains a grouping helper and is not the evidence path.
+
+Deploy the System Agent `page_url` support and API collector `pageUrl` support
+before publishing/adopting this reporter. Older collectors reject unknown fields.
+Historic reports already normalized to `{id}` cannot recover the original IDs.

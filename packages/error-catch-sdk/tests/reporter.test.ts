@@ -36,7 +36,7 @@ describe("FrontendErrorReporter", () => {
       source: "window_error",
       errorType: "TypeError",
       message: "Failed for [redacted-email]",
-      route: "/products/{id}",
+      route: "/products/123",
     });
     expect(events[0]?.stackFrames[0]?.file).toBe("https://dashboard.merchi.co/app.js");
     expect(events[0]).not.toHaveProperty("environment");
