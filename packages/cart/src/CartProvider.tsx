@@ -22,6 +22,7 @@ import {
 import { makeUser } from './utilities/user';
 import { persistTestCheckoutFlag, readTestCheckoutFlag } from './utilities/test_checkout';
 import { reportAddCartItemFailure, reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
+import { isAutomatedClient } from './utilities/automatedClient';
 import { canReplaceMissingCart } from './utilities/cartLoadFailure';
 import {
   appendJobSourceToFormData,
@@ -727,7 +728,7 @@ const CartProvider = ({
     const cartIdAndToken = await getCartCookie((domainId as number));
     if (cartIdAndToken) {
       await getCart(cartIdAndToken);
-    } else {
+    } else if (!isAutomatedClient()) {
       await createCartAndCookie();
     }
   }
