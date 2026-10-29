@@ -14,6 +14,11 @@ export enum PaymentStatus {
   FULLY_PAID = 4,
 }
 
+export enum InvoiceQuoteStatus {
+  ISSUED = 'issued',
+  DECLINED = 'declined',
+}
+
 export enum ProductionStatus {
   INIT = 0,
   REJECTED = 1,
