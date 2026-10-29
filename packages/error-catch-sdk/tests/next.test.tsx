@@ -49,11 +49,20 @@ describe("Next.js storefront helpers", () => {
     Object.defineProperty(stringRejection, "reason", { value: "failed for person@example.com" });
     window.dispatchEvent(stringRejection);
 
+    window.dispatchEvent(new ErrorEvent("error", {
+      error: Object.assign(new Error("Loading chunk checkout failed."), { name: "ChunkLoadError" }),
+    }));
+    const chunkRejection = new Event("unhandledrejection");
+    Object.defineProperty(chunkRejection, "reason", {
+      value: new TypeError("Failed to fetch dynamically imported module: https://shop.example/app.js"),
+    });
+    window.dispatchEvent(chunkRejection);
+
     await Promise.resolve();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
     const bodies = fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body)) as FrontendErrorEvent);
     expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.merchi.co/v6/frontend-errors");
-    expect(bodies.map((event) => event.errorType)).toEqual(["ApiError", "TypeError", "NonErrorException"]);
+    expect(bodies.map((event) => event.errorType)).toEqual(["ApiError", "TypeError", "NonErrorException", "ChunkLoadError", "TypeError"]);
     expect(bodies[1]).toMatchObject({
       application: "merchi-storefront-42",
       releaseSha: "0123456789abcdef",
@@ -84,7 +93,13 @@ describe("Next.js storefront helpers", () => {
     Object.assign(expected, { statusCode: 404, errorCode: 8, errorMessage: "missing" });
     rerender(<RouteError error={expected} />);
 
-    expect(events).toHaveLength(2);
+    const chunk = Object.assign(new Error("Loading chunk checkout failed."), { name: "ChunkLoadError" });
+    rerender(<RouteError error={chunk} />);
+    expect(events).toHaveLength(3);
+    expect(events[2]).toMatchObject({
+      source: "react_error_boundary", errorType: "ChunkLoadError",
+      message: "Loading chunk checkout failed.",
+    });
     expect(events[0]).toMatchObject({
       source: "react_error_boundary",
       message: "route crashed",
@@ -96,3 +111,4 @@ describe("Next.js storefront helpers", () => {
     });
   });
 });
+

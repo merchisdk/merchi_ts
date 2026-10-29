@@ -3,7 +3,9 @@ import { isCriticalOperation } from "./operation.js";
 
 /**
  * Turbopack, webpack, and the browser's own dynamic-import failure for a
- * missing hashed chunk. A cart, checkout, or payment operation still reports.
+ * missing hashed chunk. Classification alone does not establish recovery and
+ * must not suppress reporting. Kept as a compatibility helper for consumers;
+ * explicit manual captures and critical operations are excluded.
  */
 const CHUNK_LOAD_MESSAGE =
   /^(?:Failed to load chunk \S+ from module \d+|Loading (?:CSS )?chunk \S+ failed\b|Failed to fetch dynamically imported module\b|error loading dynamically imported module\b|Importing a module script failed\b)/i;
@@ -18,3 +20,4 @@ export function isChunkLoadError(
   if (event.errorType === "ChunkLoadError") return true;
   return CHUNK_LOAD_MESSAGE.test(event.message.trim());
 }
+
