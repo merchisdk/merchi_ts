@@ -189,6 +189,13 @@ and shared Stripe initialization/status/confirmation/cancellation failures now
 supply operation context. The app's original UI callbacks and payment flow remain
 in control. Normal payment cancellation/validation is not inferred from text.
 
+Chunk-load names and dynamic-import messages do not prove a stale deployment
+or successful recovery. Unresolved global and React-boundary chunk failures
+remain reportable. Only the existing explicit noncritical `recovered` +
+`retry_succeeded` policy can suppress a successfully recovered operation;
+critical cart/checkout/payment and React/component failures remain reportable.
+The exported `isChunkLoadError` classifier is not a suppression policy.
+
 `shouldReport` remains a full override of default filters. A callback returning
 false can suppress any report, so callers that supply it own that decision.
 Without it, safe filtering runs before dedupe and counting. `maxEventsPerPage`
@@ -398,3 +405,4 @@ Uploads omit credentials/referrers, have a 10-second timeout and retry once with
 an idempotent part index. They require the API's per-domain replay configuration,
 private bucket and origin registration; see the API's
 `documentation/storefront-error-replays.md` for setup, retention and endpoints.
+

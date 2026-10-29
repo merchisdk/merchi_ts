@@ -1,5 +1,4 @@
 import { isBrowserExtensionError } from "./browserExtension.js";
-import { isChunkLoadError } from "./chunkLoad.js";
 import { isEmbeddedBrowserBridgeError } from "./embeddedBrowser.js";
 import { apiFailureContext, isCriticalOperation, normalizeOperation, safeOperationSuppression } from "./operation.js";
 import {
@@ -104,8 +103,7 @@ export class FrontendErrorReporter {
         !this.#shouldReport &&
         (safeOperationSuppression(event) ||
           isBrowserExtensionError(event) ||
-          isEmbeddedBrowserBridgeError(event) ||
-          isChunkLoadError(event))
+          isEmbeddedBrowserBridgeError(event))
       ) return false;
       const critical = isCriticalOperation(event.operation);
       if ((critical ? this.#criticalEventCount : this.#eventCount) >= this.#maxEventsPerPage) return false;
@@ -265,3 +263,4 @@ export function captureException(error: unknown, context?: CaptureContext): bool
 export function captureUnexpected(error: unknown, context?: CaptureContext): boolean {
   return defaultReporter?.captureUnexpected(error, context) ?? false;
 }
+
