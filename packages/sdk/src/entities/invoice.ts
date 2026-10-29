@@ -227,8 +227,11 @@ export class Invoice extends Entity {
   };
 
   /** Approving a quote turns it into a payable invoice. */
-  public approveQuote = () => this.respondToQuote('approve');
+  public approveQuote = (): Promise<{invoice: Invoice; paymentUrl: string}> =>
+    this.respondToQuote('approve');
 
-  public declineQuote = (reason?: string) =>
+  public declineQuote = (
+    reason?: string
+  ): Promise<{invoice: Invoice; paymentUrl: string}> =>
     this.respondToQuote('decline', reason);
 }
