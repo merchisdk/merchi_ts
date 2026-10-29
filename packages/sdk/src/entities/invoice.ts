@@ -16,6 +16,7 @@ import { Payment } from './payment.js';
 import { PhoneNumber } from './phone_number.js';
 import { Shipment } from './shipment.js';
 import { User } from './user.js';
+import { RequestOptions } from '../request.js';
 
 export class Invoice extends Entity {
   protected static resourceName = 'invoices';
@@ -85,6 +86,18 @@ export class Invoice extends Entity {
   @Invoice.property({type: Boolean})
   public isTest?: boolean | null;
 
+  @Invoice.property({type: Boolean})
+  public isQuote?: boolean | null;
+
+  @Invoice.property({type: Date})
+  public quoteApprovedDate?: Date | null;
+
+  @Invoice.property({type: Date})
+  public quoteDeclinedDate?: Date | null;
+
+  @Invoice.property({type: String})
+  public quoteDeclineReason?: string | null;
+
   @Invoice.property()
   public currency?: string;
 
@@ -129,6 +142,9 @@ export class Invoice extends Entity {
 
   @Invoice.property({type: User})
   public creator?: User | null;
+
+  @Invoice.property({type: User})
+  public quoteApprovedBy?: User | null;
 
   @Invoice.property()
   public client?: User;
@@ -192,4 +208,30 @@ export class Invoice extends Entity {
 
   @Invoice.property({arrayType: 'Payment'})
   public payments?: Payment[];
+
+  private respondToQuote = (action: 'approve' | 'decline', reason?: string) => {
+    if (this.id === undefined || this.id === null) {
+      throw new Error('id is undefined, did you forget to set it?');
+    }
+    const resource = `/invoices/${this.id}/${action}_quote/`;
+    const data = new FormData();
+    if (reason) {
+      data.append('reason', reason);
+    }
+    const fetchOptions: RequestOptions = {method: 'POST', body: data, query: []};
+    return this.merchi.authenticatedFetch(resource, fetchOptions).
+      then((payload: any) => {
+        this.fromJson(payload.invoice);
+        return {invoice: this, paymentUrl: payload.paymentUrl as string};
+      });
+  };
+
+  /** Approving a quote turns it into a payable invoice. */
+  public approveQuote = (): Promise<{invoice: Invoice; paymentUrl: string}> =>
+    this.respondToQuote('approve');
+
+  public declineQuote = (
+    reason?: string
+  ): Promise<{invoice: Invoice; paymentUrl: string}> =>
+    this.respondToQuote('decline', reason);
 }

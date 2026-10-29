@@ -26,6 +26,7 @@ import { User } from './user.js';
 import { Variation } from './variation.js';
 import { VariationsGroup } from './variations_group.js';
 import { InventoryStatus } from '../constants/inventory_statuses.js';
+import { InvoiceQuoteStatus } from '../constants/job_status.js';
 import { Item } from './item.js';
 
 
@@ -132,6 +133,10 @@ export class Job extends Entity {
 
   @Job.property({type: Number})
   public paymentStatus?: number | null;
+
+  /** Set while the job's invoice is still a quote; paymentStatus stays INIT. */
+  @Job.property({type: String})
+  public invoiceQuoteStatus?: InvoiceQuoteStatus | null;
 
   @Job.property({type: Date})
   public deductionDate?: Date | null;
