@@ -48,3 +48,5 @@ export {
   type FrontendErrorStackFrame,
   type FrontendErrorTransport,
 } from "./types.js";
+
+export { sanitizeEvidenceUrl } from "./evidenceUrl.js";

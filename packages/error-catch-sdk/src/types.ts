@@ -73,7 +73,10 @@ export interface FrontendErrorEvent {
   source: FrontendErrorSource;
   errorType: string;
   message: string;
+  /** Actual sanitized path, including record IDs. */
   route?: string;
+  /** Sanitized host/path and resource query IDs; credentials are redacted. */
+  pageUrl?: string;
   digest?: string;
   stackTrace?: string;
   stackFrames: FrontendErrorStackFrame[];
