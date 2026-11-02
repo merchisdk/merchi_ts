@@ -22,6 +22,7 @@ import {
 import { makeUser } from './utilities/user';
 import { persistTestCheckoutFlag, readTestCheckoutFlag } from './utilities/test_checkout';
 import { reportAddCartItemFailure, reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
+import { isAutomatedClient } from './utilities/automatedClient';
 import { canReplaceMissingCart } from './utilities/cartLoadFailure';
 import {
   appendJobSourceToFormData,
@@ -596,7 +597,9 @@ const CartProvider = ({
   const [fetchingCart, setFetchingCart] = useState(false);
   const [cartSettingsInvalid, setCartSettingsInvalid] = useState(false);
   const appliedHandoffCart = useRef<string | null>(null);
-  const cartInitializations = useRef(new Map<number | undefined, Promise<void>>());
+  const cartInitializations = useRef(new Map<
+    number | undefined, Promise<{ skippedCreation: boolean; cart?: any }>
+  >());
 
   async function attachSavedClientIfNeeded(cartJson: any) {
     if (cartJson?.client?.id) {
@@ -650,12 +653,18 @@ const CartProvider = ({
       cartJson = await attachSavedClientIfNeeded(cartJson);
       setCart({...cartJson});
       if (callback) callback();
+      return cartJson;
     } catch (e: any) {
       reportCartFailure(e, CART_FAILURE_SOURCES.create);
       alertError(e?.errorMessage || e?.message || 'Unable to fetch cart.');
     } finally {
       setFetchingCart(false);
     }
+    return undefined;
+  }
+
+  async function requestNewCart(callback?: () => void) {
+    await createCartAndCookie(callback);
   }
 
   async function getCart(cartIdAndToken: Array<string>) {
@@ -669,8 +678,7 @@ const CartProvider = ({
       let cartJson = await cart.toJson();
       const isTest = readTestCheckoutFlag();
       if (Boolean(cartJson.isTest) !== isTest) {
-        await createCartAndCookie();
-        return;
+        return await createCartAndCookie();
       }
       const jobSource = jobSourceFieldsForApi(captureAndReadJobSource());
       if (cartNeedsSourceUpdate(cartJson, jobSource)) {
@@ -688,6 +696,7 @@ const CartProvider = ({
       if (stripeIsValidAndActive(cartJson) || isTest) {
         cartJson = await attachSavedClientIfNeeded(cartJson);
         setCart({...cartJson});
+        return cartJson;
       } else {
         console.error(
           `MErhci cart error: Stripe payment ` +
@@ -699,7 +708,7 @@ const CartProvider = ({
       }
     } catch(e: any){
       if (canReplaceMissingCart(e)) {
-        await createCartAndCookie();
+        return await createCartAndCookie();
       } else {
         // A network/server/auth failure does not mean the saved cart is gone.
         // Preserve its cookie and contents so the shopper can retry the read.
@@ -709,6 +718,7 @@ const CartProvider = ({
     } finally {
       setFetchingCart(false);
     }
+    return undefined;
   }
 
   // A checkout link can name the cart. Remember it once, then keep using the cookie
@@ -723,24 +733,32 @@ const CartProvider = ({
     await setCartCookie(Number(domainId), { id: handoff[0], token: handoff[1] });
   }
 
-  function actionGetMerchiCart() {
-    const active = cartInitializations.current.get(domainId);
-    if (active) return active;
+  function actionGetMerchiCart(allowCreation = true): Promise<any> {
+    let active = cartInitializations.current.get(domainId);
     // Mount, modal opening and explicit callers may run before React commits
     // fetchingCart. Share the whole cookie lookup/read-or-create operation.
-    const initialization = Promise.resolve().then(async () => {
-      await adoptHandoffCart();
-      const cartIdAndToken = await getCartCookie((domainId as number));
-      if (cartIdAndToken) {
-        await getCart(cartIdAndToken);
-      } else {
-        await createCartAndCookie();
-      }
-    }).finally(() => {
-      cartInitializations.current.delete(domainId);
+    if (!active) {
+      active = Promise.resolve().then(async () => {
+        await adoptHandoffCart();
+        const cartIdAndToken = await getCartCookie((domainId as number));
+        if (cartIdAndToken) {
+          return { skippedCreation: false, cart: await getCart(cartIdAndToken) };
+        } else if (allowCreation) {
+          return { skippedCreation: false, cart: await createCartAndCookie() };
+        }
+        return { skippedCreation: true };
+      }).finally(() => {
+        cartInitializations.current.delete(domainId);
+      });
+      cartInitializations.current.set(domainId, active);
+    }
+    return active.then(result => {
+      // An explicit caller can join passive startup before its cookie lookup
+      // finishes. Once that no-op completes, create through the same shared
+      // initialization path so concurrent explicit callers still issue one POST.
+      if (result.skippedCreation && allowCreation) return actionGetMerchiCart();
+      return result.cart;
     });
-    cartInitializations.current.set(domainId, initialization);
-    return initialization;
   }
 
   async function clearCart(callback?: () => void) {
@@ -855,25 +873,30 @@ const CartProvider = ({
     onError: (e: any) => void,
   ) {
     setFetchingCart(true);
-    const jobEnt = makeJob(jobJson, true);
-    const cartToken = await getCartCookieToken((domainId as number));
-    const cartEnt = makeCart(cart, false, cartToken);
-    const cartItemEnt = makeCartItem({}, true);
-    const cartItemProduct = makeProduct({ id: (jobEnt.product as any).id });
-
-    cartItemEnt.cart = cartEnt;
-    cartItemEnt.quantity = jobEnt.quantity;
-    cartItemEnt.product = cartItemProduct;
-    cartItemEnt.variations = jobEnt.variations;
-    cartItemEnt.variationsGroups = jobEnt.variationsGroups;
-    cartItemEnt.taxType = jobEnt.taxType;
-    cartItemEnt.ownDrafts = jobEnt.ownDrafts;
-    cartItemEnt.clientFiles = jobEnt.clientFiles;
-    cartItemEnt.tags = jobEnt.tags;
-    if (typeof jobJson.designInputNotes === 'string' && jobJson.designInputNotes) {
-      cartItemEnt.notes = jobJson.designInputNotes;
-    }
     try {
+      const jobEnt = makeJob(jobJson, true);
+      const cartItemProduct = makeProduct({ id: (jobEnt.product as any).id });
+      // Legacy clients can call addCartItem directly, without first opening
+      // the cart or waiting for React to commit the initialized cart state.
+      const readyCart = cart?.id ? cart : await actionGetMerchiCart();
+      if (!readyCart?.id) throw new Error('Unable to initialize cart. Please try again.');
+      setFetchingCart(true);
+      const cartToken = await getCartCookieToken((domainId as number));
+      const cartEnt = makeCart(readyCart, false, cartToken);
+      const cartItemEnt = makeCartItem({}, true);
+
+      cartItemEnt.cart = cartEnt;
+      cartItemEnt.quantity = jobEnt.quantity;
+      cartItemEnt.product = cartItemProduct;
+      cartItemEnt.variations = jobEnt.variations;
+      cartItemEnt.variationsGroups = jobEnt.variationsGroups;
+      cartItemEnt.taxType = jobEnt.taxType;
+      cartItemEnt.ownDrafts = jobEnt.ownDrafts;
+      cartItemEnt.clientFiles = jobEnt.clientFiles;
+      cartItemEnt.tags = jobEnt.tags;
+      if (typeof jobJson.designInputNotes === 'string' && jobJson.designInputNotes) {
+        cartItemEnt.notes = jobJson.designInputNotes;
+      }
       const item = await cartItemEnt.create();
       const itemJson = await item.toJson();
       onSuccess(itemJson);
@@ -904,17 +927,17 @@ const CartProvider = ({
   if (typeof window !== 'undefined') {
     (window as any).addCartItem = addCartItem;
     (window as any).toggleCartOpen = toggleCartModal;
-    (window as any).getCart = () => actionGetMerchiCart();
+    (window as any).getCart = async () => { await actionGetMerchiCart(); };
     (window as any).getMerchiCartValues = getMerchiCartValues;
     (window as any).isMerchiCartFetching = isMerchiCartFetching;
     (window as any).setCartComplete = setCartComplete;
     (window as any).refetchCart = refetchCart;
-    (window as any).createCartAndCookie = createCartAndCookie;
+    (window as any).createCartAndCookie = requestNewCart;
   }
 
   useEffect(() => {
     persistTestCheckoutFlag();
-    if (domainId) actionGetMerchiCart();
+    if (domainId) actionGetMerchiCart(!isAutomatedClient());
     if (domainId && includeTheme) actionFetchTheme(); 
   }, [domainId]);
   return (
@@ -1051,7 +1074,7 @@ const CartProvider = ({
 
         setCartComplete, // creates a token and cart and then reloads the page
         refetchCart, // used to refetch the cart
-        createCartAndCookie, // creates a new cart and cookie
+        createCartAndCookie: requestNewCart, // creates a new cart and cookie
 
         loading,
 
