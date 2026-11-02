@@ -59,6 +59,7 @@ describe('cart load and replacement failures', () => {
     document.body.appendChild(container);
     root = createRoot(container);
     mockPost.mockResolvedValue({ cart: { id: 99, token: 'new-token' } });
+    (getCartCookie as jest.Mock).mockResolvedValue(['42', 'saved-token']);
   });
   afterEach(async () => {
     await act(async () => root.unmount());
@@ -83,6 +84,82 @@ describe('cart load and replacement failures', () => {
     });
     await act(async () => context.setActiveTabIndex(tabIdClearCart));
   }
+  it('shares cold initialization with opening the modal and concurrent getCart callers', async () => {
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    let finish!: (value: unknown) => void;
+    mockPost.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    let first!: Promise<void>, second!: Promise<void>;
+    await act(async () => {
+      context.toggleCartModal();
+      first = (window as any).getCart();
+      second = (window as any).getCart();
+    });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(context.fetchingCart).toBe(true);
+    await act(async () => {
+      finish({ cart: { id: 99, token: 'new-token' } });
+      await Promise.all([first, second]);
+    });
+    expect(context.cart.id).toBe(99);
+    expect(context.fetchingCart).toBe(false);
+    expect(setCartCookie).toHaveBeenCalledTimes(1);
+  });
+  it('shares an active saved-cart read and allows a later refresh', async () => {
+    let finish!: (value: unknown) => void;
+    const saved = { toJson: () => ({ id: 42, isTest: false, cartItems: [{ id: 7 }] }) };
+    mockGet.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }))
+      .mockResolvedValue(saved);
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    let read!: Promise<void>;
+    await act(async () => {
+      context.toggleCartModal();
+      read = (window as any).getCart();
+    });
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    await act(async () => { finish(saved); await read; });
+    await act(async () => { await (window as any).getCart(); });
+    expect(mockGet).toHaveBeenCalledTimes(2);
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(context.cart.cartItems).toHaveLength(1);
+  });
+  it('releases failed initialization so an explicit retry can create the cart', async () => {
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    mockPost.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(context.fetchingCart).toBe(false);
+    await act(async () => {
+      await Promise.all([(window as any).getCart(), (window as any).getCart()]);
+    });
+    expect(mockPost).toHaveBeenCalledTimes(2);
+    expect(context.cart.id).toBe(99);
+    expect(context.fetchingCart).toBe(false);
+  });
+  it('initializes a changed domain independently of the previous pending domain', async () => {
+    const finish: Record<number, (value: unknown) => void> = {};
+    (getCartCookie as jest.Mock).mockImplementation(id => Promise.resolve([String(id), 'token']));
+    mockGet.mockImplementation(id => new Promise(resolve => { finish[id] = resolve; }));
+    const view = (id: number) => <CartProvider domainId={id} createCartAndCookie={() => {}}><Probe /></CartProvider>;
+    await act(async () => root.render(view(5)));
+    await act(async () => root.render(view(6)));
+    expect(mockGet).toHaveBeenCalledTimes(2);
+    await act(async () => finish[5]({ toJson: () => ({ id: 5, isTest: false }) }));
+    let current!: Promise<void>;
+    await act(async () => { current = (window as any).getCart(); });
+    expect(mockGet).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      finish[6]({ toJson: () => ({ id: 6, isTest: false }) });
+      await current;
+    });
+    expect(context.cart.id).toBe(6);
+  });
   it.each([new TypeError('Load failed'), { statusCode: 502, message: 'Gateway unavailable' }, { statusCode: 403, message: 'Forbidden' }])('preserves the saved cart and never POSTs a replacement after %s', async error => {
     await mount(error);
     expect(getCartCookie).toHaveBeenCalledWith(5);
