@@ -596,6 +596,7 @@ const CartProvider = ({
   const [fetchingCart, setFetchingCart] = useState(false);
   const [cartSettingsInvalid, setCartSettingsInvalid] = useState(false);
   const appliedHandoffCart = useRef<string | null>(null);
+  const cartInitializations = useRef(new Map<number | undefined, Promise<void>>());
 
   async function attachSavedClientIfNeeded(cartJson: any) {
     if (cartJson?.client?.id) {
@@ -722,14 +723,24 @@ const CartProvider = ({
     await setCartCookie(Number(domainId), { id: handoff[0], token: handoff[1] });
   }
 
-  async function actionGetMerchiCart() {
-    await adoptHandoffCart();
-    const cartIdAndToken = await getCartCookie((domainId as number));
-    if (cartIdAndToken) {
-      await getCart(cartIdAndToken);
-    } else {
-      await createCartAndCookie();
-    }
+  function actionGetMerchiCart() {
+    const active = cartInitializations.current.get(domainId);
+    if (active) return active;
+    // Mount, modal opening and explicit callers may run before React commits
+    // fetchingCart. Share the whole cookie lookup/read-or-create operation.
+    const initialization = Promise.resolve().then(async () => {
+      await adoptHandoffCart();
+      const cartIdAndToken = await getCartCookie((domainId as number));
+      if (cartIdAndToken) {
+        await getCart(cartIdAndToken);
+      } else {
+        await createCartAndCookie();
+      }
+    }).finally(() => {
+      cartInitializations.current.delete(domainId);
+    });
+    cartInitializations.current.set(domainId, initialization);
+    return initialization;
   }
 
   async function clearCart(callback?: () => void) {
