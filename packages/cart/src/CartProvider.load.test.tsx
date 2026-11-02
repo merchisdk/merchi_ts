@@ -9,6 +9,7 @@ import { tabIdClearCart, tabIdItems } from './utilities/tabs';
 
 const mockGet = jest.fn();
 const mockPost = jest.fn();
+const mockCreateItem = jest.fn();
 
 jest.mock('@merchi/sdk', () => ({
   Merchi: jest.fn().mockImplementation(() => ({
@@ -16,13 +17,16 @@ jest.mock('@merchi/sdk', () => ({
     authenticatedFetch: (...args: unknown[]) => mockPost(...args),
   })),
 }));
-jest.mock('./utilities/product', () => ({ makeProduct: jest.fn() }));
+jest.mock('./utilities/product', () => ({ makeProduct: jest.fn(json => json) }));
+jest.mock('./utilities/job', () => ({ makeJob: jest.fn(json => json) }));
 jest.mock('./utilities/cart', () => ({
-  makeCart: () => ({
+  makeCart: (json: any) => ({
+    ...json,
     toFormData: () => new FormData(),
     fromJson: jest.fn(),
     toJson: () => ({ id: 99, token: 'new-token', isTest: false }),
   }),
+  makeCartItem: () => ({ create: mockCreateItem }),
   stripeIsValidAndActive: () => true,
 }));
 jest.mock('./utilities/cookie', () => ({
@@ -40,6 +44,7 @@ jest.mock('./utilities/job_source', () => ({
 }));
 jest.mock('./utilities/reportFailure', () => ({
   reportCartFailure: jest.fn(),
+  reportAddCartItemFailure: jest.fn((error, onError) => onError(error)),
   CART_FAILURE_SOURCES: { load: 'cart.load', create: 'cart.create' },
 }));
 
@@ -52,8 +57,20 @@ function Probe() {
 describe('cart load and replacement failures', () => {
   let root: Root;
   let container: HTMLDivElement;
+  const userAgentDescriptor = Object.getOwnPropertyDescriptor(navigator, 'userAgent');
+  const headlessUserAgent = 'Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/153.0.8010.0 Safari/537.36';
+  function setUserAgent(value: string) {
+    Object.defineProperty(navigator, 'userAgent', { configurable: true, value });
+  }
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGet.mockReset();
+    mockPost.mockReset();
+    mockCreateItem.mockReset();
+    mockCreateItem.mockImplementation(function (this: any) {
+      return Promise.resolve({ toJson: () => ({ id: 7, cart: { id: this.cart.id } }) });
+    });
+    (getCartCookie as jest.Mock).mockReset();
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -64,6 +81,8 @@ describe('cart load and replacement failures', () => {
   afterEach(async () => {
     await act(async () => root.unmount());
     container.remove();
+    if (userAgentDescriptor) Object.defineProperty(navigator, 'userAgent', userAgentDescriptor);
+    else delete (navigator as any).userAgent;
   });
   async function mount(error: unknown) {
     mockGet.mockRejectedValue(error);
@@ -84,6 +103,160 @@ describe('cart load and replacement failures', () => {
     });
     await act(async () => context.setActiveTabIndex(tabIdClearCart));
   }
+  it.each([
+    'Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/153.0.8010.0 Safari/537.36',
+    'Mozilla/5.0 (compatible; Baiduspider-render/2.0)',
+  ])('does not create an unused cart on automated startup: %s', async userAgent => {
+    setUserAgent(userAgent);
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(context.fetchingCart).toBe(false);
+    expect(reportCartFailure).not.toHaveBeenCalled();
+  });
+  it('allows explicit cart opening and concurrent callers in an automated browser', async () => {
+    setUserAgent(headlessUserAgent);
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    expect(mockPost).not.toHaveBeenCalled();
+    await act(async () => {
+      context.toggleCartModal();
+      await Promise.all([(window as any).getCart(), (window as any).refetchCart()]);
+    });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(context.cart.id).toBe(99);
+  });
+  it('creates once when explicit interaction joins a pending passive cookie lookup', async () => {
+    setUserAgent(headlessUserAgent);
+    let finishCookie!: (value: undefined) => void;
+    (getCartCookie as jest.Mock).mockImplementationOnce(
+      () => new Promise(resolve => { finishCookie = resolve; }),
+    ).mockResolvedValue(undefined);
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    let first!: Promise<void>, second!: Promise<void>;
+    await act(async () => {
+      first = (window as any).getCart();
+      second = (window as any).getCart();
+      context.toggleCartModal();
+    });
+    expect(mockPost).not.toHaveBeenCalled();
+    await act(async () => { finishCookie(undefined); await Promise.all([first, second]); });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(context.cart.id).toBe(99);
+  });
+  it('restores saved carts for automated clients without duplicating an active read', async () => {
+    setUserAgent(headlessUserAgent);
+    let finish!: (value: unknown) => void;
+    mockGet.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    let read!: Promise<void>;
+    await act(async () => { read = (window as any).getCart(); context.toggleCartModal(); });
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finish({ toJson: () => ({ id: 42, isTest: false, cartItems: [{ id: 7 }] }) });
+      await read;
+    });
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(context.cart.cartItems).toHaveLength(1);
+  });
+  it('keeps explicit retry available after an automated client creation fails', async () => {
+    setUserAgent(headlessUserAgent);
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    mockPost.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    expect(mockPost).not.toHaveBeenCalled();
+    await act(async () => { await (window as any).getCart(); });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(context.fetchingCart).toBe(false);
+    await act(async () => { await (window as any).getCart(); });
+    expect(mockPost).toHaveBeenCalledTimes(2);
+    expect(context.cart.id).toBe(99);
+  });
+  it('initializes a cart for a direct item operation without a storefront readiness helper', async () => {
+    setUserAgent(headlessUserAgent);
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    const onSuccess = jest.fn(), onError = jest.fn();
+    await act(async () => {
+      await (window as any).addCartItem({ product: { id: 44 }, quantity: 100 }, onSuccess, onError);
+    });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(mockCreateItem).toHaveBeenCalledTimes(1);
+    expect(onSuccess).toHaveBeenCalledWith({ id: 7, cart: { id: 99 } });
+    expect(onError).not.toHaveBeenCalled();
+  });
+  it('rejects a direct item operation when initialization fails without posting an item', async () => {
+    setUserAgent(headlessUserAgent);
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    mockPost.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    const onSuccess = jest.fn(), onError = jest.fn();
+    await act(async () => {
+      await (window as any).addCartItem({ product: { id: 44 }, quantity: 100 }, onSuccess, onError);
+    });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(mockCreateItem).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(context.fetchingCart).toBe(false);
+  });
+  it('waits for ordinary startup before concurrent direct item operations', async () => {
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    let finish!: (value: unknown) => void;
+    mockPost.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    const onSuccess = jest.fn(), onError = jest.fn();
+    let first!: Promise<void>, second!: Promise<void>;
+    await act(async () => {
+      const job = { product: { id: 44 }, quantity: 100 };
+      first = (window as any).addCartItem(job, onSuccess, onError);
+      second = (window as any).addCartItem(job, onSuccess, onError);
+    });
+    expect(mockCreateItem).not.toHaveBeenCalled();
+    await act(async () => {
+      finish({ cart: { id: 99, token: 'new-token' } });
+      await Promise.all([first, second]);
+    });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(onSuccess.mock.calls.map(call => call[0].cart.id)).toEqual([99, 99]);
+    expect(onError).not.toHaveBeenCalled();
+  });
+  it('does not automatically repeat a failed item write after explicit initialization', async () => {
+    setUserAgent(headlessUserAgent);
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    mockCreateItem.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    const onSuccess = jest.fn(), onError = jest.fn();
+    const job = { product: { id: 44 }, quantity: 100 };
+    await act(async () => { await (window as any).addCartItem(job, onSuccess, onError); });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(mockCreateItem).toHaveBeenCalledTimes(1);
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    await act(async () => { await (window as any).addCartItem(job, onSuccess, onError); });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect(mockCreateItem).toHaveBeenCalledTimes(2);
+    expect(onSuccess).toHaveBeenCalledWith({ id: 7, cart: { id: 99 } });
+  });
   it('shares cold initialization with opening the modal and concurrent getCart callers', async () => {
     (getCartCookie as jest.Mock).mockResolvedValue(undefined);
     let finish!: (value: unknown) => void;
