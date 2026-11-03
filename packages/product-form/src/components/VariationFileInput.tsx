@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react'
 import { isBoolean, isArray } from 'lodash';
-import { FileListThumbnail, IconFile } from './icons';
+import { FileListThumbnail } from './icons';
 import { allowedFileTypes } from './utils';
 import { formatUploadFileSize } from '../utils/formatUploadFileSize';
 import DropzoneInput from './DropzoneInput';
@@ -85,44 +85,6 @@ function determineBoolean(value: any) {
   return isBoolean(value) ? value : value === 'true' ? true : false;
 }
 
-interface VariationFileProps {
-  deleteVariationFile: (file: any) => void;
-  file: any;
-  index: number;
-  inputName: string;
-}
-
-function VariationFile({
-  deleteVariationFile,
-  file,
-  index,
-  inputName,
-}: VariationFileProps) {
-  const {
-    classNameFilePreviewContainer,
-    classNameFilePreviewIconWrapper,
-  } = useMerchiFormContext();
-  return (
-    <div
-      className={classNameFilePreviewContainer}
-      onClick={() => deleteVariationFile(file)}
-    >
-      <div
-        className={classNameFilePreviewIconWrapper}
-        onClick={() => deleteVariationFile(file)}
-      >
-        <FaTimes className='close-icon' />
-      </div>
-      <IconFile file={file} />
-      <InputHiddenStatic
-        name={`${inputName}[${index}].id`}
-        rules={{ required: true }}
-        value={file.id}
-      />
-    </div>
-  );
-}
-
 interface Props {
   disabled?: boolean;
   name: string;
@@ -133,8 +95,7 @@ function VariationFileInput({ disabled, name, variation }: Props) {
   const { classNameFileUploadContainer, control } = useMerchiFormContext();
   const inputName = `${name}.variationFiles`;
   const { variationField } = variation;
-  const { allowFileMultiple, placeholder, required, showFilePreview } =
-    variationField;
+  const { allowFileMultiple, placeholder, required } = variationField;
   const { append, fields, remove } = useFieldArray({
     control,
     keyName: 'fileId',
@@ -143,7 +104,6 @@ function VariationFileInput({ disabled, name, variation }: Props) {
   });
   const hasFiles = isArray(fields) && fields.length > 0;
   const _allowFileMultiple = determineBoolean(allowFileMultiple);
-  const _showFilePreview = determineBoolean(showFilePreview);
   function handleUploadSuccess(fs: any) {
     if (_allowFileMultiple) {
       append(fs);
@@ -167,7 +127,7 @@ function VariationFileInput({ disabled, name, variation }: Props) {
           onUploadSuccess={handleUploadSuccess}
           placeholder={placeholder || 'Drag and drop files here, or click to upload'}
         />
-        {!_showFilePreview && hasFiles ? (
+        {hasFiles ? (
           <VariationFilesList
             disabled={disabled}
             files={fields}
@@ -177,26 +137,14 @@ function VariationFileInput({ disabled, name, variation }: Props) {
       </div>
       <VariationError name={name} />
       <div className='uploaded-variation-files'>
-        {fields.map((file: any, index: number) =>
-          _showFilePreview ? (
-            <fieldset className='d-inline-block mr-2' key={file.fileId}>
-              <VariationFile
-                key={`${name}-file-key-${index}`}
-                deleteVariationFile={() => remove(index)}
-                file={file}
-                index={index}
-                inputName={inputName}
-              />
-            </fieldset>
-          ) : (
-            <InputHiddenStatic
-              key={`${name}-file-key-${index}`}
-              name={`${inputName}[${index}].id`}
-              rules={{ required: true }}
-              value={file.id}
-            />
-          )
-        )}
+        {fields.map((file: any, index: number) => (
+          <InputHiddenStatic
+            key={`${name}-file-key-${index}`}
+            name={`${inputName}[${index}].id`}
+            rules={{ required: true }}
+            value={file.id}
+          />
+        ))}
       </div>
     </div>
   );
