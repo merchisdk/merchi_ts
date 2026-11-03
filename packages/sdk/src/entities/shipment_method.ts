@@ -44,6 +44,18 @@ export class ShipmentMethod extends Entity {
   @ShipmentMethod.property()
   public buyCurrency?: string;
 
+  @ShipmentMethod.property({type: String})
+  public carrierProductId?: string | null;
+
+  @ShipmentMethod.property()
+  public carrierMarkupPercent?: number;
+
+  @ShipmentMethod.property()
+  public carrierMarkupFixed?: number;
+
+  @ShipmentMethod.property({type: String})
+  public packagingType?: string;
+
   @ShipmentMethod.property({type: Number})
   public transportCompany?: number | null;
 
