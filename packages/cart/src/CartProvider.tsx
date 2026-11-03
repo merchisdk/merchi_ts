@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { faCheckCircle, faExclamationTriangle, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
 import { Alert, Tab } from './types';
 import {
@@ -30,6 +30,8 @@ import {
   cartNeedsSourceUpdate,
   jobSourceFieldsForApi,
 } from './utilities/job_source';
+
+const useCartBindingsEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export interface PropsCart {
   cart: any;
@@ -923,17 +925,26 @@ const CartProvider = ({
     }
   };
   
-  // Set a global toggle function for cart wrapper
-  if (typeof window !== 'undefined') {
-    (window as any).addCartItem = addCartItem;
-    (window as any).toggleCartOpen = toggleCartModal;
-    (window as any).getCart = async () => { await actionGetMerchiCart(); };
-    (window as any).getMerchiCartValues = getMerchiCartValues;
-    (window as any).isMerchiCartFetching = isMerchiCartFetching;
-    (window as any).setCartComplete = setCartComplete;
-    (window as any).refetchCart = refetchCart;
-    (window as any).createCartAndCookie = requestNewCart;
-  }
+  // Publish only committed providers. Suspense can discard render-time state,
+  // so exposing these closures during render can strand a successful cart POST.
+  useCartBindingsEffect(() => {
+    const bindings = {
+      addCartItem,
+      toggleCartOpen: toggleCartModal,
+      getCart: async () => { await actionGetMerchiCart(); },
+      getMerchiCartValues,
+      isMerchiCartFetching,
+      setCartComplete,
+      refetchCart,
+      createCartAndCookie: requestNewCart,
+    };
+    Object.assign(window, bindings);
+    return () => {
+      for (const [name, binding] of Object.entries(bindings)) {
+        if ((window as any)[name] === binding) delete (window as any)[name];
+      }
+    };
+  });
 
   useEffect(() => {
     persistTestCheckoutFlag();

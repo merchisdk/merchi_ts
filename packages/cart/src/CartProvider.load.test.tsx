@@ -54,6 +54,11 @@ function Probe() {
   return null;
 }
 
+const bindingNames = [
+  'addCartItem', 'toggleCartOpen', 'getCart', 'getMerchiCartValues',
+  'isMerchiCartFetching', 'setCartComplete', 'refetchCart', 'createCartAndCookie',
+];
+
 describe('cart load and replacement failures', () => {
   let root: Root;
   let container: HTMLDivElement;
@@ -63,6 +68,7 @@ describe('cart load and replacement failures', () => {
     Object.defineProperty(navigator, 'userAgent', { configurable: true, value });
   }
   beforeEach(() => {
+    for (const name of bindingNames) delete (window as any)[name];
     jest.clearAllMocks();
     mockGet.mockReset();
     mockPost.mockReset();
@@ -103,6 +109,103 @@ describe('cart load and replacement failures', () => {
     });
     await act(async () => context.setActiveTabIndex(tabIdClearCart));
   }
+  it('does not expose cart operations until a suspended provider commits', async () => {
+    setUserAgent(headlessUserAgent);
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    let ready = false;
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    function Suspender() { if (!ready) throw gate; return null; }
+    await act(async () => root.render(
+      <React.Suspense fallback={<span>Loading</span>}>
+        <CartProvider domainId={5} createCartAndCookie={() => {}}>
+          <Suspender /><Probe />
+        </CartProvider>
+      </React.Suspense>,
+    ));
+    for (const name of bindingNames) expect((window as any)[name]).toBeUndefined();
+    expect(mockPost).not.toHaveBeenCalled();
+    await act(async () => { ready = true; release(); });
+    for (const name of bindingNames) expect((window as any)[name]).toBeInstanceOf(Function);
+    await act(async () => { await (window as any).getCart(); });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect((await (window as any).getMerchiCartValues()).cart.id).toBe(99);
+    expect(context.cart.id).toBe(99);
+  });
+  it('preserves committed operations when another provider suspends and is abandoned', async () => {
+    setUserAgent(headlessUserAgent);
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    await act(async () => root.render(
+      <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+    ));
+    const committed = bindingNames.map(name => (window as any)[name]);
+    const otherRoot = createRoot(document.createElement('div'));
+    const gate = new Promise<void>(() => {});
+    function Suspender(): never { throw gate; }
+    try {
+      await act(async () => otherRoot.render(
+        <React.Suspense fallback={null}>
+          <CartProvider domainId={6} createCartAndCookie={() => {}}><Suspender /></CartProvider>
+        </React.Suspense>,
+      ));
+      bindingNames.forEach((name, index) => expect((window as any)[name]).toBe(committed[index]));
+      await act(async () => { await (window as any).getCart(); });
+      expect(context.cart.id).toBe(99);
+      expect(mockPost).toHaveBeenCalledTimes(1);
+    } finally { await act(async () => otherRoot.unmount()); }
+    expect((await (window as any).getMerchiCartValues()).cart.id).toBe(99);
+  });
+  it('removes its own global operations on unmount', async () => {
+    await mountSavedCart();
+    await act(async () => root.render(null));
+    for (const name of bindingNames) expect((window as any)[name]).toBeUndefined();
+  });
+  it('keeps the committed domain bindings during a suspended transition', async () => {
+    setUserAgent(headlessUserAgent);
+    mockGet.mockResolvedValue({ toJson: () => ({ id: 42, cartItems: [] }) });
+    const gate = new Promise<void>(() => {});
+    function Suspender(): never { throw gate; }
+    const tree = (domainId: number, suspend: boolean) => (
+      <React.Suspense fallback={null}>
+        <CartProvider domainId={domainId} createCartAndCookie={() => {}}>
+          {suspend ? <Suspender /> : <Probe />}
+        </CartProvider>
+      </React.Suspense>
+    );
+    await act(async () => root.render(tree(5, false)));
+    const committed = bindingNames.map(name => (window as any)[name]);
+    await act(async () => { React.startTransition(() => root.render(tree(6, true))); });
+    bindingNames.forEach((name, index) => expect((window as any)[name]).toBe(committed[index]));
+    expect((await (window as any).getMerchiCartValues()).cart.id).toBe(42);
+    expect(mockGet).toHaveBeenCalledTimes(1);
+    expect(mockPost).not.toHaveBeenCalled();
+  });
+  it('does not remove global operations owned by another committed provider', async () => {
+    await mountSavedCart();
+    const otherRoot = createRoot(document.createElement('div'));
+    try {
+      await act(async () => otherRoot.render(
+        <CartProvider domainId={6} createCartAndCookie={() => {}}><Probe /></CartProvider>,
+      ));
+      const otherBindings = bindingNames.map(name => (window as any)[name]);
+      await act(async () => root.render(null));
+      bindingNames.forEach((name, index) => expect((window as any)[name]).toBe(otherBindings[index]));
+      expect((await (window as any).getMerchiCartValues()).cart.id).toBe(42);
+    } finally { await act(async () => otherRoot.unmount()); }
+    for (const name of bindingNames) expect((window as any)[name]).toBeUndefined();
+  });
+  it('keeps globals usable after StrictMode setup and cleanup replay', async () => {
+    setUserAgent(headlessUserAgent);
+    (getCartCookie as jest.Mock).mockResolvedValue(undefined);
+    await act(async () => root.render(
+      <React.StrictMode>
+        <CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>
+      </React.StrictMode>,
+    ));
+    await act(async () => { await (window as any).getCart(); });
+    expect(mockPost).toHaveBeenCalledTimes(1);
+    expect((await (window as any).getMerchiCartValues()).cart.id).toBe(99);
+  });
   it.each([
     'Mozilla/5.0 (X11; Linux x86_64) HeadlessChrome/153.0.8010.0 Safari/537.36',
     'Mozilla/5.0 (compatible; Baiduspider-render/2.0)',
