@@ -109,6 +109,18 @@ export class Company extends Entity {
   public startrackPassword?: string;
 
   @Company.property({type: String})
+  public australiaPostAccountNumber?: string;
+
+  @Company.property()
+  public australiaPostSandbox?: boolean;
+
+  @Company.property({type: String})
+  public startrackAccountNumber?: string;
+
+  @Company.property()
+  public startrackSandbox?: boolean;
+
+  @Company.property({type: String})
   public dhlApiKey?: string;
 
   @Company.property({type: String})

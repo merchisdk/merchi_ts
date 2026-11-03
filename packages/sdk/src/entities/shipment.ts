@@ -81,6 +81,21 @@ export class Shipment extends Entity {
   @Shipment.property({type: String})
   public trackingNumber?: string | null;
 
+  @Shipment.property({type: String})
+  public carrierShipmentId?: string | null;
+
+  @Shipment.property({type: String})
+  public carrierOrderId?: string | null;
+
+  @Shipment.property({type: String})
+  public carrierProductId?: string | null;
+
+  @Shipment.property({type: Number})
+  public carrierCost?: number | null;
+
+  @Shipment.property({type: String})
+  public carrierCurrency?: string | null;
+
   @Shipment.property({type: Number})
   public buyCost?: number | null;
 
