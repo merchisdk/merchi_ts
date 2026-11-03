@@ -48,6 +48,9 @@ export class Shipment extends Entity {
   @Shipment.property({type: MerchiFile})
   public shipmentLabel?: MerchiFile | null;
 
+  @Shipment.property({type: MerchiFile})
+  public carrierOrderSummary?: MerchiFile | null;
+
   @Shipment.property({type: Date})
   public creationDate?: Date | null;
 
