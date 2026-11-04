@@ -96,6 +96,12 @@ export class Shipment extends Entity {
   @Shipment.property({type: String})
   public carrierCurrency?: string | null;
 
+  @Shipment.property({type: Boolean})
+  public authorityToLeave?: boolean | null;
+
+  @Shipment.property({type: Boolean})
+  public allowPartialDelivery?: boolean | null;
+
   @Shipment.property({type: Number})
   public buyCost?: number | null;
 
