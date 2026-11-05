@@ -65,12 +65,34 @@ async function createPaymentIntent(apiUrl: string, cart: any, paymentMethodType?
   const url = `${apiUrl}${uri}?${queryString}`;
 
   const response = await fetch(url, fetchOptions);
+  const data = await response.json();
 
   if (!response.ok) {
-    throw new Error("Failed to create payment intent.");
+    throw new Error(data.message || "Failed to create payment intent.");
   }
 
-  return await response.json();
+  return data;
+}
+
+async function completeZeroBalanceCheckout(apiUrl: string, cart: any) {
+  const url = `${apiUrl.replace(/\/$/, '')}/payments/stripe/cart/${cart.id}/attempts/`;
+  const query = new URLSearchParams({ cart_token: cart.token }).toString();
+  const response = await fetch(`${url}?${query}`, {
+    method: 'POST',
+    mode: 'cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requestKey: `zero-balance:${cart.id}:${Date.now()}`,
+    }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Unable to complete this order.');
+  }
+  if (!data.invoice) {
+    throw new Error('Unable to complete this order.');
+  }
+  return data.invoice;
 }
 
 async function checkPaymentIntnetIsComplete(apiUrl: string, cart: any) {
@@ -92,7 +114,13 @@ async function checkPaymentIntnetIsComplete(apiUrl: string, cart: any) {
 
 export async function stripeCardFormSubmit(apiUrl: string, stripe: any, card: any, cart: any) {
   try {
+    if ((cart.totalCost ?? 0) <= 0) {
+      return await completeZeroBalanceCheckout(apiUrl, cart);
+    }
     const intent = await createPaymentIntent(apiUrl, cart);
+    if (intent.zeroBalance) {
+      return await checkPaymentIntnetIsComplete(apiUrl, cart);
+    }
     const stripePayment = await stripe.confirmCardPayment(intent.stripeClientSecret, { payment_method: { card } });
 
     if (stripePayment.error) {
@@ -114,7 +142,13 @@ export async function stripePaymentButtonSubmit(
   const { complete, paymentMethod } = paymentMethodEvent;
 
   try {
+    if ((cart.totalCost ?? 0) <= 0) {
+      return await completeZeroBalanceCheckout(apiUrl, cart);
+    }
     const intent = await createPaymentIntent(apiUrl, cart);
+    if (intent.zeroBalance) {
+      return await checkPaymentIntnetIsComplete(apiUrl, cart);
+    }
     const stripePayment = await stripe.confirmCardPayment(
       intent.stripeClientSecret,
       { payment_method: paymentMethod.id },
