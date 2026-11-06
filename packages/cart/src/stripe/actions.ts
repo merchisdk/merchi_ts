@@ -74,6 +74,14 @@ async function createPaymentIntent(apiUrl: string, cart: any, paymentMethodType?
   return data;
 }
 
+async function completeZeroBalanceCheckoutLegacy(apiUrl: string, cart: any) {
+  const intent = await createPaymentIntent(apiUrl, cart);
+  if (!intent.zeroBalance) {
+    throw new Error('Unable to complete this order.');
+  }
+  return await checkPaymentIntnetIsComplete(apiUrl, cart);
+}
+
 async function completeZeroBalanceCheckout(apiUrl: string, cart: any) {
   const url = `${apiUrl.replace(/\/$/, '')}/payments/stripe/cart/${cart.id}/attempts/`;
   const query = new URLSearchParams({ cart_token: cart.token }).toString();
@@ -86,13 +94,20 @@ async function completeZeroBalanceCheckout(apiUrl: string, cart: any) {
     }),
   });
   const data = await response.json();
+  if (response.ok && data.invoice) {
+    return data.invoice;
+  }
+  const message = data.message || '';
+  if (
+    response.status === 409
+    && message.toLowerCase().includes('new payment flow is disabled')
+  ) {
+    return await completeZeroBalanceCheckoutLegacy(apiUrl, cart);
+  }
   if (!response.ok) {
-    throw new Error(data.message || 'Unable to complete this order.');
+    throw new Error(message || 'Unable to complete this order.');
   }
-  if (!data.invoice) {
-    throw new Error('Unable to complete this order.');
-  }
-  return data.invoice;
+  throw new Error('Unable to complete this order.');
 }
 
 async function checkPaymentIntnetIsComplete(apiUrl: string, cart: any) {
