@@ -4,14 +4,6 @@ import * as React from 'react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
-import { captureUnexpected, type FrontendErrorOperation } from '@merchi/error-catch';
-
-function reportPaymentFailure(error: unknown, name: FrontendErrorOperation, handledValidation = false): void {
-  captureUnexpected(error, { source: 'manual', operation: {
-    name, outcome: handledValidation ? 'handled' : 'failed',
-    ...(handledValidation ? { reason: 'validation' as const } : {}),
-  } });
-}
 
 export interface StripePaymentFormProps {
   apiUrl: string;
@@ -46,6 +38,38 @@ const messages = {
   zh: { full: '支付全部余额', partial: '支付部分金额', amount: '支付金额', continue: '继续付款', pay: '支付', cancel: '修改金额', back: '返回', loading: '正在核对付款…', pending: '正在等待支付确认。你可以稍后返回查看。', retry: '核对支付状态', invalid: '请输入大于零的金额，最多两位小数。', success: '付款已入账', secure: '由 Stripe 安全处理付款', resume: '继续付款', methods: '选择支付方式', express: '快捷支付' },
   ko: { full: '잔액 전액 결제', partial: '일부 금액 결제', amount: '결제 금액', continue: '결제 계속', pay: '결제', cancel: '금액 변경', back: '뒤로', loading: '결제 확인 중…', pending: '결제 확인을 기다리고 있습니다. 나중에 돌아와 확인할 수 있습니다.', retry: '결제 상태 확인', invalid: '소수점 두 자리 이하의 양수를 입력하세요.', success: '결제가 반영되었습니다', secure: 'Stripe 보안 결제', resume: '결제 계속', methods: '결제 수단 선택', express: '빠른 결제' },
 };
+
+function walletFlowDisabled(error: unknown): boolean {
+  const status = (error as { status?: number }).status;
+  const message = String((error as Error).message || '').toLowerCase();
+  return status === 409 && message.includes('new payment flow is disabled');
+}
+
+async function completeCartZeroBalanceLegacy(
+  apiUrl: string,
+  cartId: number,
+  cartToken: string,
+) {
+  const base = apiUrl.replace(/\/$/, '');
+  const query = new URLSearchParams({ cart_token: cartToken }).toString();
+  const intentResponse = await fetch(
+    `${base}/stripe/payment_intent/cart/${cartId}/?${query}`,
+    { method: 'GET', mode: 'cors' },
+  );
+  const intentData = await intentResponse.json();
+  if (!intentResponse.ok && !intentData.zeroBalance) {
+    throw new Error(intentData.message || 'Unable to complete this order.');
+  }
+  const completeResponse = await fetch(
+    `${base}/stripe/payment_intent/cart/complete/${cartId}/?${query}`,
+    { method: 'GET', mode: 'cors' },
+  );
+  const completeData = await completeResponse.json();
+  if (!completeResponse.ok || !completeData.invoice) {
+    throw new Error(completeData.message || 'Unable to complete this order.');
+  }
+  return completeData.invoice;
+}
 
 const checkoutStyles = `
 .merchi-stripe-payment { --pay-primary: var(--primary, #ff4449); --pay-primary-text: var(--primary-foreground, #fff); --pay-surface: var(--card, #fff); --pay-muted: var(--muted, #f6f9fc); --pay-border: var(--border, #e9ecef); --pay-text: var(--foreground, #32325d); --pay-subtle: var(--muted-foreground, #8898aa); }
@@ -93,15 +117,9 @@ function PaymentFields({ attempt, check, report, text, formattedAmount }: {
       returnUrl.searchParams.set('merchi_payment_attempt', attempt.id);
       const result = await stripe.confirmPayment({ elements,
         confirmParams: { return_url: returnUrl.toString() }, redirect: 'if_required' });
-      if (result.error) {
-        report(result.error.message || 'Payment could not be confirmed.');
-        reportPaymentFailure(Object.assign(new Error(result.error.message || 'Payment could not be confirmed.'), {
-          type: result.error.type, code: result.error.code,
-        }), 'payment.confirm', true);
-      }
+      if (result.error) report(result.error.message || 'Payment could not be confirmed.');
       await check();
     } catch (error: any) {
-      reportPaymentFailure(error, 'payment.confirm');
       report(error.message || 'Payment could not be confirmed.');
     } finally { setBusy(false); }
   };
@@ -162,7 +180,7 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
       headers: body ? { 'Content-Type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined });
     const data = await response.json();
-    if (!response.ok) throw Object.assign(new Error(data.message || 'Unable to process payment.'), { status: response.status, statusCode: response.status });
+    if (!response.ok) throw Object.assign(new Error(data.message || 'Unable to process payment.'), { status: response.status });
     return data;
   }, [base, resourceToken, sessionToken, resource]);
   const remember = useCallback((id?: string) => {
@@ -199,7 +217,7 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
     ['payment_intent', 'payment_intent_client_secret', 'redirect_status'].forEach(key => url.searchParams.delete(key));
     window.history.replaceState(window.history.state, '', url.toString());
     if (id) request(`${encodeURIComponent(id)}/`).then(value => { if (active) accept(value); })
-      .catch(error => { if (active) { reportPaymentFailure(error, 'payment.status'); report(error.message); } })
+      .catch(error => { if (active) report(error.message); })
       .finally(() => { if (active) setRestoring(false); });
     else setRestoring(false);
     return () => { active = false; };
@@ -207,12 +225,12 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
   useEffect(() => {
     let active = true;
     if (resource === 'invoice') request('options').then(value => { if (active) setPaymentOptions(value); })
-      .catch(error => { if (active) { reportPaymentFailure(error, 'payment.initialize'); report(error.message); } });
+      .catch(error => { if (active) report(error.message); });
     return () => { active = false; };
   }, [request, resource, report]);
   const check = useCallback(async () => {
     if (!attempt) return;
-    try { accept(await request(`${attempt.id}/`)); } catch (error: any) { reportPaymentFailure(error, 'payment.status'); report(error.message); }
+    try { accept(await request(`${attempt.id}/`)); } catch (error: any) { report(error.message); }
   }, [attempt, request, accept, report]);
   useEffect(() => {
     if (!attempt || attempt.recorded || ['canceled', 'failed'].includes(attempt.status)) return;
@@ -231,7 +249,30 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
       // Reuse across network errors; the server also coalesces active attempts.
       requestKey.current = requestKey.current || `checkout:${Date.now()}:${Math.random().toString(36).slice(2)}`;
       accept(await request('', 'POST', { requestKey: requestKey.current, ...(partial ? { amountMinor: minor } : {}) }));
-    } catch (error: any) { if (error.status === 400) requestKey.current = null; reportPaymentFailure(error, 'payment.initialize'); report(error.message); }
+    } catch (error: any) {
+      if (error.status === 400) requestKey.current = null;
+      if (resource === 'cart' && resourceToken && walletFlowDisabled(error)) {
+        try {
+          const invoice = await completeCartZeroBalanceLegacy(apiUrl, resourceId, resourceToken);
+          accept({
+            id: 'zero-balance-legacy',
+            status: 'succeeded',
+            recorded: true,
+            invoice,
+            amountMinor: 0,
+            amountMajor: '0',
+            currency: String(invoice.currency || 'aud').toLowerCase(),
+            publishableKey: '',
+            methods: ['card'],
+          } as Attempt);
+          return;
+        } catch (legacyError: any) {
+          report(legacyError.message || error.message);
+          return;
+        }
+      }
+      report(error.message);
+    }
     finally { setBusy(false); }
   };
   const cancel = async () => {
@@ -242,7 +283,7 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
       if (result.recorded) accept(result);
       else if (result.status === 'canceled') { setAttempt(null); requestKey.current = null; remember(); setError(''); setResumeManually(true); }
       else report(text.pending);
-    } catch (error: any) { reportPaymentFailure(error, 'payment.cancel'); report(error.message); }
+    } catch (error: any) { report(error.message); }
     finally { setBusy(false); }
   };
   const startPayment = useRef(start);
