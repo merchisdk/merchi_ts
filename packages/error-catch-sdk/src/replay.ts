@@ -22,11 +22,12 @@ const safeCss = (value: string): string => value
   .replace(/(^|[;{])\s*content\s*:[^;}]+/gi, "$1content:none");
 
 /** Defense in depth: rrweb's input masking does not remove DOM attributes. */
-export function sanitizeReplayEvent(event: ReplayEvent): ReplayEvent {
+export function sanitizeReplayEvent(event: ReplayEvent, maskingEnabled = true): ReplayEvent {
   const clean = (value: unknown, key = "", style = false): unknown => {
     if (typeof value === "string") {
       if (key === "tagName") return /^[a-zA-Z0-9-]{1,40}$/.test(value) ? value : "div";
       if (["cssText", "rule", "style"].includes(key) || (key === "textContent" && style)) return safeCss(value);
+      if (!maskingEnabled && ["textContent", "text", "value"].includes(key)) return value;
       return mask(value);
     }
     if (Array.isArray(value)) return value.map((entry) => clean(entry, key));
@@ -37,6 +38,12 @@ export function sanitizeReplayEvent(event: ReplayEvent): ReplayEvent {
       if (name === "attributes" && entry && typeof entry === "object" && !Array.isArray(entry)) {
         const attrs: Record<string, unknown> = {};
         for (const [attr, content] of Object.entries(entry)) {
+          if (!maskingEnabled && ["value", "title", "alt", "placeholder", "aria-label"].includes(attr)) {
+            const type = String((entry as Record<string, unknown>).type ?? "").toLowerCase();
+            if (attr === "value" && ["password", "hidden"].includes(type)) continue;
+            if (content === null || ["string", "number", "boolean"].includes(typeof content)) attrs[attr] = content;
+            continue;
+          }
           if (["_cssText", "style", "class", "type", "role", "disabled", "checked", "selected", "width", "height", "colspan", "rowspan", "rr_width", "rr_height"].includes(attr)) {
             if (content === null) { attrs[attr] = null; continue; }
             // Classes preserve layout; long/generated identifiers are excluded.
@@ -104,6 +111,8 @@ export interface StorefrontReplayOptions {
   apiUrl: string;
   /** Controlled by storefront configuration, never by a visitor prompt. */
   enabled: boolean;
+  /** Domain policy for visible text and form values; defaults to masking. */
+  maskingEnabled?: boolean;
 }
 
 export interface StorefrontReplayController {
@@ -122,6 +131,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
   const clips = new Map<string, Clip>();
   const uploads = new Set<AbortController>();
   let enabled = options.enabled === true;
+  const maskingEnabled = options.maskingEnabled !== false;
   let sensitive = false;
   let active = false;
   let generation = 0;
@@ -226,9 +236,12 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
       takeSnapshot = () => record.takeFullSnapshot();
       // record() emits the initial snapshot synchronously, before returning cleanup.
       const stop = record({
-        maskAllInputs: true, maskTextSelector: "*", recordCanvas: false,
+        maskAllInputs: maskingEnabled,
+        maskInputOptions: { password: true },
+        ...(maskingEnabled ? { maskTextSelector: "*" } : {}),
+        recordCanvas: false,
         recordCrossOriginIframes: false, collectFonts: false,
-        blockSelector: "iframe, img, picture, video, audio, canvas, svg, object, embed, [data-replay-block], [data-replay-payment], .rr-block",
+        blockSelector: 'iframe, img, picture, video, audio, canvas, svg, object, embed, input[type="hidden"], [data-replay-block], [data-replay-payment], .rr-block',
         checkoutEveryNms: 10_000,
         sampling: { mousemove: 100, scroll: 150 },
         emit(raw) {
@@ -236,7 +249,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
             if (!active || generation !== startedGeneration) return;
             if (!permitted() || containsPaymentReplayContent(raw)) { pause(); return; }
             if (raw.type === 5 || raw.type === 6) return;
-            const event = sanitizeReplayEvent(raw);
+            const event = sanitizeReplayEvent(raw, maskingEnabled);
             buffer.push(event);
             const bytes = new TextEncoder().encode(JSON.stringify(event)).length;
             for (const clip of clips.values()) {

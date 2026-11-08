@@ -44,6 +44,24 @@ describe("replay privacy and rolling buffer", () => {
     expect(result.data).toMatchObject({ attributes: [{ id: 7, attributes: { class: "updated", style: null } }] });
     expect(JSON.stringify(result)).not.toContain("private-");
   });
+
+  it("preserves visible text, form values and mutations when domain masking is off, with inert resource attributes", () => {
+    const event = { type: 2, timestamp: at, data: { node: {
+      tagName: "input", attributes: { type: "text", value: "Test customer", placeholder: "Your name", onclick: "alert(1)", src: "https://private/upload" },
+      childNodes: [{ type: 3, textContent: "Tyvek Wristbands" }],
+    } } };
+    const result = JSON.stringify(sanitizeReplayEvent(event, false));
+    expect(result).toContain("Test customer");
+    expect(result).toContain("Tyvek Wristbands");
+    expect(result).toContain("Your name");
+    expect(result).not.toContain("onclick");
+    expect(result).not.toContain("https://private");
+    expect(sanitizeReplayEvent({ type: 3, timestamp: at, data: { source: 0, texts: [{ id: 2, value: "Updated product" }] } }, false).data)
+      .toMatchObject({ texts: [{ value: "Updated product" }] });
+    for (const type of ["password", "hidden"]) {
+      expect(JSON.stringify(sanitizeReplayEvent({ type: 2, timestamp: at, data: { node: { tagName: "input", attributes: { type, value: "secret" } } } }, false))).not.toContain("secret");
+    }
+  });
 });
 
 describe("error-triggered replay lifecycle", () => {
@@ -57,12 +75,20 @@ describe("error-triggered replay lifecycle", () => {
   });
   afterEach(() => { controller?.stop(); controller = undefined; vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-  function setup(enabled = true) {
+  function setup(enabled = true, maskingEnabled?: boolean) {
     const transport = vi.fn().mockResolvedValue({ accepted: true, replay: { id: "server-id", uploadToken: "scoped-grant" } });
     const reporter = createFrontendErrorReporter({ endpoint: "https://api.example/v6/frontend-errors", application: "merchi-storefront-1", enabled: true, transport });
-    controller = startStorefrontReplay(reporter, { enabled, apiUrl: "https://api.example/v6/" });
+    controller = startStorefrontReplay(reporter, { enabled, ...(maskingEnabled === undefined ? {} : { maskingEnabled }), apiUrl: "https://api.example/v6/" });
     return { reporter, transport };
   }
+
+  it("configures unmasked capture while preserving password and payment boundaries", async () => {
+    setup(true, false); await vi.advanceTimersByTimeAsync(0);
+    expect(mock.record.mock.calls[0]?.[0]).toMatchObject({ maskAllInputs: false, maskInputOptions: { password: true } });
+    expect(mock.record.mock.calls[0]?.[0].maskTextSelector).toBeUndefined();
+    window.history.pushState({}, "", "/checkout");
+    expect(mock.stop).toHaveBeenCalledOnce();
+  });
 
   it("does not load or record disabled configuration, and clears data on withdrawal", async () => {
     const { reporter, transport } = setup(false);

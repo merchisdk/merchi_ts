@@ -383,7 +383,10 @@ There are at most three clips per document; a reload starts a fresh buffer.
 Recordings are best effort: closing a tab, network failures or large pages can
 shorten them. No recordings upload during normal browsing.
 
-All text/input values are masked, DOM attributes are allowlisted, and media,
+Text/input values are masked by default. Pass `maskingEnabled: false` to
+`startStorefrontReplay` when the domain has disabled masking; this retains
+visible page text and form values in new recordings. Password values and hidden
+inputs remain excluded. DOM attributes are allowlisted, and media,
 canvas, uploads and iframes are blocked. CSS classes preserve page layout.
 Mark any additional sensitive component with `data-replay-block` or `rr-block`.
 Checkout, payment, pay, billing and invoice route segments, quote success pages,
@@ -395,7 +398,9 @@ without requesting replay. For custom payment UI, set the sensitive context befo
 mounting it or mark its outermost element. These boundaries cannot be disabled
 through storefront configuration. Already uploaded ordinary-page segments remain
 subject to the normal retention period.
-This version has no text-unmasking override. The server applies masking again.
+The API applies the domain's saved policy again before storage. Changing the
+domain setting cannot restore text from older masked recordings. Deploy API
+support before disabling browser masking.
 
 The v6 collector must return an accepted receipt with `replay: { id, uploadToken }`.
 Custom error transports may return that receipt through the extended
