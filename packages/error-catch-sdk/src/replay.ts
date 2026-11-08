@@ -111,7 +111,7 @@ export interface StorefrontReplayOptions {
   apiUrl: string;
   /** Controlled by storefront configuration, never by a visitor prompt. */
   enabled: boolean;
-  /** Domain policy for visible text and form values; defaults to masking. */
+  /** Domain policy for visible text and form values; defaults to readable text. */
   maskingEnabled?: boolean;
 }
 
@@ -131,7 +131,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
   const clips = new Map<string, Clip>();
   const uploads = new Set<AbortController>();
   let enabled = options.enabled === true;
-  const maskingEnabled = options.maskingEnabled !== false;
+  const maskingEnabled = options.maskingEnabled === true;
   let sensitive = false;
   let active = false;
   let generation = 0;

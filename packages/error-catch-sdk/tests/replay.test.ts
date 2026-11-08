@@ -75,15 +75,15 @@ describe("error-triggered replay lifecycle", () => {
   });
   afterEach(() => { controller?.stop(); controller = undefined; vi.useRealTimers(); vi.unstubAllGlobals(); });
 
-  function setup(enabled = true, maskingEnabled?: boolean) {
+  function setup(enabled = true, maskingEnabled: boolean | null = true) {
     const transport = vi.fn().mockResolvedValue({ accepted: true, replay: { id: "server-id", uploadToken: "scoped-grant" } });
     const reporter = createFrontendErrorReporter({ endpoint: "https://api.example/v6/frontend-errors", application: "merchi-storefront-1", enabled: true, transport });
-    controller = startStorefrontReplay(reporter, { enabled, ...(maskingEnabled === undefined ? {} : { maskingEnabled }), apiUrl: "https://api.example/v6/" });
+    controller = startStorefrontReplay(reporter, { enabled, ...(maskingEnabled === null ? {} : { maskingEnabled }), apiUrl: "https://api.example/v6/" });
     return { reporter, transport };
   }
 
-  it("configures unmasked capture while preserving password and payment boundaries", async () => {
-    setup(true, false); await vi.advanceTimersByTimeAsync(0);
+  it("defaults to readable capture while preserving password and payment boundaries", async () => {
+    setup(true, null); await vi.advanceTimersByTimeAsync(0);
     expect(mock.record.mock.calls[0]?.[0]).toMatchObject({ maskAllInputs: false, maskInputOptions: { password: true } });
     expect(mock.record.mock.calls[0]?.[0].maskTextSelector).toBeUndefined();
     window.history.pushState({}, "", "/checkout");

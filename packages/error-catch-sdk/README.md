@@ -383,9 +383,8 @@ There are at most three clips per document; a reload starts a fresh buffer.
 Recordings are best effort: closing a tab, network failures or large pages can
 shorten them. No recordings upload during normal browsing.
 
-Text/input values are masked by default. Pass `maskingEnabled: false` to
-`startStorefrontReplay` when the domain has disabled masking; this retains
-visible page text and form values in new recordings. Password values and hidden
+New recordings include visible page text and form values by default. Pass
+`maskingEnabled: true` to `startStorefrontReplay` when the domain enables masking. Password values and hidden
 inputs remain excluded. DOM attributes are allowlisted, and media,
 canvas, uploads and iframes are blocked. CSS classes preserve page layout.
 Mark any additional sensitive component with `data-replay-block` or `rr-block`.
@@ -400,7 +399,7 @@ through storefront configuration. Already uploaded ordinary-page segments remain
 subject to the normal retention period.
 The API applies the domain's saved policy again before storage. Changing the
 domain setting cannot restore text from older masked recordings. Deploy API
-support before disabling browser masking.
+support before deploying readable browser capture across storefronts.
 
 The v6 collector must return an accepted receipt with `replay: { id, uploadToken }`.
 Custom error transports may return that receipt through the extended
