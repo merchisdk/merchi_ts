@@ -126,6 +126,9 @@ export class Company extends Entity {
   @Company.property({type: String})
   public dhlApiSecret?: string;
 
+  @Company.property({type: String})
+  public dhlAccountNumber?: string;
+
   @Company.property()
   public dhlTrackingSandbox?: boolean;
 

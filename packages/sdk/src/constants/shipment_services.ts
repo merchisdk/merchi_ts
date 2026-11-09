@@ -2,4 +2,5 @@ export enum ShipmentService {
   SENDLE = 1,
   AUSTRALIA_POST = 2,
   STARTRACK = 3,
+  DHL_EXPRESS = 4,
 }
