@@ -21,23 +21,44 @@ const safeCss = (value: string): string => value
   .replace(/@import[^;]+;?/gi, "")
   .replace(/(^|[;{])\s*content\s*:[^;}]+/gi, "$1content:none");
 
-/** Defense in depth: rrweb's input masking does not remove DOM attributes. */
-export function sanitizeReplayEvent(event: ReplayEvent): ReplayEvent {
+const INPUT_TAGS = ["input", "textarea", "select", "option", "output"];
+const INPUT_ROLES = ["textbox", "searchbox", "combobox", "spinbutton", "listbox", "slider", "checkbox", "radio", "switch"];
+const INPUT_BLOCK_SELECTOR = [
+  ...INPUT_TAGS, "[contenteditable]", ...INPUT_ROLES.map((role) => `[role~="${role}" i]`),
+].join(", ");
+
+/** Only full snapshots can expose page text. Mutation IDs alone do not identify editable content. */
+export function sanitizeReplayEvent(event: ReplayEvent, maskingEnabled = true): ReplayEvent {
+  const showPageText = event.type === 2 && !maskingEnabled;
   const clean = (value: unknown, key = "", style = false): unknown => {
+    if (["value", "text", "textContent"].includes(key) && typeof value !== "string") return "";
     if (typeof value === "string") {
       if (key === "tagName") return /^[a-zA-Z0-9-]{1,40}$/.test(value) ? value : "div";
       if (["cssText", "rule", "style"].includes(key) || (key === "textContent" && style)) return safeCss(value);
+      if (showPageText && key === "textContent") return value;
       return mask(value);
     }
     if (Array.isArray(value)) return value.map((entry) => clean(entry, key));
     if (!value || typeof value !== "object") return value;
     const input = value as Record<string, unknown>;
+    const attributes = input.attributes && typeof input.attributes === "object" && !Array.isArray(input.attributes)
+      ? input.attributes as Record<string, unknown> : undefined;
+    const privateControl = INPUT_TAGS.includes(String(input.tagName ?? "").toLowerCase()) ||
+      (attributes && ("contenteditable" in attributes || "data-replay-block" in attributes ||
+        String(attributes.role ?? "").toLowerCase().split(/\s+/).some((role) => INPUT_ROLES.includes(role))));
+    if (event.type === 3 && input === event.data && input.source === 5) {
+      return { source: 5, id: typeof input.id === "number" ? input.id : -1, text: "", isChecked: false };
+    }
     const output: Record<string, unknown> = {};
     for (const [name, entry] of Object.entries(input)) {
-      if (name === "attributes" && entry && typeof entry === "object" && !Array.isArray(entry)) {
+      if (privateControl && name === "childNodes") {
+        output[name] = [];
+      } else if (privateControl && name === "textContent") {
+        output[name] = "";
+      } else if (name === "attributes" && entry && typeof entry === "object" && !Array.isArray(entry)) {
         const attrs: Record<string, unknown> = {};
         for (const [attr, content] of Object.entries(entry)) {
-          if (["_cssText", "style", "class", "type", "role", "disabled", "checked", "selected", "width", "height", "colspan", "rowspan", "rr_width", "rr_height"].includes(attr)) {
+          if (["_cssText", "style", "class", "type", "role", "disabled", "width", "height", "colspan", "rowspan", "rr_width", "rr_height"].includes(attr)) {
             if (content === null) { attrs[attr] = null; continue; }
             // Classes preserve layout; long/generated identifiers are excluded.
             if (attr === "class") attrs[attr] = String(content).split(/\s+/).filter((token) => /^[a-zA-Z_-][a-zA-Z0-9_:/.[\]%-]{0,60}$/.test(token)).join(" ");
@@ -104,6 +125,8 @@ export interface StorefrontReplayOptions {
   apiUrl: string;
   /** Controlled by storefront configuration, never by a visitor prompt. */
   enabled: boolean;
+  /** Mask page text in addition to the input protection applied to every recording. */
+  maskingEnabled?: boolean;
 }
 
 export interface StorefrontReplayController {
@@ -122,6 +145,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
   const clips = new Map<string, Clip>();
   const uploads = new Set<AbortController>();
   let enabled = options.enabled === true;
+  const maskingEnabled = options.maskingEnabled === true;
   let sensitive = false;
   let active = false;
   let generation = 0;
@@ -226,9 +250,11 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
       takeSnapshot = () => record.takeFullSnapshot();
       // record() emits the initial snapshot synchronously, before returning cleanup.
       const stop = record({
-        maskAllInputs: true, maskTextSelector: "*", recordCanvas: false,
+        maskAllInputs: true,
+        ...(maskingEnabled ? { maskTextSelector: "*" } : {}),
+        recordCanvas: false,
         recordCrossOriginIframes: false, collectFonts: false,
-        blockSelector: "iframe, img, picture, video, audio, canvas, svg, object, embed, [data-replay-block], [data-replay-payment], .rr-block",
+        blockSelector: `${INPUT_BLOCK_SELECTOR}, iframe, img, picture, video, audio, canvas, svg, object, embed, [data-replay-block], [data-replay-payment], .rr-block`,
         checkoutEveryNms: 10_000,
         sampling: { mousemove: 100, scroll: 150 },
         emit(raw) {
@@ -236,7 +262,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
             if (!active || generation !== startedGeneration) return;
             if (!permitted() || containsPaymentReplayContent(raw)) { pause(); return; }
             if (raw.type === 5 || raw.type === 6) return;
-            const event = sanitizeReplayEvent(raw);
+            const event = sanitizeReplayEvent(raw, maskingEnabled);
             buffer.push(event);
             const bytes = new TextEncoder().encode(JSON.stringify(event)).length;
             for (const clip of clips.values()) {
