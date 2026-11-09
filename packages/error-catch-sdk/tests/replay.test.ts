@@ -45,22 +45,41 @@ describe("replay privacy and rolling buffer", () => {
     expect(JSON.stringify(result)).not.toContain("private-");
   });
 
-  it("preserves visible text, form values and mutations when domain masking is off, with inert resource attributes", () => {
+  it("keeps page snapshot text readable while removing native and custom control content", () => {
     const event = { type: 2, timestamp: at, data: { node: {
-      tagName: "input", attributes: { type: "text", value: "Test customer", placeholder: "Your name", onclick: "alert(1)", src: "https://private/upload" },
-      childNodes: [{ type: 3, textContent: "Tyvek Wristbands" }],
+      tagName: "div", childNodes: [
+        { type: 3, textContent: "Tyvek Wristbands" },
+        ...[
+          { tagName: "input", attributes: { type: "password", value: "example-password" } },
+          { tagName: "input", attributes: { type: "email", value: "private@example.test" } },
+          { tagName: "input", attributes: { type: "tel", value: "0400123456" } },
+          { tagName: "input", attributes: { type: "number", value: 78901234 } },
+          { tagName: "textarea", attributes: {} },
+          { tagName: "select", attributes: {} },
+          { tagName: "div", attributes: { contenteditable: "plaintext-only" } },
+          { tagName: "div", attributes: { role: "searchbox" } },
+          { tagName: "div", attributes: { "data-replay-block": "" } },
+        ].map((field) => ({ ...field, childNodes: [{ type: 3, textContent: "private field contents" }] })),
+      ],
     } } };
     const result = JSON.stringify(sanitizeReplayEvent(event, false));
-    expect(result).toContain("Test customer");
     expect(result).toContain("Tyvek Wristbands");
-    expect(result).toContain("Your name");
-    expect(result).not.toContain("onclick");
-    expect(result).not.toContain("https://private");
-    expect(sanitizeReplayEvent({ type: 3, timestamp: at, data: { source: 0, texts: [{ id: 2, value: "Updated product" }] } }, false).data)
-      .toMatchObject({ texts: [{ value: "Updated product" }] });
-    for (const type of ["password", "hidden"]) {
-      expect(JSON.stringify(sanitizeReplayEvent({ type: 2, timestamp: at, data: { node: { tagName: "input", attributes: { type, value: "secret" } } } }, false))).not.toContain("secret");
+    for (const secret of ["example-password", "private@example.test", "0400123456", "78901234", "private field contents"]) {
+      expect(result).not.toContain(secret);
     }
+  });
+
+  it("removes typed input and obscures DOM changes that could repeat it", () => {
+    const input = { type: 3, timestamp: at, data: { source: 5, id: 2, text: "private@example.test", isChecked: true } };
+    expect(sanitizeReplayEvent(input, false).data).toEqual({ source: 5, id: 2, text: "", isChecked: false });
+    const dom = { type: 3, timestamp: at, data: {
+      source: 0,
+      texts: [{ id: 2, value: "edited text" }],
+      attributes: [{ id: 3, attributes: { value: "private input", "aria-label": "private label" } }],
+      adds: [{ parentId: 3, node: { type: 3, textContent: "echoed input" } }],
+    } };
+    const result = JSON.stringify(sanitizeReplayEvent(dom, false));
+    for (const secret of ["edited text", "private input", "private label", "echoed input"]) expect(result).not.toContain(secret);
   });
 });
 
@@ -82,12 +101,43 @@ describe("error-triggered replay lifecycle", () => {
     return { reporter, transport };
   }
 
-  it("defaults to readable capture while preserving password and payment boundaries", async () => {
+  it("defaults to readable capture while preserving all input and payment boundaries", async () => {
     setup(true, null); await vi.advanceTimersByTimeAsync(0);
-    expect(mock.record.mock.calls[0]?.[0]).toMatchObject({ maskAllInputs: false, maskInputOptions: { password: true } });
+    expect(mock.record.mock.calls[0]?.[0]).toMatchObject({ maskAllInputs: true, blockSelector: expect.stringContaining("[contenteditable]") });
     expect(mock.record.mock.calls[0]?.[0].maskTextSelector).toBeUndefined();
     window.history.pushState({}, "", "/checkout");
     expect(mock.stop).toHaveBeenCalledOnce();
+  });
+
+  it("uploads readable page text without actual browser input or editable content", async () => {
+    const { record } = await vi.importActual<typeof import("@rrweb/record")>("@rrweb/record");
+    mock.record.mockImplementation(record);
+    const fetch = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetch);
+    document.body.innerHTML = `
+      <h1>Tyvek Wristbands</h1>
+      <input type="email" value="initial@example.test">
+      <textarea>Private note</textarea>
+      <div contenteditable>Private editable content</div>
+      <div role="searchbox">Private custom value</div>
+      <p data-replay-block>Submitted search text</p>
+    `;
+    const { reporter } = setup(true, null);
+    await vi.advanceTimersByTimeAsync(0);
+    const field = document.querySelector("input")!;
+    field.value = "changed@example.test";
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    document.querySelector("[contenteditable]")!.textContent = "Changed private content";
+    await vi.advanceTimersByTimeAsync(1);
+    reporter.captureException(new Error("synthetic recorder privacy test"));
+    await vi.advanceTimersByTimeAsync(15_001);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const batches = await Promise.all(fetch.mock.calls.map(([, request]) => request.body.text()));
+    expect(batches[0]).toContain("Tyvek Wristbands");
+    for (const secret of [
+      "initial@example.test", "changed@example.test", "Private note",
+      "Private editable content", "Private custom value", "Changed private content", "Submitted search text",
+    ]) expect(batches.join("")).not.toContain(secret);
   });
 
   it("does not load or record disabled configuration, and clears data on withdrawal", async () => {

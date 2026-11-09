@@ -383,11 +383,14 @@ There are at most three clips per document; a reload starts a fresh buffer.
 Recordings are best effort: closing a tab, network failures or large pages can
 shorten them. No recordings upload during normal browsing.
 
-New recordings include visible page text and form values by default. Pass
-`maskingEnabled: true` to `startStorefrontReplay` when the domain enables masking. Password values and hidden
-inputs remain excluded. DOM attributes are allowlisted, and media,
-canvas, uploads and iframes are blocked. CSS classes preserve page layout.
-Mark any additional sensitive component with `data-replay-block` or `rr-block`.
+New recordings show page text in full snapshots by default. Pass
+`maskingEnabled: true` to `startStorefrontReplay` to mask page text for a domain.
+Native form controls, editable regions and custom controls with editable roles
+are always blocked. Input events, field attributes and incremental text changes
+are scrubbed before upload. When masking is off, a later full snapshot can show
+updated page text. Mark components that display customer data as ordinary text
+with `data-replay-block`. Media, canvas, uploads and iframes are blocked, and DOM
+attributes are allowlisted.
 Checkout, payment, pay, billing and invoice route segments, quote success pages,
 Merchi checkout UI and any mounted `data-replay-payment` element prohibit capture.
 Entering a boundary stops recording, clears buffers and pending clips, aborts
@@ -399,7 +402,7 @@ through storefront configuration. Already uploaded ordinary-page segments remain
 subject to the normal retention period.
 The API applies the domain's saved policy again before storage. Changing the
 domain setting cannot restore text from older masked recordings. Deploy API
-support before deploying readable browser capture across storefronts.
+support before deploying readable page text across storefronts.
 
 The v6 collector must return an accepted receipt with `replay: { id, uploadToken }`.
 Custom error transports may return that receipt through the extended
