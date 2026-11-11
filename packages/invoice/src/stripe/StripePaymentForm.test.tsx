@@ -4,8 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { StripePaymentForm } from './StripePaymentForm';
 import { configureFrontendErrors, type FrontendErrorEvent } from '@merchi/error-catch';
 
-const mocks = vi.hoisted(() => ({ confirm: vi.fn(), elementOptions: [] as any[], expressOptions: [] as any[] }));
-vi.mock('@stripe/stripe-js', () => ({ loadStripe: () => Promise.resolve({}) }));
+const mocks = vi.hoisted(() => ({ confirm: vi.fn(), loadStripe: vi.fn(), elementOptions: [] as any[], expressOptions: [] as any[] }));
+vi.mock('@stripe/stripe-js/pure', () => ({ loadStripe: mocks.loadStripe }));
 vi.mock('@stripe/react-stripe-js', () => ({
   Elements: ({ children }: any) => <div>{children}</div>,
   PaymentElement: ({ onReady, options }: any) => {
@@ -40,6 +40,7 @@ beforeEach(() => {
     transport: (_, event) => { reported.push(event); } });
   requests = []; status = pending; postError = false;
   mocks.confirm.mockReset().mockResolvedValue({ paymentIntent: { status: 'succeeded' } });
+  mocks.loadStripe.mockReset().mockResolvedValue({});
   mocks.elementOptions.length = 0;
   mocks.expressOptions.length = 0;
   sessionStorage.clear();
@@ -60,6 +61,23 @@ function setup(onSuccess = vi.fn()) {
 }
 
 describe('shared Stripe payment form', () => {
+  it('retries a failed Stripe script without creating a second payment attempt', async () => {
+    mocks.loadStripe.mockRejectedValueOnce(new Error('Failed to load Stripe.js'));
+    setup();
+    fireEvent.click(await screen.findByText('Continue to payment'));
+    expect((await screen.findByRole('alert')).textContent).toContain('Could not load the payment form');
+    expect(mocks.loadStripe).toHaveBeenCalledOnce();
+    expect(screen.queryByText('Choose a payment method')).toBeNull();
+    expect(reported[0]).toMatchObject({ message: 'Failed to load Stripe.js',
+      operation: { name: 'payment.initialize', outcome: 'failed' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try loading the payment form again' }));
+    await screen.findByText('Choose a payment method');
+    expect(mocks.loadStripe).toHaveBeenCalledTimes(2);
+    expect(requests.filter(request => request.method === 'POST')).toHaveLength(1);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('reports payment initialization network failures with operation context', async () => {
     postError = true;
     setup();
