@@ -3,7 +3,9 @@
 import * as React from 'react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import { loadStripe, StripeElementsOptions } from '@stripe/stripe-js';
+import type { Stripe, StripeElementsOptions } from '@stripe/stripe-js';
+import { loadStripe } from '@stripe/stripe-js/pure';
+import { captureUnexpected } from '@merchi/error-catch';
 
 export interface StripePaymentFormProps {
   apiUrl: string;
@@ -37,6 +39,12 @@ const messages = {
   en: { full: 'Pay full balance', partial: 'Pay a partial amount', amount: 'Payment amount', continue: 'Continue to payment', pay: 'Pay', cancel: 'Change amount', back: 'Back', loading: 'Checking payment…', pending: 'Payment is awaiting confirmation. You can safely return later.', retry: 'Check payment status', invalid: 'Enter an amount greater than zero, with no more than two decimal places.', success: 'Payment recorded', secure: 'Secure payment by Stripe', resume: 'Resume payment', methods: 'Choose a payment method', express: 'Express checkout' },
   zh: { full: '支付全部余额', partial: '支付部分金额', amount: '支付金额', continue: '继续付款', pay: '支付', cancel: '修改金额', back: '返回', loading: '正在核对付款…', pending: '正在等待支付确认。你可以稍后返回查看。', retry: '核对支付状态', invalid: '请输入大于零的金额，最多两位小数。', success: '付款已入账', secure: '由 Stripe 安全处理付款', resume: '继续付款', methods: '选择支付方式', express: '快捷支付' },
   ko: { full: '잔액 전액 결제', partial: '일부 금액 결제', amount: '결제 금액', continue: '결제 계속', pay: '결제', cancel: '금액 변경', back: '뒤로', loading: '결제 확인 중…', pending: '결제 확인을 기다리고 있습니다. 나중에 돌아와 확인할 수 있습니다.', retry: '결제 상태 확인', invalid: '소수점 두 자리 이하의 양수를 입력하세요.', success: '결제가 반영되었습니다', secure: 'Stripe 보안 결제', resume: '결제 계속', methods: '결제 수단 선택', express: '빠른 결제' },
+};
+
+const stripeLoadMessages = {
+  en: { error: 'Could not load the payment form. Check your connection and try again.', retry: 'Try loading the payment form again' },
+  zh: { error: '无法加载付款表单。请检查网络连接后重试。', retry: '重新加载付款表单' },
+  ko: { error: '결제 양식을 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요.', retry: '결제 양식 다시 불러오기' },
 };
 
 function walletFlowDisabled(error: unknown): boolean {
@@ -117,9 +125,19 @@ function PaymentFields({ attempt, check, report, text, formattedAmount }: {
       returnUrl.searchParams.set('merchi_payment_attempt', attempt.id);
       const result = await stripe.confirmPayment({ elements,
         confirmParams: { return_url: returnUrl.toString() }, redirect: 'if_required' });
-      if (result.error) report(result.error.message || 'Payment could not be confirmed.');
+      if (result.error) {
+        const { message = 'Payment could not be confirmed.', type, code } = result.error;
+        captureUnexpected(Object.assign(new Error(message), { type, code }), {
+          source: 'manual',
+          operation: { name: 'payment.confirm', outcome: 'handled', reason: 'validation' },
+        });
+        report(message);
+      }
       await check();
     } catch (error: any) {
+      captureUnexpected(error, {
+        source: 'manual', operation: { name: 'payment.confirm', outcome: 'failed' },
+      });
       report(error.message || 'Payment could not be confirmed.');
     } finally { setBusy(false); }
   };
@@ -150,6 +168,49 @@ function PaymentFields({ attempt, check, report, text, formattedAmount }: {
       {busy ? text.loading : `${text.pay} ${formattedAmount}`}
     </button>
   </form>;
+}
+
+function StripePaymentElements({ publishableKey, options, locale, children }: {
+  publishableKey: string;
+  options: StripeElementsOptions;
+  locale: NonNullable<StripePaymentFormProps['locale']>;
+  children: React.ReactNode;
+}) {
+  const [stripe, setStripe] = useState<Stripe | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const text = stripeLoadMessages[locale];
+
+  useEffect(() => {
+    let active = true;
+    async function load() {
+      try {
+        const instance = await loadStripe(publishableKey);
+        if (!instance) throw new Error('Stripe.js did not initialize');
+        if (active) setStripe(instance);
+      } catch (error) {
+        if (!active) return;
+        setFailed(true);
+        captureUnexpected(error, {
+          source: 'manual', operation: { name: 'payment.initialize', outcome: 'failed' },
+        });
+      }
+    }
+    void load();
+    return () => { active = false; };
+  }, [publishableKey, loadAttempt]);
+
+  if (failed) {
+    return <>
+      <p role="alert" className="merchi-stripe-payment__error">{text.error}</p>
+      <button type="button" className="merchi-stripe-payment__button merchi-stripe-payment__button--secondary"
+        onClick={() => { setFailed(false); setLoadAttempt(previous => previous + 1); }}>
+        {text.retry}
+      </button>
+    </>;
+  }
+  if (!stripe) return <p role="status">{messages[locale].loading}</p>;
+  return <Elements stripe={stripe} options={options}>{children}</Elements>;
 }
 
 /** Only the backend's recorded payment state invokes onSuccess. */
@@ -271,6 +332,9 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
           return;
         }
       }
+      captureUnexpected(error, {
+        source: 'manual', operation: { name: 'payment.initialize', outcome: 'failed' },
+      });
       report(error.message);
     }
     finally { setBusy(false); }
@@ -294,7 +358,6 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
     opened.current = true;
     void startPayment.current();
   }, [allowPartial, restoring, attempt, resumeManually]);
-  const stripe = useMemo(() => attempt?.publishableKey ? loadStripe(attempt.publishableKey) : null, [attempt?.publishableKey]);
   const options: StripeElementsOptions = useMemo(() => ({ clientSecret: attempt?.stripeClientSecret,
     appearance: { theme: dark ? 'night' : 'stripe' }, locale: locale === 'zh' ? 'zh' : locale }), [attempt?.stripeClientSecret, dark, locale]);
   const terminal = attempt && ['canceled', 'failed'].includes(attempt.status);
@@ -312,9 +375,11 @@ export function StripePaymentForm({ apiUrl, resource, resourceId, resourceToken,
       <button type="button" onClick={() => void start()} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--primary">{busy ? text.loading : text.continue}</button>
     </> : <p role="status">{text.loading}</p>) : <>
       <div className="merchi-stripe-payment__amount"><span>{text.amount}</span><strong>{formattedAmount}</strong></div>
-      {attempt.stripeClientSecret && stripe && !['processing', 'requires_capture'].includes(attempt.status) && <Elements key={attempt.id} stripe={stripe} options={options}>
+      {attempt.stripeClientSecret && attempt.publishableKey && !['processing', 'requires_capture'].includes(attempt.status) &&
+        <StripePaymentElements key={`${attempt.id}:${attempt.publishableKey}`} publishableKey={attempt.publishableKey}
+          options={options} locale={locale}>
         <PaymentFields attempt={attempt} check={check} report={report} text={text} formattedAmount={formattedAmount} />
-      </Elements>}
+      </StripePaymentElements>}
       {attempt.status === 'processing' && <p role="status">{text.pending}</p>}
       {allowPartial && <div className="merchi-stripe-payment__actions">
         <button type="button" onClick={() => void check()} disabled={busy} className="merchi-stripe-payment__button merchi-stripe-payment__button--secondary">{text.retry}</button>
