@@ -32,11 +32,13 @@ const VariationInput: React.FC<Props> = ({
     classNameInput,
     control,
   } = useMerchiFormContext();
+  const errorId = React.useId();
+  const fieldName = `${name}.value`;
   const {
     field,
     fieldState: { invalid }
   } = useController({
-    name: `${name}.value`, 
+    name: fieldName,
     control, 
     rules: validationParams(variation.variationField)
   });
@@ -54,6 +56,8 @@ const VariationInput: React.FC<Props> = ({
       {inputType === 'textarea' ? (
         <textarea
           aria-label={variationField.name}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? errorId : undefined}
           disabled={disabled}
           className={`${classNameInput} ${validationClass}`}
           rows={variationField.rows}
@@ -63,6 +67,8 @@ const VariationInput: React.FC<Props> = ({
       ) : (
         <input
           aria-label={variationField.name}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? errorId : undefined}
           disabled={disabled}
           type={inputType}
           className={`${classNameInput} ${validationClass}`}
@@ -70,7 +76,7 @@ const VariationInput: React.FC<Props> = ({
           {...field}
         />
       )}
-      <VariationError name={name} />
+      <VariationError id={errorId} name={fieldName} />
     </div>
   );
 };
