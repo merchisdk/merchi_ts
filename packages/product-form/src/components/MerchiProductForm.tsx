@@ -9,7 +9,7 @@ import ProductTitle from './ProductTitle';
 import Variations from './Variations';
 import VariationsGroups from './VariationsGroups';
 import { isProductLeadForm } from './utils';
-import FormLead from './FormLead';
+import FormLead, { type LeadContactFallback } from './FormLead';
 import ProductFeatureDeadline from './ProductFeatureDeadline';
 import ProductGroupBuyStatus from './ProductGroupBuyStatus';
 import '../styles/globals.css';
@@ -18,6 +18,7 @@ interface Props {
   allowAddToCart?: boolean;
   apiUrl?: string;
   hcaptchaSiteKey?: string;
+  contactFallback?: LeadContactFallback;
   classNameAlertSellerEditable?: string;
   classNameButtonSubmit?: string;
   classNameButtonGroupAdd?: string;
@@ -88,7 +89,7 @@ function MerchiProductForm(props: Props) {
   if (isLeadForm) {
     return (
       <MerchiProductFormProvider {...props}>
-        <FormLead hideSubmitButtons={hideSubmitButtons} />
+        <FormLead hideSubmitButtons={hideSubmitButtons} contactFallback={props.contactFallback} />
       </MerchiProductFormProvider>
     );
   }

@@ -4,6 +4,7 @@ import { useFormState } from 'react-hook-form';
 import { useMerchiFormContext } from '../context/MerchiProductFormProvider';
 
 interface Props {
+  id?: string;
   name: string;
   message?: string;
 }
@@ -23,7 +24,7 @@ function getErrorAtPath(errors: Record<string, any> | undefined, name: string) {
   return current;
 }
 
-const VariationError: React.FC<Props> = ({ name, message }: Props) => {
+const VariationError: React.FC<Props> = ({ id, name, message }: Props) => {
   const { control } = useMerchiFormContext();
   const { errors } = useFormState({ control, name });
   const error = getErrorAtPath(errors as Record<string, any>, name);
@@ -31,7 +32,7 @@ const VariationError: React.FC<Props> = ({ name, message }: Props) => {
   if (!error) return null;
 
   return (
-    <div className='input-alert-container' role='alert'>
+    <div id={id} className='input-alert-container' role='alert'>
       <span className='m-r-3 text-danger'>
         {message ? message : error.message}
       </span>
