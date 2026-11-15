@@ -1,0 +1,19 @@
+name: Checkout confirmation checks
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - packages/checkout/**
+      - .github/workflows/checkout-confirmation.yml
+permissions:
+  contents: read
+jobs:
+  checkout-confirmation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test packages/checkout/test/checkout-confirmation.test.mjs
