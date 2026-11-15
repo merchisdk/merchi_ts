@@ -282,9 +282,11 @@ describe('cart load and replacement failures', () => {
     await act(async () => { await (window as any).getCart(); });
     expect(mockPost).toHaveBeenCalledTimes(1);
     expect(context.fetchingCart).toBe(false);
+    expect(context.alert.show).toBe(true);
     await act(async () => { await (window as any).getCart(); });
     expect(mockPost).toHaveBeenCalledTimes(2);
     expect(context.cart.id).toBe(99);
+    expect(context.alert.show).toBe(false);
   });
   it('initializes a cart for a direct item operation without a storefront readiness helper', async () => {
     setUserAgent(headlessUserAgent);
@@ -459,6 +461,15 @@ describe('cart load and replacement failures', () => {
     expect(context.cart.id).toBe(42);
     expect(context.cart.cartItems).toHaveLength(1);
     expect(mockPost).not.toHaveBeenCalled();
+    expect(context.alert.show).toBe(false);
+  });
+  it('preserves an unrelated alert when a cart read succeeds', async () => {
+    await mount(new TypeError('Load failed'));
+    await act(async () => context.alertError('The discount could not be applied.'));
+    mockGet.mockResolvedValue({ toJson: () => ({ id: 42, isTest: false, cartItems: [{ id: 7 }] }) });
+    await act(async () => { await (window as any).getCart(); });
+    expect(context.alert.show).toBe(true);
+    expect(context.alert.message).toBe('The discount could not be applied.');
   });
   it.each([
     new TypeError('Failed to fetch'),

@@ -564,13 +564,13 @@ const CartProvider = ({
 
   const [cartItem, setCartItem] = useState(({} as any));
 
-  const [alert, setAlert] = useState(({
+  const [alert, setAlert] = useState<Alert & { fromInitialization?: boolean }>({
     icon: faInfoCircle,
     message: '',
     show: false,
     title: '',
     type: 'info',
-  } as Alert));
+  });
 
   function alertSuccess(message: string) {
     setAlert({
@@ -582,14 +582,25 @@ const CartProvider = ({
     });
   }
 
-  function alertError(message: string) {
+  function showCartError(message: string, fromInitialization: boolean) {
     setAlert({
       icon: faExclamationTriangle,
       message,
       show: true,
       title: 'Error!',
       type: 'danger',
+      fromInitialization,
     });
+  }
+
+  function alertError(message: string) {
+    showCartError(message, false);
+  }
+
+  function dismissInitializationError() {
+    setAlert(previous => previous.fromInitialization && previous.show
+      ? { ...previous, show: false }
+      : previous);
   }
 
   function closeClearCart() {
@@ -633,7 +644,7 @@ const CartProvider = ({
   }
 
   // Create cart and save cart cookie
-  async function createCartAndCookie(callback?: () => void) {
+  async function createCartAndCookie(callback?: () => void, initializing = false) {
     setFetchingCart(true);
     try {
       const isTest = readTestCheckoutFlag();
@@ -654,11 +665,12 @@ const CartProvider = ({
       if (domainId) setCartCookie(Number(domainId), cartJson, undefined, isTest);
       cartJson = await attachSavedClientIfNeeded(cartJson);
       setCart({...cartJson});
+      dismissInitializationError();
       if (callback) callback();
       return cartJson;
     } catch (e: any) {
       reportCartFailure(e, CART_FAILURE_SOURCES.create);
-      alertError(e?.errorMessage || e?.message || 'Unable to fetch cart.');
+      showCartError(e?.errorMessage || e?.message || 'Unable to fetch cart.', initializing);
     } finally {
       setFetchingCart(false);
     }
@@ -680,7 +692,7 @@ const CartProvider = ({
       let cartJson = await cart.toJson();
       const isTest = readTestCheckoutFlag();
       if (Boolean(cartJson.isTest) !== isTest) {
-        return await createCartAndCookie();
+        return await createCartAndCookie(undefined, true);
       }
       const jobSource = jobSourceFieldsForApi(captureAndReadJobSource());
       if (cartNeedsSourceUpdate(cartJson, jobSource)) {
@@ -698,6 +710,7 @@ const CartProvider = ({
       if (stripeIsValidAndActive(cartJson) || isTest) {
         cartJson = await attachSavedClientIfNeeded(cartJson);
         setCart({...cartJson});
+        dismissInitializationError();
         return cartJson;
       } else {
         console.error(
@@ -710,12 +723,12 @@ const CartProvider = ({
       }
     } catch(e: any){
       if (canReplaceMissingCart(e)) {
-        return await createCartAndCookie();
+        return await createCartAndCookie(undefined, true);
       } else {
         // A network/server/auth failure does not mean the saved cart is gone.
         // Preserve its cookie and contents so the shopper can retry the read.
         reportCartFailure(e, CART_FAILURE_SOURCES.load);
-        alertError(e?.errorMessage || e?.message || 'Unable to load cart. Please try again.');
+        showCartError(e?.errorMessage || e?.message || 'Unable to load cart. Please try again.', true);
       }
     } finally {
       setFetchingCart(false);
@@ -746,7 +759,7 @@ const CartProvider = ({
         if (cartIdAndToken) {
           return { skippedCreation: false, cart: await getCart(cartIdAndToken) };
         } else if (allowCreation) {
-          return { skippedCreation: false, cart: await createCartAndCookie() };
+          return { skippedCreation: false, cart: await createCartAndCookie(undefined, true) };
         }
         return { skippedCreation: true };
       }).finally(() => {
