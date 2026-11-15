@@ -1,8 +1,9 @@
 'use client';
 import * as React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { reportCheckoutFailure } from '../reportFailure';
 import { submitBuyNow, submitQuoteRequest } from '../actions/confirm';
+import { confirmCheckoutSubmission } from '../actions/checkoutConfirmation';
 import TabPane from './TabPane';
 import TitleStep from './TitleStep';
 import FooterButtons from './FooterButtons';
@@ -191,64 +192,49 @@ function TabPaneConfirm() {
     urlApi,
   } = useMerchiCheckboutContext();
   const [loading, setLoading] = useState(false);
+  const submitting = useRef(false);
   async function submit() {
+    if (submitting.current) return;
+    submitting.current = true;
     setLoading(true);
     try {
-      if (isBuyRequest) {
-        const response = await submitBuyNow(
-          (urlApi as string),
-          {
-            ...job, product: { id: product.id },
-          });
-        if (response.ok) {
-          const invoice = await response.json();
-          clearMerchiSource();
-          setInvoice({ ...invoice.invoice });
-          setLoading(false);
-          nextTab();
-        } else {
-          const error = await response.json();
-          alertErrorShow(error.message);
-          reportCheckoutFailure(error, response.status);
-          setLoading(false);
-        }
-      } else {
-        const response = await submitQuoteRequest((urlApi as string), job);
-        if (response.ok) {
-          const quote = await response.json();
-          clearMerchiSource();
-          clearCheckoutSession(product);
-          const rawRedirect = redirectAfterQuoteSuccessUrl ?? redirectAfterSuccessUrl;
-          const quoteRedirect =
-            typeof rawRedirect === 'string' ? rawRedirect.trim() : '';
-
-          if (quoteRedirect) {
-            redirectOnSuccess(
-              quoteRedirect,
-              redirectWithValue,
-              quote.job?.totalCost,
-              {
-                invoiceId: quote.job?.id,
-                email:
-                  getClientEmail(quote.job?.client) ||
-                  getClientEmail(job?.client),
-              },
-            );
-          } else {
-            setJob(prev => ({ ...prev, id: quote.job.id }));
-            setLoading(false);
-            nextTab();
-          }
-        } else {
-          const error = await response.json();
-          alertErrorShow(error.message);
-          reportCheckoutFailure(error, response.status);
-        }
-        setLoading(false);
+      const result = await confirmCheckoutSubmission(
+        () => isBuyRequest
+          ? submitBuyNow(urlApi, { ...job, product: { id: product.id } })
+          : submitQuoteRequest(urlApi, job),
+        isBuyRequest ? 'order' : 'quote request',
+      );
+      if (result.confirmed === false) {
+        reportCheckoutFailure(result.error, result.statusCode);
+        alertErrorShow(result.message);
+        return;
       }
-    } catch (e: any) {
-      reportCheckoutFailure(e);
-      alertErrorShow(e.message);
+
+      clearMerchiSource();
+      if (isBuyRequest) {
+        setInvoice({ ...result.entity });
+        nextTab();
+        return;
+      }
+
+      clearCheckoutSession(product);
+      const rawRedirect = redirectAfterQuoteSuccessUrl ?? redirectAfterSuccessUrl;
+      const quoteRedirect = typeof rawRedirect === 'string' ? rawRedirect.trim() : '';
+      setJob(prev => ({ ...prev, id: result.entity.id }));
+      if (quoteRedirect) {
+        try {
+          redirectOnSuccess(quoteRedirect, redirectWithValue, result.entity.totalCost, {
+            invoiceId: result.entity.id,
+            email: getClientEmail(result.entity.client) || getClientEmail(job?.client),
+          });
+          return;
+        } catch {
+          // The quote already exists. Show it in checkout if navigation fails.
+        }
+      }
+      nextTab();
+    } finally {
+      submitting.current = false;
       setLoading(false);
     }
   }
