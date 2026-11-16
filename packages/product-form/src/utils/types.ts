@@ -81,6 +81,7 @@ export interface DraftCanvasObject {
   fontFamily?: string;
   align?: string;
   src?: string;
+  name?: string;
 }
 
 export interface DraftCanvasState {

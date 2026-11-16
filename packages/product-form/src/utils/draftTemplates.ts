@@ -444,6 +444,12 @@ export function isBackgroundFill(obj: { type?: string }): boolean {
   return obj?.type === 'rect';
 }
 
+export function canvasPaintOrder<T extends { type?: string }>(objects: T[]): T[] {
+  const fills = objects.filter(isBackgroundFill);
+  const content = objects.filter((obj) => !isBackgroundFill(obj));
+  return [...fills, ...content];
+}
+
 export function isFullArtboardFill(
   obj: { x?: number; y?: number; width?: number; height?: number },
   artWidth: number,

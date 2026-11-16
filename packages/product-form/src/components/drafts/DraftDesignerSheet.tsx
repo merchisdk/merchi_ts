@@ -3,14 +3,28 @@ import * as React from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  FaAlignCenter,
+  FaAlignLeft,
+  FaAlignRight,
   FaArrowDown,
   FaArrowUp,
   FaCheck,
+  FaChevronDown,
+  FaChevronUp,
+  FaClone,
+  FaCloudUploadAlt,
+  FaEllipsisH,
+  FaExchangeAlt,
+  FaFillDrip,
   FaFont,
+  FaGripVertical,
   FaImage,
   FaLayerGroup,
   FaLock,
+  FaMousePointer,
   FaPlus,
+  FaRedo,
+  FaUndo,
   FaUnlock,
   FaTimes,
   FaTrash,
@@ -18,10 +32,12 @@ import {
 import { CgSpinner } from 'react-icons/cg';
 import { useMerchiFormContext } from '../../context/MerchiProductFormProvider';
 import {
+  canvasPaintOrder,
   createObjectId,
   designGroupCount,
   detachField,
   fitTextBox,
+  isBackgroundFill,
   productHasVariationGroups,
   seedOrSyncCanvas,
   templatesForGroup,
@@ -98,6 +114,96 @@ function templateSrc(template: any, apiUrl?: string): string[] {
   return templateImageSources(template, apiUrl);
 }
 
+const QUICK_COLOURS = [
+  '#ffffff',
+  '#000000',
+  '#2f3cc2',
+  '#facc15',
+  '#ef4444',
+  '#dbeafe',
+  '#f28c28',
+  '#2f9e5b',
+];
+
+const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
+
+const TEXT_SIZES = [12, 16, 20, 24, 28, 32, 36, 40, 48, 56, 64, 72, 80, 96, 120, 144, 180, 240];
+
+const TEXT_ALIGNMENTS = [
+  { value: 'left', label: 'Align left', Icon: FaAlignLeft },
+  { value: 'center', label: 'Align centre', Icon: FaAlignCenter },
+  { value: 'right', label: 'Align right', Icon: FaAlignRight },
+];
+
+const HISTORY_LIMIT = 50;
+/** Rapid edits to the same field (typing, colour dragging) collapse into one undo step. */
+const HISTORY_MERGE_MS = 1000;
+
+type LayerDropPlace = 'above' | 'below';
+
+interface CanvasHistory {
+  past: DraftCanvasState[];
+  future: DraftCanvasState[];
+  mergeKey: string | null;
+  mergedAt: number;
+}
+
+function emptyHistory(): CanvasHistory {
+  return { past: [], future: [], mergeKey: null, mergedAt: 0 };
+}
+
+function LayerIcon({ obj }: { obj: DraftCanvasObject }) {
+  if (obj.type === 'text') return <FaFont />;
+  if (obj.type === 'image') return <FaImage />;
+  return <FaFillDrip />;
+}
+
+function ColourPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (colour: string) => void;
+}) {
+  const current = value.toLowerCase();
+  return (
+    <div className='merchi-product-draft-field'>
+      <span className='merchi-product-draft-field-label'>{label}</span>
+      <div className='merchi-product-draft-swatches' role='group' aria-label={label}>
+        {QUICK_COLOURS.map((colour) => (
+          <button
+            key={colour}
+            type='button'
+            className={`merchi-product-draft-swatch${current === colour ? ' is-active' : ''}`}
+            style={{ backgroundColor: colour }}
+            aria-label={colour}
+            aria-pressed={current === colour}
+            onClick={() => onChange(colour)}
+          >
+            {current === colour ? <FaCheck /> : null}
+          </button>
+        ))}
+        <label
+          className={`merchi-product-draft-swatch is-custom${
+            QUICK_COLOURS.includes(current) ? '' : ' is-active'
+          }`}
+          style={QUICK_COLOURS.includes(current) ? undefined : { backgroundColor: current }}
+        >
+          <span className='merchi-sr-only'>Custom colour</span>
+          {QUICK_COLOURS.includes(current) ? <FaPlus /> : <FaCheck />}
+          <input
+            type='color'
+            value={HEX_COLOUR.test(value) ? value : '#111111'}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -133,11 +239,23 @@ export default function DraftDesignerSheet({
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  const [layersOpen, setLayersOpen] = useState(false);
+  const [layersCollapsed, setLayersCollapsed] = useState(false);
+  const [imagePanelOpen, setImagePanelOpen] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [dragLayerId, setDragLayerId] = useState<string | null>(null);
+  const [dropHint, setDropHint] = useState<{ id: string; place: LayerDropPlace } | null>(null);
+  const [layerMenuOpen, setLayerMenuOpen] = useState(false);
+  const [layerMenuPos, setLayerMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [historyFlags, setHistoryFlags] = useState({ undo: false, redo: false });
+  const [confirmClose, setConfirmClose] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<DraftCanvasHandle>(null);
+  const layerRefs = useRef<Record<string, HTMLElement | null>>({});
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const historyRef = useRef<CanvasHistory>(emptyHistory());
 
   const templates = useMemo(
     () => templatesForGroup(
@@ -152,6 +270,10 @@ export default function DraftDesignerSheet({
   useEffect(() => {
     if (open) setGroupIndex(initialGroupIndex);
   }, [open, initialGroupIndex]);
+
+  useEffect(() => {
+    if (!open) setConfirmClose(false);
+  }, [open]);
 
   useEffect(() => {
     if (open) ensureDraftFonts();
@@ -172,7 +294,9 @@ export default function DraftDesignerSheet({
     const drafts = loadDrafts(product.id);
     const saved = savedPreview(drafts, groupIndex, template.id);
     const variations = variationsForGroup(formValues, groupIndex);
-    setState(seedOrSyncCanvas(saved?.canvasJson || null, template, variations));
+    replaceState(seedOrSyncCanvas(saved?.canvasJson || null, template, variations));
+    historyRef.current = emptyHistory();
+    refreshHistoryFlags();
     setSelectedId(null);
     setEditingTextId(null);
     setError(null);
@@ -183,31 +307,87 @@ export default function DraftDesignerSheet({
   useEffect(() => {
     if (!open || !template) return;
     const variations = variationsForGroup(formValues, groupIndex);
-    setState((current) => {
-      const next = seedOrSyncCanvas(current, template, variations);
-      const same = current.width === next.width
-        && current.height === next.height
-        && current.objects.length === next.objects.length
-        && current.objects.every((obj, index) => {
-          const other = next.objects[index];
-          return obj.id === other.id
-            && obj.text === other.text
-            && obj.src === other.src
-            && obj.fill === other.fill
-            && obj.width === other.width
-            && obj.height === other.height
-            && obj.merchiFieldId === other.merchiFieldId;
-        });
-      return same ? current : next;
-    });
+    const current = stateRef.current;
+    const next = seedOrSyncCanvas(current, template, variations);
+    const same = current.width === next.width
+      && current.height === next.height
+      && current.objects.length === next.objects.length
+      && current.objects.every((obj, index) => {
+        const other = next.objects[index];
+        return obj.id === other.id
+          && obj.text === other.text
+          && obj.src === other.src
+          && obj.fill === other.fill
+          && obj.width === other.width
+          && obj.height === other.height
+          && obj.merchiFieldId === other.merchiFieldId;
+      });
+    if (!same) replaceState(next);
   }, [open, variationSyncKey, template?.id, groupIndex]);
 
+  function replaceState(next: DraftCanvasState) {
+    stateRef.current = next;
+    setState(next);
+  }
+
+  function refreshHistoryFlags() {
+    const history = historyRef.current;
+    setHistoryFlags({ undo: history.past.length > 0, redo: history.future.length > 0 });
+  }
+
+  function commit(next: DraftCanvasState, mergeKey?: string) {
+    const current = stateRef.current;
+    if (next === current) return;
+    const history = historyRef.current;
+    const now = Date.now();
+    const merge = mergeKey != null
+      && history.mergeKey === mergeKey
+      && now - history.mergedAt < HISTORY_MERGE_MS;
+    if (!merge) history.past = [...history.past, current].slice(-HISTORY_LIMIT);
+    history.future = [];
+    history.mergeKey = mergeKey ?? null;
+    history.mergedAt = now;
+    replaceState(next);
+    refreshHistoryFlags();
+  }
+
+  function restore(target: DraftCanvasState) {
+    syncEmbroideryFields(target, stateRef.current);
+    const variations = variationsForGroup(hookForm.getValues(), groupIndex);
+    replaceState(template ? seedOrSyncCanvas(target, template, variations) : target);
+    historyRef.current.mergeKey = null;
+    refreshHistoryFlags();
+  }
+
+  function undo() {
+    const history = historyRef.current;
+    const previous = history.past[history.past.length - 1];
+    if (!previous) return;
+    history.past = history.past.slice(0, -1);
+    history.future = [stateRef.current, ...history.future];
+    restore(previous);
+  }
+
+  function redo() {
+    const history = historyRef.current;
+    const following = history.future[0];
+    if (!following) return;
+    history.future = history.future.slice(1);
+    history.past = [...history.past, stateRef.current].slice(-HISTORY_LIMIT);
+    restore(following);
+  }
+
   function handleCanvasChange(next: DraftCanvasState) {
+    syncEmbroideryFields(next, stateRef.current);
+    commit(next);
+  }
+
+  function syncEmbroideryFields(next: DraftCanvasState, previous: DraftCanvasState) {
     const variations = variationsForGroup(hookForm.getValues(), groupIndex);
     let wrote = false;
     for (const obj of next.objects) {
       if (obj.merchiFieldId == null) continue;
-      const before = state.objects.find((item) => item.id === obj.id);
+      const before = previous.objects.find((item) => item.id === obj.id);
       if (before && before.width === obj.width && before.height === obj.height) continue;
       const variation = variations.find(
         (item: any) => Number(item?.variationField?.id) === Number(obj.merchiFieldId)
@@ -221,15 +401,71 @@ export default function DraftDesignerSheet({
       hookForm.setValue(path, embroideryValueJson({ ...parsed, ...mm }), { shouldDirty: true });
       wrote = true;
     }
-    setState(next);
     if (wrote) Promise.resolve().then(() => getQuote());
   }
 
   const selected = state.objects.find((obj) => obj.id === selectedId) || null;
+  const layers = useMemo(() => canvasPaintOrder(state.objects).reverse(), [state.objects]);
+  const imagePanelVisible = selected?.type === 'image' || (!selected && imagePanelOpen);
+
+  useEffect(() => {
+    if (selectedId && !state.objects.some((obj) => obj.id === selectedId)) {
+      setSelectedId(null);
+      setEditingTextId(null);
+    }
+  }, [selectedId, state.objects]);
+
+  useEffect(() => {
+    const row = selectedId ? layerRefs.current[selectedId] : null;
+    const list = row?.parentElement;
+    if (!row || !list) return;
+    const rowBox = row.getBoundingClientRect();
+    const listBox = list.getBoundingClientRect();
+    if (rowBox.top < listBox.top) list.scrollTop -= listBox.top - rowBox.top;
+    else if (rowBox.bottom > listBox.bottom) list.scrollTop += rowBox.bottom - listBox.bottom;
+  }, [selectedId]);
+
+  useEffect(() => {
+    setLayerMenuOpen(false);
+  }, [selectedId, layersCollapsed]);
+
+  useEffect(() => {
+    if (!layerMenuOpen) return undefined;
+    function close(event: MouseEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.merchi-product-draft-layer-menu, .merchi-product-draft-layer-more')) return;
+      setLayerMenuOpen(false);
+    }
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [layerMenuOpen]);
+
+  function selectObject(id: string | null) {
+    setSelectedId(id);
+    setEditingTextId(null);
+    setImagePanelOpen(false);
+  }
+
+  function layerName(obj: DraftCanvasObject): string {
+    if (obj.type === 'text') return String(obj.text || '').trim() || 'Text';
+    const field = obj.merchiFieldId == null
+      ? null
+      : variationsForGroup(formValues, groupIndex).find(
+        (item: any) => Number(item?.variationField?.id) === Number(obj.merchiFieldId)
+      )?.variationField;
+    if (obj.type === 'image') return obj.name || field?.name || 'Image';
+    return field?.name || 'Base colour';
+  }
+
+  function layerKind(obj: DraftCanvasObject): string {
+    if (obj.type === 'text') return 'Text';
+    return obj.type === 'image' ? 'Image' : 'Colour';
+  }
 
   function patchSelected(patch: Partial<DraftCanvasObject>) {
     if (!selectedId) return;
-    setState((current) => ({
+    const current = stateRef.current;
+    commit({
       ...current,
       objects: current.objects.map((obj) => {
         if (obj.id !== selectedId) return obj;
@@ -242,7 +478,7 @@ export default function DraftDesignerSheet({
         }
         return next;
       }),
-    }));
+    }, `${selectedId}:${Object.keys(patch).sort().join(',')}`);
   }
 
   function addText() {
@@ -264,7 +500,8 @@ export default function DraftDesignerSheet({
       align: 'left',
     };
     const obj = { ...drafted, ...fitTextBox(drafted) };
-    setState((current) => ({ ...current, objects: [...current.objects, obj] }));
+    const current = stateRef.current;
+    commit({ ...current, objects: [...current.objects, obj] });
     setSelectedId(id);
     setEditingTextId(id);
   }
@@ -283,32 +520,122 @@ export default function DraftDesignerSheet({
       scaleX: 1,
       scaleY: 1,
       src,
+      name: file.name || undefined,
       lockAspectRatio: true,
     };
-    setState((current) => ({ ...current, objects: [...current.objects, obj] }));
+    const current = stateRef.current;
+    commit({ ...current, objects: [...current.objects, obj] });
     setSelectedId(id);
+    setEditingTextId(null);
   }
 
   function removeSelected() {
     if (!selectedId) return;
-    setState((current) => detachField(current, selectedId));
+    commit(detachField(stateRef.current, selectedId));
     setSelectedId(null);
     setEditingTextId(null);
   }
 
+  const canDuplicate = allowAdditionalObjects && !!selected && selected.type !== 'rect';
+
+  function duplicateSelected() {
+    const current = stateRef.current;
+    const source = current.objects.find((obj) => obj.id === selectedId);
+    if (!allowAdditionalObjects || !source || source.type === 'rect') return;
+    const copy: DraftCanvasObject = {
+      ...source,
+      id: createObjectId(),
+      x: source.x + 24,
+      y: source.y + 24,
+    };
+    delete copy.merchiFieldId;
+    delete copy.colourFieldId;
+    delete copy.artworkRole;
+    delete copy.locked;
+    const objects = [...current.objects];
+    objects.splice(objects.indexOf(source) + 1, 0, copy);
+    commit({ ...current, objects });
+    setSelectedId(copy.id);
+    setEditingTextId(null);
+  }
+
+  const shortcutsRef = useRef({ undo, redo, duplicateSelected });
+  shortcutsRef.current = { undo, redo, duplicateSelected };
+
+  useEffect(() => {
+    if (!open) return undefined;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target && (/^(INPUT|TEXTAREA)$/.test(target.tagName) || target.isContentEditable)) return;
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) shortcutsRef.current.undo();
+      else if ((key === 'z' && event.shiftKey) || key === 'y') shortcutsRef.current.redo();
+      else if (key === 'd') shortcutsRef.current.duplicateSelected();
+      else return;
+      event.preventDefault();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open]);
+
+  function layerNeighbour(direction: 1 | -1): string | null {
+    const order = canvasPaintOrder(state.objects);
+    const index = order.findIndex((obj) => obj.id === selectedId);
+    const current = order[index];
+    const other = order[index + direction];
+    if (!current || !other || isBackgroundFill(current) || isBackgroundFill(other)) return null;
+    return other.id;
+  }
+
   function moveLayer(direction: 1 | -1) {
-    if (!selectedId) return;
-    setState((current) => {
-      const index = current.objects.findIndex((obj) => obj.id === selectedId);
-      const nextIndex = index + direction;
-      if (index < 0 || nextIndex < 0 || nextIndex >= current.objects.length) {
-        return current;
-      }
-      const objects = [...current.objects];
-      const [item] = objects.splice(index, 1);
-      objects.splice(nextIndex, 0, item);
-      return { ...current, objects };
-    });
+    const otherId = layerNeighbour(direction);
+    if (!selectedId || !otherId) return;
+    const current = stateRef.current;
+    const objects = [...current.objects];
+    const from = objects.findIndex((obj) => obj.id === selectedId);
+    const to = objects.findIndex((obj) => obj.id === otherId);
+    if (from < 0 || to < 0) return;
+    [objects[from], objects[to]] = [objects[to], objects[from]];
+    commit({ ...current, objects });
+  }
+
+  function canDropLayer(target: DraftCanvasObject): boolean {
+    const dragged = state.objects.find((obj) => obj.id === dragLayerId);
+    return !!dragged
+      && dragged.id !== target.id
+      && !isBackgroundFill(dragged)
+      && !isBackgroundFill(target);
+  }
+
+  function dropLayer(targetId: string, place: LayerDropPlace) {
+    const current = stateRef.current;
+    const dragged = current.objects.find((obj) => obj.id === dragLayerId);
+    const target = current.objects.find((obj) => obj.id === targetId);
+    if (!dragged || !target || dragged === target || isBackgroundFill(dragged) || isBackgroundFill(target)) return;
+    const objects = current.objects.filter((obj) => obj !== dragged);
+    const targetIndex = objects.indexOf(target);
+    objects.splice(place === 'above' ? targetIndex + 1 : targetIndex, 0, dragged);
+    if (objects.every((obj, index) => obj === current.objects[index])) return;
+    commit({ ...current, objects });
+  }
+
+  function endLayerDrag() {
+    setDragLayerId(null);
+    setDropHint(null);
+  }
+
+  function handleDroppedFiles(files: FileList | null) {
+    const file = Array.from(files || []).find((item) => item.type.startsWith('image/'));
+    if (file) addImage(file);
+  }
+
+  function requestClose() {
+    if (historyFlags.undo) {
+      setConfirmClose(true);
+      return;
+    }
+    onClose();
   }
 
   async function handleDone() {
@@ -352,11 +679,11 @@ export default function DraftDesignerSheet({
       onMouseDown={stopBubble}
       onClick={stopBubble}
     >
-      <header className='merchi-product-draft-sheet-header'>
+      <header className={`merchi-product-draft-sheet-header${allowAdditionalObjects ? ' has-tools' : ''}`}>
         <button
           type='button'
           className='merchi-product-draft-icon-btn'
-          onClick={onClose}
+          onClick={requestClose}
           aria-label='Close designer'
         >
           <FaTimes />
@@ -364,6 +691,28 @@ export default function DraftDesignerSheet({
         <div className='merchi-product-draft-sheet-title'>
           <strong>{template?.name || 'Artwork'}</strong>
           {hasGroups ? <span>Group {groupIndex + 1}</span> : null}
+        </div>
+        <div className='merchi-product-draft-history'>
+          <button
+            type='button'
+            className='merchi-product-draft-icon-btn'
+            onClick={undo}
+            disabled={!historyFlags.undo}
+            aria-label='Undo'
+            title='Undo (Ctrl+Z)'
+          >
+            <FaUndo />
+          </button>
+          <button
+            type='button'
+            className='merchi-product-draft-icon-btn'
+            onClick={redo}
+            disabled={!historyFlags.redo}
+            aria-label='Redo'
+            title='Redo (Ctrl+Shift+Z)'
+          >
+            <FaRedo />
+          </button>
         </div>
         <button
           type='button'
@@ -413,7 +762,37 @@ export default function DraftDesignerSheet({
         </div>
       ) : null}
 
-      <div className='merchi-product-draft-main'>
+      <div className={`merchi-product-draft-main${allowAdditionalObjects ? '' : ' is-no-tools'}`}>
+        {allowAdditionalObjects ? (
+          <nav className='merchi-product-draft-toolbar' aria-label='Design tools'>
+            <button
+              type='button'
+              className={selected?.type === 'text' ? 'is-active' : ''}
+              aria-pressed={selected?.type === 'text'}
+              onClick={() => {
+                setImagePanelOpen(false);
+                addText();
+              }}
+            >
+              <FaFont />
+              <span>Text</span>
+            </button>
+            <button
+              type='button'
+              className={imagePanelVisible ? 'is-active' : ''}
+              aria-pressed={imagePanelVisible}
+              onClick={() => {
+                setEditingTextId(null);
+                if (selected && selected.type !== 'image') setSelectedId(null);
+                setImagePanelOpen(true);
+              }}
+            >
+              <FaImage />
+              <span>Image</span>
+            </button>
+          </nav>
+        ) : null}
+
         <div className='merchi-product-draft-sheet-body'>
           <DraftCanvasBoundary>
             <React.Suspense
@@ -427,212 +806,403 @@ export default function DraftDesignerSheet({
                 template={template}
                 templateSrc={templateSrc(template, apiUrl)}
                 selectedId={selectedId}
-                onSelect={setSelectedId}
+                editingTextId={editingTextId}
+                onSelect={selectObject}
                 onChange={handleCanvasChange}
                 onEditText={(id) => {
-                  setLayersOpen(false);
-                  setSelectedId(id);
+                  selectObject(id);
                   setEditingTextId(id);
                 }}
+                onTextChange={(text) => patchSelected({ text })}
+                onFinishEdit={() => setEditingTextId(null)}
               />
             </React.Suspense>
           </DraftCanvasBoundary>
-
-          {layersOpen ? (
-            <div className='merchi-product-draft-layers'>
-              <div className='merchi-product-draft-layers-head'>
-                <strong>Layers</strong>
-                <button type='button' onClick={() => setLayersOpen(false)} aria-label='Close layers'>
-                  <FaTimes />
-                </button>
-              </div>
-              {state.objects.length === 0 ? (
-                <p>No objects yet. Add text or an image.</p>
-              ) : (
-                [...state.objects].reverse().map((obj, index) => (
-                  <button
-                    key={obj.id}
-                    type='button'
-                    className={`merchi-product-draft-layer${obj.id === selectedId ? ' is-active' : ''}`}
-                    onClick={() => {
-                      setSelectedId(obj.id);
-                      setEditingTextId(null);
-                    }}
-                  >
-                    <FaPlus className='merchi-product-draft-layer-icon' />
-                    {obj.type === 'text' ? (obj.text || 'Text') : obj.type === 'image' ? 'Image' : 'Base colour'}
-                    <span>{state.objects.length - index}</span>
-                  </button>
-                ))
-              )}
-            </div>
-          ) : null}
-
+          {error ? <p className='merchi-product-draft-error'>{error}</p> : null}
         </div>
 
-        {error ? <p className='merchi-product-draft-error'>{error}</p> : null}
-
-        <aside className='merchi-product-draft-dock'>
-          {selected ? (
-            <div className='merchi-product-draft-inspector'>
-              {selected.type === 'text' ? (
-                <>
+        <aside className='merchi-product-draft-dock' aria-label='Design panel'>
+          <section className='merchi-product-draft-panel'>
+            {selected?.type === 'text' ? (
+              <>
+                <h3 className='merchi-product-draft-panel-title'>Text</h3>
+                <label className='merchi-product-draft-field'>
+                  <span className='merchi-sr-only'>Text</span>
                   <textarea
                     className='merchi-product-draft-text-input'
                     value={selected.text || ''}
                     rows={2}
-                    autoFocus={editingTextId === selected.id}
                     aria-label='Edit text'
                     onChange={(e) => patchSelected({ text: e.target.value })}
                   />
-                  <label className='merchi-product-draft-font'>
-                    <span className='merchi-sr-only'>Font</span>
-                    <select
-                      aria-label='Font'
-                      value={selected.fontFamily || DEFAULT_DRAFT_FONT}
-                      style={{ fontFamily: cssFontFamily(selected.fontFamily || DEFAULT_DRAFT_FONT) }}
-                      onChange={(e) => patchSelected({ fontFamily: e.target.value })}
+                </label>
+                <label className='merchi-product-draft-field merchi-product-draft-font'>
+                  <span className='merchi-product-draft-field-label'>Font</span>
+                  <select
+                    aria-label='Font'
+                    value={selected.fontFamily || DEFAULT_DRAFT_FONT}
+                    style={{ fontFamily: cssFontFamily(selected.fontFamily || DEFAULT_DRAFT_FONT) }}
+                    onChange={(e) => patchSelected({ fontFamily: e.target.value })}
+                  >
+                    {DRAFT_TEXT_FONTS.map((font) => (
+                      <option
+                        key={font.value}
+                        value={font.value}
+                        style={{ fontFamily: cssFontFamily(font.value) }}
+                      >
+                        {font.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className='merchi-product-draft-field'>
+                  <span className='merchi-product-draft-field-label'>Size</span>
+                  <div className='merchi-product-draft-size'>
+                    <button
+                      type='button'
+                      className='merchi-product-draft-stepper'
+                      onClick={() => patchSelected({
+                        fontSize: Math.max(12, (selected.fontSize || 48) - 8),
+                      })}
+                      aria-label='Smaller text'
                     >
-                      {DRAFT_TEXT_FONTS.map((font) => (
-                        <option
-                          key={font.value}
-                          value={font.value}
-                          style={{ fontFamily: cssFontFamily(font.value) }}
-                        >
-                          {font.label}
-                        </option>
-                      ))}
+                      A-
+                    </button>
+                    <select
+                      aria-label='Text size'
+                      value={Math.round(selected.fontSize || 48)}
+                      onChange={(e) => patchSelected({ fontSize: Number(e.target.value) })}
+                    >
+                      {Array.from(new Set([...TEXT_SIZES, Math.round(selected.fontSize || 48)]))
+                        .sort((a, b) => a - b)
+                        .map((size) => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
                     </select>
-                  </label>
-                  <button
-                    type='button'
-                    className='merchi-product-draft-stepper'
-                    onClick={() => patchSelected({
-                      fontSize: Math.max(12, (selected.fontSize || 48) - 8),
+                    <button
+                      type='button'
+                      className='merchi-product-draft-stepper'
+                      onClick={() => patchSelected({
+                        fontSize: Math.min(240, (selected.fontSize || 48) + 8),
+                      })}
+                      aria-label='Larger text'
+                    >
+                      A+
+                    </button>
+                  </div>
+                </div>
+                <div className='merchi-product-draft-field'>
+                  <span className='merchi-product-draft-field-label'>Align</span>
+                  <div className='merchi-product-draft-align' role='group' aria-label='Text alignment'>
+                    {TEXT_ALIGNMENTS.map(({ value, label, Icon }) => {
+                      const active = (selected.align || 'left') === value;
+                      return (
+                        <button
+                          key={value}
+                          type='button'
+                          className={active ? 'is-active' : ''}
+                          aria-pressed={active}
+                          aria-label={label}
+                          title={label}
+                          onClick={() => patchSelected({ align: value })}
+                        >
+                          <Icon />
+                        </button>
+                      );
                     })}
-                    aria-label='Smaller text'
+                  </div>
+                </div>
+                {selected.colourFieldId != null ? (
+                  <ColourPicker
+                    label='Colour'
+                    value={selected.fill || '#111111'}
+                    onChange={(fill) => patchSelected({ fill })}
+                  />
+                ) : null}
+              </>
+            ) : imagePanelVisible ? (
+              <>
+                <h3 className='merchi-product-draft-panel-title'>Image</h3>
+                {allowAdditionalObjects ? (
+                  <div
+                    className={`merchi-product-draft-upload${dragOver ? ' is-dragging' : ''}`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOver(true);
+                    }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOver(false);
+                      handleDroppedFiles(e.dataTransfer.files);
+                    }}
                   >
-                    A-
-                  </button>
-                  <button
-                    type='button'
-                    className='merchi-product-draft-stepper'
-                    onClick={() => patchSelected({
-                      fontSize: Math.min(240, (selected.fontSize || 48) + 8),
-                    })}
-                    aria-label='Larger text'
-                  >
-                    A+
-                  </button>
-                  {selected.colourFieldId != null ? (
-                    <label className='merchi-product-draft-color'>
-                      <span className='merchi-sr-only'>Colour</span>
-                      <input
-                        type='color'
-                        value={/^#[0-9a-fA-F]{6}$/.test(selected.fill || '') ? selected.fill : '#111111'}
-                        onChange={(e) => patchSelected({ fill: e.target.value })}
-                      />
-                    </label>
+                    <FaCloudUploadAlt className='merchi-product-draft-upload-icon' />
+                    <strong>Upload your artwork</strong>
+                    <span>Drag and drop an image here</span>
+                    <button
+                      type='button'
+                      className='merchi-product-draft-primary-btn'
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Browse files
+                    </button>
+                  </div>
+                ) : null}
+                {selected?.type === 'image' ? (
+                  <div className='merchi-product-draft-field'>
+                    <span className='merchi-product-draft-field-label'>Selected image</span>
+                    <div className='merchi-product-draft-selected-item'>
+                      {selected.src ? (
+                        <img src={selected.src} alt='' className='merchi-product-draft-selected-thumb' />
+                      ) : (
+                        <FaImage />
+                      )}
+                      <span className='merchi-product-draft-layer-text'>
+                        <strong>{layerName(selected)}</strong>
+                        <small>Image layer</small>
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            ) : selected?.type === 'rect' ? (
+              <>
+                <h3 className='merchi-product-draft-panel-title'>Base colour</h3>
+                <ColourPicker
+                  label='Fill colour'
+                  value={selected.fill || '#cccccc'}
+                  onChange={(fill) => patchSelected({ fill })}
+                />
+              </>
+            ) : (
+              <>
+                <h3 className='merchi-product-draft-panel-title'>Design tools</h3>
+                <div className='merchi-product-draft-empty'>
+                  <FaMousePointer />
+                  <strong>Start your design</strong>
+                  <span>
+                    {allowAdditionalObjects
+                      ? 'Add text or upload an image.'
+                      : 'Select a layer to edit it.'}
+                  </span>
+                </div>
+              </>
+            )}
+
+            {selected ? (
+              <div className='merchi-product-draft-field'>
+                <span className='merchi-product-draft-field-label'>Transform</span>
+                <div className='merchi-product-draft-transform'>
+                  {selected.type === 'image' ? (
+                    <button
+                      type='button'
+                      className={selected.lockAspectRatio ? 'is-active' : ''}
+                      onClick={() => patchSelected({ lockAspectRatio: !selected.lockAspectRatio })}
+                      aria-label={selected.lockAspectRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                      aria-pressed={!!selected.lockAspectRatio}
+                    >
+                      {selected.lockAspectRatio ? <FaLock /> : <FaUnlock />}
+                      Ratio
+                    </button>
                   ) : null}
-                </>
-              ) : null}
-              {selected.type === 'image' ? (
+                  <button
+                    type='button'
+                    onClick={() => patchSelected({ scaleX: (selected.scaleX || 1) * -1 })}
+                    aria-label='Flip'
+                  >
+                    <FaExchangeAlt />
+                    Flip
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          <section className={`merchi-product-draft-layers${layersCollapsed ? ' is-collapsed' : ''}`}>
+            <div className='merchi-product-draft-layers-head'>
+              <button
+                type='button'
+                className='merchi-product-draft-layers-toggle'
+                aria-expanded={!layersCollapsed}
+                aria-controls='merchi-product-draft-layer-list'
+                onClick={() => setLayersCollapsed((collapsed) => !collapsed)}
+              >
+                <strong>Layers ({layers.length})</strong>
+              </button>
+              <div className='merchi-product-draft-layers-actions'>
                 <button
                   type='button'
-                  className={`merchi-product-draft-icon-btn${selected.lockAspectRatio ? ' is-active' : ''}`}
-                  onClick={() => patchSelected({ lockAspectRatio: !selected.lockAspectRatio })}
-                  aria-label={selected.lockAspectRatio ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+                  className='merchi-product-draft-layer-action'
+                  onClick={duplicateSelected}
+                  disabled={!canDuplicate}
+                  aria-label='Duplicate'
+                  title='Duplicate (Ctrl+D)'
                 >
-                  {selected.lockAspectRatio ? <FaLock /> : <FaUnlock />}
-                  Ratio
+                  <FaClone />
                 </button>
-              ) : null}
-              {selected.type === 'rect' ? (
-                <label className='merchi-product-draft-color'>
-                  <span className='merchi-sr-only'>Fill colour</span>
-                  <input
-                    type='color'
-                    value={selected.fill || '#cccccc'}
-                    onChange={(e) => patchSelected({ fill: e.target.value })}
-                  />
-                </label>
-              ) : null}
-              <button
-                type='button'
-                className='merchi-product-draft-icon-btn'
-                onClick={() => patchSelected({ scaleX: (selected.scaleX || 1) * -1 })}
-                aria-label='Flip'
-              >
-                Flip
-              </button>
-              <button
-                type='button'
-                className='merchi-product-draft-icon-btn'
-                onClick={() => moveLayer(1)}
-                aria-label='Bring forward'
-              >
-                <FaArrowUp />
-              </button>
-              <button
-                type='button'
-                className='merchi-product-draft-icon-btn'
-                onClick={() => moveLayer(-1)}
-                aria-label='Send backward'
-              >
-                <FaArrowDown />
-              </button>
-              <button
-                type='button'
-                className='merchi-product-draft-icon-btn is-danger'
-                onClick={removeSelected}
-                aria-label='Delete'
-              >
-                <FaTrash />
-              </button>
+                <button
+                  type='button'
+                  className='merchi-product-draft-layer-action is-danger'
+                  onClick={removeSelected}
+                  disabled={!selectedId}
+                  aria-label='Delete selected'
+                >
+                  <FaTrash />
+                </button>
+                <button
+                  type='button'
+                  className='merchi-product-draft-layer-action'
+                  aria-label={layersCollapsed ? 'Expand layers' : 'Collapse layers'}
+                  onClick={() => setLayersCollapsed((collapsed) => !collapsed)}
+                >
+                  {layersCollapsed ? <FaChevronDown /> : <FaChevronUp />}
+                </button>
+              </div>
             </div>
-          ) : null}
+            {layersCollapsed ? null : (
+              <div
+                id='merchi-product-draft-layer-list'
+                className='merchi-product-draft-layer-list'
+                role='listbox'
+                aria-label='Layers'
+              >
+                {layers.length === 0 ? (
+                  <div className='merchi-product-draft-layers-empty'>
+                    <FaLayerGroup />
+                    <span>No layers yet</span>
+                  </div>
+                ) : (
+                  layers.map((obj) => (
+                    <div
+                      key={obj.id}
+                      ref={(node) => {
+                        layerRefs.current[obj.id] = node;
+                      }}
+                      role='option'
+                      tabIndex={0}
+                      draggable={!isBackgroundFill(obj)}
+                      aria-selected={obj.id === selectedId}
+                      className={[
+                        'merchi-product-draft-layer',
+                        obj.id === selectedId ? 'is-active' : '',
+                        obj.id === dragLayerId ? 'is-dragging' : '',
+                        dropHint?.id === obj.id ? `is-drop-${dropHint.place}` : '',
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => selectObject(obj.id)}
+                      onKeyDown={(e) => {
+                        if (e.key !== 'Enter' && e.key !== ' ') return;
+                        e.preventDefault();
+                        selectObject(obj.id);
+                      }}
+                      onDragStart={(e) => {
+                        const target = e.target as HTMLElement | null;
+                        if (target?.closest('.merchi-product-draft-layer-more, .merchi-product-draft-layer-menu')) {
+                          e.preventDefault();
+                          return;
+                        }
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', obj.id);
+                        setDragLayerId(obj.id);
+                      }}
+                      onDragOver={(e) => {
+                        if (!canDropLayer(obj)) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const place: LayerDropPlace = e.clientY < rect.top + rect.height / 2
+                          ? 'above'
+                          : 'below';
+                        if (dropHint?.id !== obj.id || dropHint.place !== place) {
+                          setDropHint({ id: obj.id, place });
+                        }
+                      }}
+                      onDragLeave={(e) => {
+                        if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+                        setDropHint((hint) => (hint?.id === obj.id ? null : hint));
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dropHint?.id === obj.id) dropLayer(obj.id, dropHint.place);
+                        endLayerDrag();
+                      }}
+                      onDragEnd={endLayerDrag}
+                    >
+                      {isBackgroundFill(obj) ? null : (
+                        <FaGripVertical className='merchi-product-draft-layer-grip' aria-hidden='true' />
+                      )}
+                      <span className='merchi-product-draft-layer-icon'>
+                        <LayerIcon obj={obj} />
+                      </span>
+                      <span className='merchi-product-draft-layer-text'>
+                        <strong>{layerName(obj)}</strong>
+                        <small>{layerKind(obj)}</small>
+                      </span>
+                      {obj.id === selectedId && !isBackgroundFill(obj) ? (
+                        <button
+                          type='button'
+                          className='merchi-product-draft-layer-more'
+                          aria-label='Layer order'
+                          aria-expanded={layerMenuOpen}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const menuHeight = 88;
+                            const top = rect.bottom + menuHeight > window.innerHeight
+                              ? Math.max(8, rect.top - menuHeight)
+                              : rect.bottom + 4;
+                            setLayerMenuPos({ top, right: Math.max(8, window.innerWidth - rect.right) });
+                            setLayerMenuOpen((open) => !open);
+                          }}
+                        >
+                          <FaEllipsisH />
+                        </button>
+                      ) : null}
+                      {obj.id === selectedId && layerMenuOpen ? (
+                        <div
+                          className='merchi-product-draft-layer-menu'
+                          role='menu'
+                          style={layerMenuPos
+                            ? { top: layerMenuPos.top, right: layerMenuPos.right }
+                            : undefined}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type='button'
+                            role='menuitem'
+                            onClick={() => {
+                              moveLayer(1);
+                              setLayerMenuOpen(false);
+                            }}
+                            disabled={!layerNeighbour(1)}
+                          >
+                            <FaArrowUp />
+                            Bring forward
+                          </button>
+                          <button
+                            type='button'
+                            role='menuitem'
+                            onClick={() => {
+                              moveLayer(-1);
+                              setLayerMenuOpen(false);
+                            }}
+                            disabled={!layerNeighbour(-1)}
+                          >
+                            <FaArrowDown />
+                            Send backward
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+            {layersCollapsed || layers.length === 0 ? null : (
+              <p className='merchi-product-draft-layers-hint'>Drag layers to change their order.</p>
+            )}
+          </section>
 
-          <nav className='merchi-product-draft-toolbar' aria-label='Design tools'>
-            {allowAdditionalObjects ? (
-              <button
-                type='button'
-                onClick={() => {
-                  setLayersOpen(false);
-                  addText();
-                }}
-              >
-                <FaFont />
-                <span>Text</span>
-              </button>
-            ) : null}
-            {allowAdditionalObjects ? (
-              <button
-                type='button'
-                onClick={() => {
-                  setLayersOpen(false);
-                  setEditingTextId(null);
-                  fileInputRef.current?.click();
-                }}
-              >
-                <FaImage />
-                <span>Image</span>
-              </button>
-            ) : null}
-            <button
-              type='button'
-              onClick={() => {
-                setEditingTextId(null);
-                setLayersOpen((openNow) => !openNow);
-              }}
-            >
-              <FaLayerGroup />
-              <span>Layers</span>
-            </button>
-            <button type='button' onClick={removeSelected} disabled={!selectedId}>
-              <FaTrash />
-              <span>Delete</span>
-            </button>
-          </nav>
           <input
             ref={fileInputRef}
             type='file'
@@ -646,6 +1216,36 @@ export default function DraftDesignerSheet({
           />
         </aside>
       </div>
+      {confirmClose ? (
+        <div
+          className='merchi-product-draft-confirm'
+          role='presentation'
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setConfirmClose(false);
+          }}
+        >
+          <div
+            className='merchi-product-draft-confirm-card'
+            role='alertdialog'
+            aria-modal='true'
+            aria-labelledby='merchi-product-draft-confirm-title'
+            aria-describedby='merchi-product-draft-confirm-body'
+          >
+            <h2 id='merchi-product-draft-confirm-title'>Unsaved changes</h2>
+            <p id='merchi-product-draft-confirm-body'>
+              Your design changes will be lost if you leave without saving.
+            </p>
+            <div className='merchi-product-draft-confirm-actions'>
+              <button type='button' onClick={() => setConfirmClose(false)}>
+                Keep editing
+              </button>
+              <button type='button' className='is-leave' onClick={onClose}>
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>,
     document.body,
   );

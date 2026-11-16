@@ -1,10 +1,11 @@
 'use client';
 import * as React from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 import type { DraftCanvasHandle, DraftCanvasObject, DraftCanvasState } from '../../utils/types';
 import { cssFontFamily } from '../../utils/draftFonts';
 import { captureStageArtboard, exportDraftPngs } from '../../utils/draftExport';
+import { FaMinus, FaPlus } from 'react-icons/fa';
 import { fitInside, fitTextBox, isBackgroundFill, isFullArtboardFill, printAreaGuides } from '../../utils/draftTemplates';
 import { useHtmlImage } from './useHtmlImage';
 
@@ -13,9 +14,12 @@ interface Props {
   templateSrc?: string | string[] | null;
   template?: any;
   selectedId: string | null;
+  editingTextId?: string | null;
   onSelect: (id: string | null) => void;
   onChange: (state: DraftCanvasState) => void;
   onEditText: (id: string) => void;
+  onTextChange?: (text: string) => void;
+  onFinishEdit?: () => void;
 }
 
 function fitView(width: number, height: number, artW: number, artH: number) {
@@ -110,14 +114,61 @@ const CanvasImage = React.forwardRef(function CanvasImage(
   );
 });
 
+/** Caret index in the text, from a point in the text box's own coordinates. */
+function caretIndexForPointer(
+  text: string,
+  fontSize: number,
+  fontFamily: string | undefined,
+  align: string,
+  boxWidth: number,
+  boxHeight: number,
+  pointer: { x: number; y: number },
+): number {
+  const value = text || '';
+  const lines = value.split('\n');
+  const size = Math.max(12, fontSize || 48);
+  const top = Math.max(0, (boxHeight - lines.length * size) / 2);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return value.length;
+  ctx.font = `${size}px ${cssFontFamily(fontFamily)}`;
+  const lineIndex = Math.max(
+    0,
+    Math.min(lines.length - 1, Math.floor((pointer.y - top) / size)),
+  );
+  const line = lines[lineIndex];
+  const lineWidth = ctx.measureText(line).width;
+  const startX = align === 'center'
+    ? (boxWidth - lineWidth) / 2
+    : align === 'right'
+      ? boxWidth - lineWidth
+      : 0;
+  const x = pointer.x - startX;
+  let charIndex = line.length;
+  for (let i = 1; i <= line.length; i += 1) {
+    const width = ctx.measureText(line.slice(0, i)).width;
+    if (width >= x) {
+      const previous = ctx.measureText(line.slice(0, i - 1)).width;
+      charIndex = x - previous < width - x ? i - 1 : i;
+      break;
+    }
+  }
+  let index = charIndex;
+  for (let i = 0; i < lineIndex; i += 1) index += lines[i].length + 1;
+  return index;
+}
+
 const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCanvas({
   state,
   templateSrc,
   template,
   selectedId,
+  editingTextId = null,
   onSelect,
   onChange,
   onEditText,
+  onTextChange,
+  onFinishEdit,
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
@@ -126,6 +177,8 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
   const templateNodeRef = useRef<any>(null);
   const guideRefs = useRef<any[]>([]);
   const nodeRefs = useRef<Record<string, any>>({});
+  const editorRef = useRef<HTMLTextAreaElement>(null);
+  const caretRef = useRef<number | null>(null);
   const [size, setSize] = useState({ width: 320, height: 360 });
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
   const pinchRef = useRef({ dist: 0, scale: 1, x: 0, y: 0 });
@@ -165,20 +218,26 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
         try { node.visible(true); } catch { /* ignore */ }
       });
       const chrome = [trRef.current, ...guideRefs.current].filter(Boolean);
+      const hiddenText = Object.values(nodeRefs.current).filter(
+        (node) => node && typeof node.opacity === 'function' && node.opacity() < 1,
+      );
       const artOnly = [whiteRectRef.current, templateNodeRef.current].filter(Boolean);
 
       try {
         hide(chrome);
+        hiddenText.forEach((node) => node.opacity(1));
         stage.draw();
         const canvasPreview = captureStageArtboard(stage, view, state);
         hide(artOnly);
         stage.draw();
         const draft = captureStageArtboard(stage, view, state);
         show([...artOnly, ...chrome]);
+        hiddenText.forEach((node) => node.opacity(0));
         stage.draw();
         if (draft && canvasPreview) return { draft, canvasPreview };
       } catch {
         show([...artOnly, ...chrome]);
+        hiddenText.forEach((node) => node.opacity(0));
         try { stage.draw(); } catch { /* ignore */ }
       }
       return fallback();
@@ -189,7 +248,9 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
     const transformer = trRef.current;
     if (!transformer) return undefined;
     const attach = () => {
-      const node = selectedId ? nodeRefs.current[selectedId] : null;
+      const node = selectedId && selectedId !== editingTextId
+        ? nodeRefs.current[selectedId]
+        : null;
       try {
         const onStage = Boolean(
           node && typeof node.getStage === 'function' && node.getStage()
@@ -203,7 +264,7 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
     attach();
     const raf = requestAnimationFrame(attach);
     return () => cancelAnimationFrame(raf);
-  }, [selectedId, state.objects]);
+  }, [selectedId, editingTextId, state.objects]);
 
   function patchObject(id: string, patch: Partial<DraftCanvasObject>) {
     onChange({
@@ -259,8 +320,95 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
     setPinching(false);
   }
 
+  const editing = state.objects.find(
+    (obj) => obj.id === editingTextId && obj.type === 'text',
+  ) || null;
+
+  function placeEditor() {
+    const area = editorRef.current;
+    const node = editing ? nodeRefs.current[editing.id] : null;
+    if (!area || !node || typeof node.getAbsoluteTransform !== 'function') return;
+    const matrix = node.getAbsoluteTransform().getMatrix();
+    const fontSize = editing?.fontSize || 48;
+    const lines = String(editing?.text || '').split('\n');
+    const padTop = Math.max(0, (node.height() - lines.length * fontSize) / 2);
+    area.style.fontSize = `${fontSize}px`;
+    area.style.width = `${node.width()}px`;
+    const extra = Math.max(0, area.scrollWidth - node.width());
+    const shift = editing?.align === 'center' ? -extra / 2 : editing?.align === 'right' ? -extra : 0;
+    const x = matrix[4] + shift * matrix[0];
+    const y = matrix[5] + shift * matrix[1];
+    area.style.transform = `matrix(${matrix[0]}, ${matrix[1]}, ${matrix[2]}, ${matrix[3]}, ${x}, ${y})`;
+    area.style.width = `${node.width() + extra}px`;
+    area.style.height = `${node.height()}px`;
+    area.style.paddingTop = `${padTop}px`;
+  }
+
+  function startTextEdit(obj: DraftCanvasObject, event: any) {
+    if (obj.type !== 'text') return;
+    const pointer = event.target.getRelativePointerPosition?.();
+    caretRef.current = pointer
+      ? caretIndexForPointer(
+        obj.text || '',
+        obj.fontSize || 48,
+        obj.fontFamily,
+        obj.align || 'left',
+        event.target.width(),
+        event.target.height(),
+        pointer,
+      )
+      : (obj.text || '').length;
+    onEditText(obj.id);
+  }
+
+  useLayoutEffect(() => {
+    placeEditor();
+  });
+
+  useLayoutEffect(() => {
+    if (!editing) return;
+    const area = editorRef.current;
+    if (!area) return;
+    const index = caretRef.current ?? area.value.length;
+    caretRef.current = null;
+    area.focus();
+    area.setSelectionRange(index, index);
+  }, [editingTextId]);
+
+  const fitScale = fitView(size.width, size.height, state.width, state.height).scale;
+
+  function zoomBy(factor: number) {
+    const clamped = Math.min(4, Math.max(0.15, view.scale * factor));
+    const centre = { x: size.width / 2, y: size.height / 2 };
+    const pointTo = {
+      x: (centre.x - view.x) / view.scale,
+      y: (centre.y - view.y) / view.scale,
+    };
+    setView({
+      scale: clamped,
+      x: centre.x - pointTo.x * clamped,
+      y: centre.y - pointTo.y * clamped,
+    });
+  }
+
   return (
     <div ref={containerRef} className='merchi-product-draft-canvas'>
+      <div className='merchi-product-draft-zoom' role='group' aria-label='Zoom'>
+        <button type='button' onClick={() => zoomBy(1 / 1.2)} aria-label='Zoom out'>
+          <FaMinus />
+        </button>
+        <span aria-live='polite'>{Math.round((view.scale / fitScale) * 100)}%</span>
+        <button type='button' onClick={() => zoomBy(1.2)} aria-label='Zoom in'>
+          <FaPlus />
+        </button>
+        <span className='merchi-product-draft-zoom-divider' aria-hidden='true' />
+        <button
+          type='button'
+          onClick={() => setView(fitView(size.width, size.height, state.width, state.height))}
+        >
+          Fit
+        </button>
+      </div>
       <Stage
         ref={stageRef}
         width={size.width}
@@ -340,10 +488,7 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                 listening={false}
               />
             ))}
-            {state.objects.filter((obj) => !isBackgroundFill(obj)).sort((a, b) => {
-              if (a.type === b.type) return 0;
-              return a.type === 'image' ? 1 : b.type === 'image' ? -1 : 0;
-            }).map((obj) => {
+            {state.objects.filter((obj) => !isBackgroundFill(obj)).map((obj) => {
               const common = {
                 ref: (node: any) => {
                   if (node) nodeRefs.current[obj.id] = node;
@@ -357,11 +502,11 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                 rotation: obj.rotation,
                 scaleX: obj.scaleX,
                 scaleY: obj.scaleY,
-                draggable: !pinching,
+                draggable: !pinching && obj.id !== editingTextId,
                 onClick: () => onSelect(obj.id),
                 onTap: () => onSelect(obj.id),
-                onDblClick: () => obj.type === 'text' && onEditText(obj.id),
-                onDblTap: () => obj.type === 'text' && onEditText(obj.id),
+                onDblClick: (event: any) => startTextEdit(obj, event),
+                onDblTap: (event: any) => startTextEdit(obj, event),
                 onDragEnd: (e: any) => patchObject(obj.id, { x: e.target.x(), y: e.target.y() }),
                 onTransformEnd: (e: any) => {
                   const node = e.target;
@@ -408,6 +553,7 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                     verticalAlign='middle'
                     lineHeight={1}
                     wrap='none'
+                    opacity={obj.id === editingTextId ? 0 : 1}
                   />
                 );
               }
@@ -428,6 +574,10 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
             <Transformer
               ref={trRef}
               rotateEnabled
+              borderStroke='#3b82f6'
+              anchorStroke='#3b82f6'
+              anchorFill='#ffffff'
+              rotateAnchorOffset={28}
               keepRatio={
                 (state.objects.find((obj) => obj.id === selectedId)?.type === 'text')
                 || Boolean(state.objects.find((obj) => obj.id === selectedId)?.lockAspectRatio)
@@ -449,6 +599,29 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
           </Group>
         </Layer>
       </Stage>
+      {editing ? (
+        <textarea
+          ref={editorRef}
+          className='merchi-product-draft-text-editor'
+          value={editing.text || ''}
+          aria-label='Edit text on canvas'
+          style={{
+            fontFamily: cssFontFamily(editing.fontFamily),
+            color: editing.fill || '#111111',
+            textAlign: (editing.align as React.CSSProperties['textAlign']) || 'left',
+            lineHeight: 1,
+          }}
+          onChange={(event) => onTextChange?.(event.target.value)}
+          onBlur={() => onFinishEdit?.()}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              event.currentTarget.blur();
+            }
+          }}
+          onMouseDown={(event) => event.stopPropagation()}
+        />
+      ) : null}
     </div>
   );
 });
