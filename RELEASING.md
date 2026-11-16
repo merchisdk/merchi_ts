@@ -28,6 +28,27 @@ Workspace dependency ranges stay as `workspace:` in Git. Immediately before
 packing, the release script converts them to the versions selected in the same
 release plan, so consumers never reference an unpublished workspace range.
 
+## Storefront release checklist
+
+- Run the storefront reporter regression when changing Cart, Checkout, or
+  error-catch. Reproduce the vendored reporter split, then check that both
+  upgraded components report through the storefront's configured reporter.
+- When a storefront needs a temporary `file:vendor/*.tgz` dependency, record
+  every adopting repository, the source commit, and the planned npm replacement
+  in the rollout issue. Include existing storefronts separately from the
+  boilerplate template.
+- After the matching npm package is available, follow up in each recorded
+  repository. Replace the temporary reference, update the lockfile, run a frozen
+  install and the storefront regression, and record the tested commit and the
+  production deployment when applicable. Keep missing adoption evidence visible.
+- If several SDK packages need to move together, link the package releases and
+  describe the shared dependency and acceptance check in the rollout issue.
+  Once System Agent supports coordinated releases, record the exact planned
+  versions for all participating packages under `coordinated_packages` in
+  `.github/system-agent-release-notes.json` before the first package publishes.
+  Keep the map through publication retries so each verified member reports the
+  same set. A later version of an individual package uses its own notice.
+
 ## Required repository setup
 
 This repository is expected to be `merchisdk/merchi_ts`. If the final GitHub

@@ -25,3 +25,15 @@ test('uses only explicitly recorded upstream issue evidence', () => {
 test('does not submit unmapped components to the release ingress', () => {
   assert.equal(releaseNotice({ name: '@merchi/unknown', version: '1.0.0' }, head), null);
 });
+
+test('reports an explicitly coordinated upgrade only for its exact release versions', () => {
+  const coordinated_packages = { '@merchi/cart': '1.4.58', '@merchi/error-catch': '0.1.13' };
+  const notes = { coordinated_packages };
+  assert.deepEqual(releaseNotice(item, head, notes).coordinated_packages, coordinated_packages);
+  assert.deepEqual(releaseNotice({ name: '@merchi/error-catch', version: '0.1.13' }, head, notes)
+    .coordinated_packages, coordinated_packages);
+  assert.equal(releaseNotice({ ...item, version: '1.4.59' }, head, notes).coordinated_packages, undefined);
+  assert.throws(() => releaseNotice(item, head, {
+    coordinated_packages: { ...coordinated_packages, '@merchi/checkout': '^1.3.59' },
+  }), /exact release versions/);
+});
