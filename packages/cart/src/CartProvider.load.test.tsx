@@ -4,6 +4,7 @@ import { act } from 'react-dom/test-utils';
 
 import CartProvider, { useCartContext } from './CartProvider';
 import { getCartCookie, setCartCookie } from './utilities/cookie';
+import { cartNeedsSourceUpdate } from './utilities/job_source';
 import { reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
 import { tabIdClearCart, tabIdItems } from './utilities/tabs';
 
@@ -39,7 +40,7 @@ jest.mock('./utilities/local_storage', () => ({ getSavedCheckoutCustomer: () => 
 jest.mock('./utilities/job_source', () => ({
   captureAndReadJobSource: () => null,
   jobSourceFieldsForApi: () => ({}),
-  cartNeedsSourceUpdate: () => false,
+  cartNeedsSourceUpdate: jest.fn(() => false),
   appendJobSourceToFormData: (form: FormData) => form,
 }));
 jest.mock('./utilities/reportFailure', () => ({
@@ -70,6 +71,7 @@ describe('cart load and replacement failures', () => {
   beforeEach(() => {
     for (const name of bindingNames) delete (window as any)[name];
     jest.clearAllMocks();
+    (cartNeedsSourceUpdate as jest.Mock).mockReturnValue(false);
     mockGet.mockReset();
     mockPost.mockReset();
     mockCreateItem.mockReset();
@@ -109,6 +111,20 @@ describe('cart load and replacement failures', () => {
     });
     await act(async () => context.setActiveTabIndex(tabIdClearCart));
   }
+  it('restores a paid cart without writing new attribution to the closed order', async () => {
+    const paidCart = { id: 42, isTest: false, invoice: { unpaid: false }, cartItems: [{ id: 7 }] };
+    mockGet.mockResolvedValue({ id: 42, toJson: () => paidCart, toFormData: () => new FormData() });
+    (cartNeedsSourceUpdate as jest.Mock).mockReturnValue(true);
+    mockPost.mockRejectedValue({ statusCode: 401, message: 'Authentication required' });
+
+    await act(async () => {
+      root.render(<CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>);
+    });
+
+    expect(context.cart).toEqual(paidCart);
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(reportCartFailure).not.toHaveBeenCalled();
+  });
   it('does not expose cart operations until a suspended provider commits', async () => {
     setUserAgent(headlessUserAgent);
     (getCartCookie as jest.Mock).mockResolvedValue(undefined);
