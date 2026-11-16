@@ -1,4 +1,5 @@
 import { containsPaymentReplayContent, isPaymentRelatedReplayPath, PAYMENT_REPLAY_SELECTOR } from "./replayPrivacy.js";
+import { createReplayImageReader, isPublicReplayImage } from "./replayImages.js";
 export { isPaymentRelatedReplayPath } from "./replayPrivacy.js";
 import type { FrontendErrorReporter } from "./reporter.js";
 import type { FrontendErrorEvent, FrontendErrorReceipt } from "./types.js";
@@ -26,9 +27,10 @@ const INPUT_ROLES = ["textbox", "searchbox", "combobox", "spinbutton", "listbox"
 const INPUT_BLOCK_SELECTOR = [
   ...INPUT_TAGS, "[contenteditable]", ...INPUT_ROLES.map((role) => `[role~="${role}" i]`),
 ].join(", ");
+const PRIVATE_REPLAY_SELECTOR = `${INPUT_BLOCK_SELECTOR}, [data-replay-block], [data-replay-payment], .rr-block`;
 
 /** Only full snapshots can expose page text. Mutation IDs alone do not identify editable content. */
-export function sanitizeReplayEvent(event: ReplayEvent, maskingEnabled = true): ReplayEvent {
+export function sanitizeReplayEvent(event: ReplayEvent, maskingEnabled = true, readImage?: (id: number) => string | undefined): ReplayEvent {
   const showPageText = event.type === 2 && !maskingEnabled;
   const clean = (value: unknown, key = "", style = false): unknown => {
     if (["value", "text", "textContent"].includes(key) && typeof value !== "string") return "";
@@ -65,6 +67,10 @@ export function sanitizeReplayEvent(event: ReplayEvent, maskingEnabled = true): 
             else if (attr === "style" || attr === "_cssText") attrs[attr] = safeCss(String(content));
             else if (/^[a-zA-Z0-9 .%-]{0,60}$/.test(String(content))) attrs[attr] = content;
           }
+        }
+        if (event.type === 2 && !privateControl && input.tagName === "img" && typeof input.id === "number") {
+          const image = readImage?.(input.id);
+          if (image) attrs.src = image;
         }
         output[name] = attrs;
       } else if (name === "href") {
@@ -151,6 +157,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
   let generation = 0;
   let stopRecord: (() => void) | undefined;
   let takeSnapshot: (() => void) | undefined;
+  let imageSnapshotTimer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
   let count = 0;
   const endpoint = new URL("frontend-replays/", options.apiUrl).href;
@@ -163,6 +170,8 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
   };
   const pause = (): void => {
     active = false; generation += 1;
+    clearTimeout(imageSnapshotTimer);
+    imageSnapshotTimer = undefined;
     for (const upload of uploads) upload.abort();
     uploads.clear();
     stopRecord?.(); stopRecord = undefined; takeSnapshot = undefined; buffer.clear();
@@ -248,13 +257,14 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
     void import("@rrweb/record").then(({ record }) => {
       if (!active || generation !== startedGeneration || !permitted()) return;
       takeSnapshot = () => record.takeFullSnapshot();
+      const readSnapshotImages = createReplayImageReader((id) => record.mirror.getNode(id), PRIVATE_REPLAY_SELECTOR);
       // record() emits the initial snapshot synchronously, before returning cleanup.
       const stop = record({
         maskAllInputs: true,
         ...(maskingEnabled ? { maskTextSelector: "*" } : {}),
         recordCanvas: false,
         recordCrossOriginIframes: false, collectFonts: false,
-        blockSelector: `${INPUT_BLOCK_SELECTOR}, iframe, img, picture, video, audio, canvas, svg, object, embed, [data-replay-block], [data-replay-payment], .rr-block`,
+        blockSelector: `${PRIVATE_REPLAY_SELECTOR}, iframe, img:not([data-replay-public-image]), video, audio, canvas, svg, object, embed`,
         checkoutEveryNms: 10_000,
         sampling: { mousemove: 100, scroll: 150 },
         emit(raw) {
@@ -262,7 +272,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
             if (!active || generation !== startedGeneration) return;
             if (!permitted() || containsPaymentReplayContent(raw)) { pause(); return; }
             if (raw.type === 5 || raw.type === 6) return;
-            const event = sanitizeReplayEvent(raw, maskingEnabled);
+            const event = sanitizeReplayEvent(raw, maskingEnabled, raw.type === 2 ? readSnapshotImages() : undefined);
             buffer.push(event);
             const bytes = new TextEncoder().encode(JSON.stringify(event)).length;
             for (const clip of clips.values()) {
@@ -278,6 +288,14 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
     }).catch(() => { if (generation === startedGeneration) pause(); });
   };
   const onPageHide = (): void => { for (const clip of clips.values()) finish(clip); };
+  const onImageLoad = (event: Event): void => {
+    if (!takeSnapshot || imageSnapshotTimer !== undefined || !permitted() ||
+        !isPublicReplayImage(event.target, PRIVATE_REPLAY_SELECTOR)) return;
+    imageSnapshotTimer = setTimeout(() => {
+      imageSnapshotTimer = undefined;
+      if (permitted()) takeSnapshot?.();
+    }, 500);
+  };
   const restorers: Array<() => void> = [];
   let observer: MutationObserver | undefined;
   if (typeof window !== "undefined" && typeof document !== "undefined") {
@@ -292,6 +310,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
     window.addEventListener("popstate", refresh);
     window.addEventListener("pageshow", refresh);
     window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("load", onImageLoad, true);
     observer = new MutationObserver(refresh);
     observer.observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["class", "src", "data-replay-payment"] });
   }
@@ -305,6 +324,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
         window.removeEventListener("popstate", refresh);
         window.removeEventListener("pageshow", refresh);
         window.removeEventListener("pagehide", onPageHide);
+        document.removeEventListener("load", onImageLoad, true);
       }
       controllers.delete(reporter);
     },

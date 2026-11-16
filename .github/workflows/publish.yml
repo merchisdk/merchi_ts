@@ -60,6 +60,10 @@ jobs:
         if: steps.plan.outputs.versioned == 'true'
         run: node .github/scripts/publish-release.mjs --verify-only
 
+      - name: Verify candidate storefront reporting
+        if: steps.plan.outputs.versioned == 'true'
+        run: node .github/scripts/verify-storefront-reporter.mjs --candidate
+
       - name: Record release versions on main
         if: steps.plan.outputs.versioned == 'true'
         run: |
