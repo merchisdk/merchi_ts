@@ -43,6 +43,11 @@ release plan, so consumers never reference an unpublished workspace range.
   production deployment when applicable. Keep missing adoption evidence visible.
 - If several SDK packages need to move together, link the package releases and
   describe the shared dependency and acceptance check in the rollout issue.
+  Once System Agent supports coordinated releases, record the exact planned
+  versions for all participating packages under `coordinated_packages` in
+  `.github/system-agent-release-notes.json` before the first package publishes.
+  Keep the map through publication retries so each verified member reports the
+  same set. A later version of an individual package uses its own notice.
 
 ## Required repository setup
 
