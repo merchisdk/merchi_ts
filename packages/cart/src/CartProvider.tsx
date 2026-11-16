@@ -694,6 +694,14 @@ const CartProvider = ({
       if (Boolean(cartJson.isTest) !== isTest) {
         return await createCartAndCookie(undefined, true);
       }
+      // A paid cart can be read but cannot be edited by the shopper.
+      // Restore it before attribution or saved customer writes.
+      if (cartJson.invoice?.unpaid === false) {
+        setCartClient(cartJson.client?.id ? cartJson.client : null);
+        setCart({ ...cartJson });
+        dismissInitializationError();
+        return cartJson;
+      }
       const jobSource = jobSourceFieldsForApi(captureAndReadJobSource());
       if (cartNeedsSourceUpdate(cartJson, jobSource)) {
         const saved = await merchi.authenticatedFetch(`/carts/${cart.id}/`, {
