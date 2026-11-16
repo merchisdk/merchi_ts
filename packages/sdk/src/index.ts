@@ -103,6 +103,8 @@ import * as util from './util/index.js';
 import * as pricing from './pricing/index.js';
 import { toastNotifications } from './toasts.js';
 
+export type { DesignerTextStyle } from './entities/variation.js';
+
 export {
   constants,
   request,
