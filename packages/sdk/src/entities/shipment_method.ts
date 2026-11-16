@@ -33,6 +33,9 @@ export class ShipmentMethod extends Entity {
   public companyDefault?: boolean;
 
   @ShipmentMethod.property()
+  public position?: number;
+
+  @ShipmentMethod.property()
   public defaultCost?: number;
 
   @ShipmentMethod.property()
