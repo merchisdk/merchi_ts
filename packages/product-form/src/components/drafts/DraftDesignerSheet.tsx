@@ -240,6 +240,9 @@ export default function DraftDesignerSheet({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [layersCollapsed, setLayersCollapsed] = useState(false);
+  const [mobileLayersOpen, setMobileLayersOpen] = useState(false);
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [sheetDragY, setSheetDragY] = useState(0);
   const [imagePanelOpen, setImagePanelOpen] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [dragLayerId, setDragLayerId] = useState<string | null>(null);
@@ -253,6 +256,8 @@ export default function DraftDesignerSheet({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<DraftCanvasHandle>(null);
   const layerRefs = useRef<Record<string, HTMLElement | null>>({});
+  const touchDragRef = useRef<{ id: string; y: number; moved: boolean; hint: { id: string; place: LayerDropPlace } | null } | null>(null);
+  const sheetDragRef = useRef<{ y: number; dy: number } | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
   const historyRef = useRef<CanvasHistory>(emptyHistory());
@@ -299,6 +304,8 @@ export default function DraftDesignerSheet({
     refreshHistoryFlags();
     setSelectedId(null);
     setEditingTextId(null);
+    setMobileLayersOpen(false);
+    setMobileSheetOpen(false);
     setError(null);
     // Reload the saved canvas when switching group/template, not on every keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -444,6 +451,15 @@ export default function DraftDesignerSheet({
     setSelectedId(id);
     setEditingTextId(null);
     setImagePanelOpen(false);
+    if (id == null) setMobileSheetOpen(false);
+    else setMobileSheetOpen(true);
+  }
+
+  function closeMobileSheet() {
+    setMobileLayersOpen(false);
+    setImagePanelOpen(false);
+    setMobileSheetOpen(false);
+    setEditingTextId(null);
   }
 
   function layerName(obj: DraftCanvasObject): string {
@@ -552,6 +568,7 @@ export default function DraftDesignerSheet({
     delete copy.colourFieldId;
     delete copy.artworkRole;
     delete copy.locked;
+    if (copy.type === 'text') Object.assign(copy, fitTextBox(copy));
     const objects = [...current.objects];
     objects.splice(objects.indexOf(source) + 1, 0, copy);
     commit({ ...current, objects });
@@ -608,9 +625,9 @@ export default function DraftDesignerSheet({
       && !isBackgroundFill(target);
   }
 
-  function dropLayer(targetId: string, place: LayerDropPlace) {
+  function dropLayer(targetId: string, place: LayerDropPlace, draggedId: string | null = dragLayerId) {
     const current = stateRef.current;
-    const dragged = current.objects.find((obj) => obj.id === dragLayerId);
+    const dragged = current.objects.find((obj) => obj.id === draggedId);
     const target = current.objects.find((obj) => obj.id === targetId);
     if (!dragged || !target || dragged === target || isBackgroundFill(dragged) || isBackgroundFill(target)) return;
     const objects = current.objects.filter((obj) => obj !== dragged);
@@ -623,6 +640,69 @@ export default function DraftDesignerSheet({
   function endLayerDrag() {
     setDragLayerId(null);
     setDropHint(null);
+  }
+
+  /** Touch screens never start an HTML5 drag, so the grip reorders by pointer instead. */
+  function layerHintAt(x: number, y: number) {
+    const row = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-layer-id]');
+    const id = row?.dataset.layerId;
+    if (!row || !id) return null;
+    const rect = row.getBoundingClientRect();
+    const place: LayerDropPlace = y < rect.top + rect.height / 2 ? 'above' : 'below';
+    return { id, place };
+  }
+
+  function startLayerPointer(event: React.PointerEvent, obj: DraftCanvasObject) {
+    if (event.pointerType === 'mouse' || isBackgroundFill(obj)) return;
+    touchDragRef.current = { id: obj.id, y: event.clientY, moved: false, hint: null };
+    event.stopPropagation();
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* ignore */ }
+  }
+
+  function moveLayerPointer(event: React.PointerEvent) {
+    const drag = touchDragRef.current;
+    if (!drag || event.pointerType === 'mouse') return;
+    if (!drag.moved && Math.abs(event.clientY - drag.y) < 6) return;
+    drag.moved = true;
+    event.preventDefault();
+    setDragLayerId(drag.id);
+    const hint = layerHintAt(event.clientX, event.clientY);
+    const target = stateRef.current.objects.find((obj) => obj.id === hint?.id);
+    drag.hint = hint && target && hint.id !== drag.id && !isBackgroundFill(target) ? hint : null;
+    setDropHint(drag.hint);
+  }
+
+  function endLayerPointer(event: React.PointerEvent) {
+    const drag = touchDragRef.current;
+    touchDragRef.current = null;
+    if (!drag || event.pointerType === 'mouse') return;
+    if (drag.moved && drag.hint) dropLayer(drag.hint.id, drag.hint.place, drag.id);
+    if (drag.moved) endLayerDrag();
+  }
+
+  function startSheetDrag(event: React.PointerEvent) {
+    if (event.pointerType === 'mouse') return;
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('button, input, textarea, select, a, .merchi-product-draft-layer-grip')) return;
+    sheetDragRef.current = { y: event.clientY, dy: 0 };
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* ignore */ }
+  }
+
+  function moveSheetDrag(event: React.PointerEvent) {
+    const drag = sheetDragRef.current;
+    if (!drag) return;
+    const dock = event.currentTarget as HTMLElement;
+    if (dock.scrollTop > 0) return;
+    drag.dy = Math.max(0, event.clientY - drag.y);
+    setSheetDragY(drag.dy);
+  }
+
+  function endSheetDrag() {
+    const dy = sheetDragRef.current?.dy || 0;
+    sheetDragRef.current = null;
+    setSheetDragY(0);
+    if (dy > 48) closeMobileSheet();
   }
 
   function handleDroppedFiles(files: FileList | null) {
@@ -667,6 +747,30 @@ export default function DraftDesignerSheet({
       setSaving(false);
     }
   }
+
+  const layerActionButtons = (
+    <>
+      <button
+        type='button'
+        className='merchi-product-draft-layer-action'
+        onClick={duplicateSelected}
+        disabled={!canDuplicate}
+        aria-label='Duplicate'
+        title='Duplicate (Ctrl+D)'
+      >
+        <FaClone />
+      </button>
+      <button
+        type='button'
+        className='merchi-product-draft-layer-action is-danger'
+        onClick={removeSelected}
+        disabled={!selectedId}
+        aria-label='Delete selected'
+      >
+        <FaTrash />
+      </button>
+    </>
+  );
 
   if (!open || typeof document === 'undefined') return null;
 
@@ -762,15 +866,24 @@ export default function DraftDesignerSheet({
         </div>
       ) : null}
 
-      <div className={`merchi-product-draft-main${allowAdditionalObjects ? '' : ' is-no-tools'}`}>
+      <div
+        className={[
+          'merchi-product-draft-main',
+          allowAdditionalObjects ? '' : 'is-no-tools',
+          mobileLayersOpen ? 'is-layers-open' : '',
+          mobileSheetOpen ? '' : 'is-sheet-closed',
+        ].filter(Boolean).join(' ')}
+      >
         {allowAdditionalObjects ? (
           <nav className='merchi-product-draft-toolbar' aria-label='Design tools'>
             <button
               type='button'
-              className={selected?.type === 'text' ? 'is-active' : ''}
+              className={mobileSheetOpen && !mobileLayersOpen && selected?.type === 'text' ? 'is-active' : ''}
               aria-pressed={selected?.type === 'text'}
               onClick={() => {
                 setImagePanelOpen(false);
+                setMobileLayersOpen(false);
+                setMobileSheetOpen(true);
                 addText();
               }}
             >
@@ -779,16 +892,34 @@ export default function DraftDesignerSheet({
             </button>
             <button
               type='button'
-              className={imagePanelVisible ? 'is-active' : ''}
+              className={mobileSheetOpen && !mobileLayersOpen && imagePanelVisible ? 'is-active' : ''}
               aria-pressed={imagePanelVisible}
               onClick={() => {
                 setEditingTextId(null);
                 if (selected && selected.type !== 'image') setSelectedId(null);
                 setImagePanelOpen(true);
+                setMobileLayersOpen(false);
+                setMobileSheetOpen(true);
               }}
             >
               <FaImage />
               <span>Image</span>
+            </button>
+            <button
+              type='button'
+              className={`merchi-product-draft-toolbar-layers${mobileLayersOpen ? ' is-active' : ''}`}
+              aria-pressed={mobileLayersOpen}
+              onClick={() => {
+                setEditingTextId(null);
+                if (mobileLayersOpen) closeMobileSheet();
+                else {
+                  setMobileLayersOpen(true);
+                  setMobileSheetOpen(true);
+                }
+              }}
+            >
+              <FaLayerGroup />
+              <span>Layers</span>
             </button>
           </nav>
         ) : null}
@@ -807,11 +938,15 @@ export default function DraftDesignerSheet({
                 templateSrc={templateSrc(template, apiUrl)}
                 selectedId={selectedId}
                 editingTextId={editingTextId}
-                onSelect={selectObject}
+                onSelect={(id) => {
+                  selectObject(id);
+                  setMobileLayersOpen(false);
+                }}
                 onChange={handleCanvasChange}
                 onEditText={(id) => {
                   selectObject(id);
                   setEditingTextId(id);
+                  setMobileLayersOpen(false);
                 }}
                 onTextChange={(text) => patchSelected({ text })}
                 onFinishEdit={() => setEditingTextId(null)}
@@ -821,11 +956,26 @@ export default function DraftDesignerSheet({
           {error ? <p className='merchi-product-draft-error'>{error}</p> : null}
         </div>
 
-        <aside className='merchi-product-draft-dock' aria-label='Design panel'>
+        <aside
+          className={`merchi-product-draft-dock${!mobileSheetOpen || (!selected && !imagePanelVisible) ? ' is-empty' : ''}`}
+          aria-label='Design panel'
+          style={sheetDragY ? { transform: `translateY(${sheetDragY}px)` } : undefined}
+          onPointerDown={startSheetDrag}
+          onPointerMove={moveSheetDrag}
+          onPointerUp={endSheetDrag}
+          onPointerCancel={endSheetDrag}
+        >
+          <div className='merchi-product-draft-dock-handle' />
           <section className='merchi-product-draft-panel'>
-            {selected?.type === 'text' ? (
+            {mobileSheetOpen && selected ? (
+              <div className='merchi-product-draft-panel-actions'>{layerActionButtons}</div>
+            ) : null}
+            {mobileSheetOpen && selected?.type === 'text' ? (
               <>
                 <h3 className='merchi-product-draft-panel-title'>Text</h3>
+                <p className='merchi-product-draft-layers-hint merchi-product-draft-mobile-hint'>
+                  Double-tap text to edit it on the canvas.
+                </p>
                 <label className='merchi-product-draft-field'>
                   <span className='merchi-sr-only'>Text</span>
                   <textarea
@@ -836,59 +986,61 @@ export default function DraftDesignerSheet({
                     onChange={(e) => patchSelected({ text: e.target.value })}
                   />
                 </label>
-                <label className='merchi-product-draft-field merchi-product-draft-font'>
-                  <span className='merchi-product-draft-field-label'>Font</span>
-                  <select
-                    aria-label='Font'
-                    value={selected.fontFamily || DEFAULT_DRAFT_FONT}
-                    style={{ fontFamily: cssFontFamily(selected.fontFamily || DEFAULT_DRAFT_FONT) }}
-                    onChange={(e) => patchSelected({ fontFamily: e.target.value })}
-                  >
-                    {DRAFT_TEXT_FONTS.map((font) => (
-                      <option
-                        key={font.value}
-                        value={font.value}
-                        style={{ fontFamily: cssFontFamily(font.value) }}
-                      >
-                        {font.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <div className='merchi-product-draft-field'>
-                  <span className='merchi-product-draft-field-label'>Size</span>
-                  <div className='merchi-product-draft-size'>
-                    <button
-                      type='button'
-                      className='merchi-product-draft-stepper'
-                      onClick={() => patchSelected({
-                        fontSize: Math.max(12, (selected.fontSize || 48) - 8),
-                      })}
-                      aria-label='Smaller text'
-                    >
-                      A-
-                    </button>
+                <div className='merchi-product-draft-text-row'>
+                  <label className='merchi-product-draft-field merchi-product-draft-font'>
+                    <span className='merchi-product-draft-field-label'>Font</span>
                     <select
-                      aria-label='Text size'
-                      value={Math.round(selected.fontSize || 48)}
-                      onChange={(e) => patchSelected({ fontSize: Number(e.target.value) })}
+                      aria-label='Font'
+                      value={selected.fontFamily || DEFAULT_DRAFT_FONT}
+                      style={{ fontFamily: cssFontFamily(selected.fontFamily || DEFAULT_DRAFT_FONT) }}
+                      onChange={(e) => patchSelected({ fontFamily: e.target.value })}
                     >
-                      {Array.from(new Set([...TEXT_SIZES, Math.round(selected.fontSize || 48)]))
-                        .sort((a, b) => a - b)
-                        .map((size) => (
-                          <option key={size} value={size}>{size}</option>
-                        ))}
+                      {DRAFT_TEXT_FONTS.map((font) => (
+                        <option
+                          key={font.value}
+                          value={font.value}
+                          style={{ fontFamily: cssFontFamily(font.value) }}
+                        >
+                          {font.label}
+                        </option>
+                      ))}
                     </select>
-                    <button
-                      type='button'
-                      className='merchi-product-draft-stepper'
-                      onClick={() => patchSelected({
-                        fontSize: Math.min(240, (selected.fontSize || 48) + 8),
-                      })}
-                      aria-label='Larger text'
-                    >
-                      A+
-                    </button>
+                  </label>
+                  <div className='merchi-product-draft-field'>
+                    <span className='merchi-product-draft-field-label'>Size</span>
+                    <div className='merchi-product-draft-size'>
+                      <button
+                        type='button'
+                        className='merchi-product-draft-stepper'
+                        onClick={() => patchSelected({
+                          fontSize: Math.max(12, (selected.fontSize || 48) - 8),
+                        })}
+                        aria-label='Smaller text'
+                      >
+                        A-
+                      </button>
+                      <select
+                        aria-label='Text size'
+                        value={Math.round(selected.fontSize || 48)}
+                        onChange={(e) => patchSelected({ fontSize: Number(e.target.value) })}
+                      >
+                        {Array.from(new Set([...TEXT_SIZES, Math.round(selected.fontSize || 48)]))
+                          .sort((a, b) => a - b)
+                          .map((size) => (
+                            <option key={size} value={size}>{size}</option>
+                          ))}
+                      </select>
+                      <button
+                        type='button'
+                        className='merchi-product-draft-stepper'
+                        onClick={() => patchSelected({
+                          fontSize: Math.min(240, (selected.fontSize || 48) + 8),
+                        })}
+                        aria-label='Larger text'
+                      >
+                        A+
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className='merchi-product-draft-field'>
@@ -920,34 +1072,44 @@ export default function DraftDesignerSheet({
                   />
                 ) : null}
               </>
-            ) : imagePanelVisible ? (
+            ) : mobileSheetOpen && imagePanelVisible ? (
               <>
                 <h3 className='merchi-product-draft-panel-title'>Image</h3>
                 {allowAdditionalObjects ? (
-                  <div
-                    className={`merchi-product-draft-upload${dragOver ? ' is-dragging' : ''}`}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOver(true);
-                    }}
-                    onDragLeave={() => setDragOver(false)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setDragOver(false);
-                      handleDroppedFiles(e.dataTransfer.files);
-                    }}
-                  >
-                    <FaCloudUploadAlt className='merchi-product-draft-upload-icon' />
-                    <strong>Upload your artwork</strong>
-                    <span>Drag and drop an image here</span>
+                  <>
+                    <div
+                      className={`merchi-product-draft-upload${dragOver ? ' is-dragging' : ''}`}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOver(true);
+                      }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOver(false);
+                        handleDroppedFiles(e.dataTransfer.files);
+                      }}
+                    >
+                      <FaCloudUploadAlt className='merchi-product-draft-upload-icon' />
+                      <strong>Upload your artwork</strong>
+                      <span>Drag and drop an image here</span>
+                      <button
+                        type='button'
+                        className='merchi-product-draft-primary-btn'
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        Browse files
+                      </button>
+                    </div>
                     <button
                       type='button'
-                      className='merchi-product-draft-primary-btn'
+                      className='merchi-product-draft-upload-compact'
                       onClick={() => fileInputRef.current?.click()}
                     >
-                      Browse files
+                      <FaCloudUploadAlt />
+                      Upload image
                     </button>
-                  </div>
+                    </>
                 ) : null}
                 {selected?.type === 'image' ? (
                   <div className='merchi-product-draft-field'>
@@ -966,7 +1128,7 @@ export default function DraftDesignerSheet({
                   </div>
                 ) : null}
               </>
-            ) : selected?.type === 'rect' ? (
+            ) : mobileSheetOpen && selected?.type === 'rect' ? (
               <>
                 <h3 className='merchi-product-draft-panel-title'>Base colour</h3>
                 <ColourPicker
@@ -990,7 +1152,7 @@ export default function DraftDesignerSheet({
               </>
             )}
 
-            {selected ? (
+            {mobileSheetOpen && selected ? (
               <div className='merchi-product-draft-field'>
                 <span className='merchi-product-draft-field-label'>Transform</span>
                 <div className='merchi-product-draft-transform'>
@@ -1031,25 +1193,7 @@ export default function DraftDesignerSheet({
                 <strong>Layers ({layers.length})</strong>
               </button>
               <div className='merchi-product-draft-layers-actions'>
-                <button
-                  type='button'
-                  className='merchi-product-draft-layer-action'
-                  onClick={duplicateSelected}
-                  disabled={!canDuplicate}
-                  aria-label='Duplicate'
-                  title='Duplicate (Ctrl+D)'
-                >
-                  <FaClone />
-                </button>
-                <button
-                  type='button'
-                  className='merchi-product-draft-layer-action is-danger'
-                  onClick={removeSelected}
-                  disabled={!selectedId}
-                  aria-label='Delete selected'
-                >
-                  <FaTrash />
-                </button>
+                {layerActionButtons}
                 <button
                   type='button'
                   className='merchi-product-draft-layer-action'
@@ -1076,6 +1220,7 @@ export default function DraftDesignerSheet({
                   layers.map((obj) => (
                     <div
                       key={obj.id}
+                      data-layer-id={obj.id}
                       ref={(node) => {
                         layerRefs.current[obj.id] = node;
                       }}
@@ -1129,7 +1274,14 @@ export default function DraftDesignerSheet({
                       onDragEnd={endLayerDrag}
                     >
                       {isBackgroundFill(obj) ? null : (
-                        <FaGripVertical className='merchi-product-draft-layer-grip' aria-hidden='true' />
+                        <FaGripVertical
+                          className='merchi-product-draft-layer-grip'
+                          aria-hidden='true'
+                          onPointerDown={(event) => startLayerPointer(event, obj)}
+                          onPointerMove={moveLayerPointer}
+                          onPointerUp={endLayerPointer}
+                          onPointerCancel={endLayerPointer}
+                        />
                       )}
                       <span className='merchi-product-draft-layer-icon'>
                         <LayerIcon obj={obj} />
