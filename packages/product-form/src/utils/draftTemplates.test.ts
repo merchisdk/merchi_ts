@@ -3,7 +3,15 @@ import {
   blankTemplate,
   bboxToPixels,
   canvasKindForFieldType,
+  clampOrigin,
+  confineToRegion,
+  movementLimitForObject,
+  allowedColoursForText,
   colourChoiceFromFill,
+  editorAllows,
+  editorPolicyForField,
+  normaliseAllowedColours,
+  restrictedColourSwatches,
   defaultPlacement,
   designGroupCount,
   downloadableDraftTemplates,
@@ -419,6 +427,60 @@ test('colourChoiceFromFill selects the matching priced colour and leaves other c
     variationField: { fieldType: FieldType.COLOUR_PICKER },
   }, '#0000ff')).toEqual({ value: '#0000ff' });
   expect(textColourSwatches(variation)?.map((swatch) => swatch.label)).toEqual(['Red', 'Blue']);
+});
+
+test('movement stays inside the text area or print area', () => {
+  const template = {
+    width: 1000,
+    height: 500,
+    customisationMap: {
+      regions: [
+        { role: 'print_area', bbox: [0.2, 0.2, 0.6, 0.6] },
+        { role: 'text_placeholder', bbox: [0.1, 0.1, 0.3, 0.2] },
+      ],
+      fieldBindings: [{ fieldId: 4, role: 'text', regionRole: 'print_area' }],
+    },
+  };
+  const text = { type: 'text', x: 0, y: 0, width: 100, height: 40, rotation: 0, scaleX: 1, scaleY: 1 };
+  expect(movementLimitForObject(template, text)).toEqual({ x: 100, y: 50, width: 300, height: 100 });
+  expect(movementLimitForObject(template, { ...text, merchiFieldId: 4 })).toEqual({
+    x: 200, y: 100, width: 600, height: 300,
+  });
+  expect(movementLimitForObject(template, { type: 'image', x: 0, y: 0, width: 10, height: 10 })).toEqual({
+    x: 200, y: 100, width: 600, height: 300,
+  });
+  expect(clampOrigin({ ...text, x: 0, y: 0 }, { x: 100, y: 50, width: 300, height: 100 })).toEqual({
+    x: 100, y: 50,
+  });
+  const shrunk = confineToRegion(
+    { ...text, x: 100, y: 50, width: 400, height: 40 },
+    { x: 100, y: 50, width: 300, height: 100 },
+  );
+  expect(shrunk.scaleX).toBeCloseTo(0.75);
+  expect(shrunk.x).toBeGreaterThanOrEqual(100);
+  expect(shrunk.x + shrunk.width * shrunk.scaleX).toBeLessThanOrEqual(400.01);
+});
+
+test('editor permissions default to allowed and can limit a linked colour', () => {
+  const template = {
+    customisationMap: {
+      fieldBindings: [
+        { fieldId: 1, role: 'text', editor: { allowRotation: false, allowedColours: ['#FF0000', '#00FF00'] } },
+        { fieldId: 9, role: 'text_fill', editor: { allowedColours: ['#ff0000', '#0000ff'] } },
+      ],
+    },
+  };
+  const policy = editorPolicyForField(template, 1);
+  expect(editorAllows(policy, 'allowRotation')).toBe(false);
+  expect(editorAllows(policy, 'allowScale')).toBe(true);
+  expect(editorAllows(editorPolicyForField(template, 4), 'allowTextSize')).toBe(true);
+  expect(normaliseAllowedColours(['#FF0000', 'nope', '#ff0000'])).toEqual(['#ff0000']);
+  expect(allowedColoursForText(template, 1, 9)).toEqual(['#ff0000']);
+  expect(restrictedColourSwatches(
+    [{ colour: '#ff0000', label: 'Red' }, { colour: '#00ff00', label: 'Green' }],
+    ['#ff0000'],
+  )?.map((swatch) => swatch.label)).toEqual(['Red']);
+  expect(restrictedColourSwatches(null, [])).toBeNull();
 });
 
 test('variationValuePathForGroup uses the design group before another group', () => {

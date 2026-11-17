@@ -6,7 +6,7 @@ import type { DraftCanvasHandle, DraftCanvasObject, DraftCanvasState } from '../
 import { cssFontFamily, DEFAULT_DRAFT_FONT, loadDraftFonts } from '../../utils/draftFonts';
 import { captureStageArtboard, exportDraftPngs } from '../../utils/draftExport';
 import { FaMinus, FaPlus } from 'react-icons/fa';
-import { fitInside, isBackgroundFill, isFullArtboardFill, printAreaGuides, unclipTextBox } from '../../utils/draftTemplates';
+import { clampOrigin, confineToRegion, fitInside, isBackgroundFill, isFullArtboardFill, movementLimitForObject, printAreaGuides, unclipTextBox } from '../../utils/draftTemplates';
 import { useHtmlImage } from './useHtmlImage';
 
 interface Props {
@@ -21,6 +21,7 @@ interface Props {
   onTextChange?: (text: string) => void;
   onFinishEdit?: () => void;
   fixedSizeFieldIds?: number[];
+  transformPolicy?: { allowRotation?: boolean; allowScale?: boolean };
 }
 
 function fitView(width: number, height: number, artW: number, artH: number) {
@@ -43,11 +44,17 @@ const CanvasImage = React.forwardRef(function CanvasImage(
     listening,
     onSelect,
     onChange,
+    allowRotation = true,
+    allowScale = true,
+    dragBoundFunc,
   }: {
     obj: DraftCanvasObject;
     listening: boolean;
     onSelect: () => void;
     onChange: (patch: Partial<DraftCanvasObject>) => void;
+    allowRotation?: boolean;
+    allowScale?: boolean;
+    dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
   },
   ref: any,
 ) {
@@ -81,21 +88,36 @@ const CanvasImage = React.forwardRef(function CanvasImage(
       scaleX={obj.scaleX}
       scaleY={obj.scaleY}
       draggable={listening}
+      dragBoundFunc={dragBoundFunc}
       listening={listening}
       onClick={onSelect}
       onTap={onSelect}
       onDragEnd={(e) => onChange({ x: e.target.x(), y: e.target.y() })}
       onTransformEnd={(e) => {
         const node = e.target;
+        if (!allowRotation) node.rotation(obj.rotation || 0);
+        if (!allowScale) {
+          node.scaleX(obj.scaleX || 1);
+          node.scaleY(obj.scaleY || 1);
+          node.width(obj.width);
+          node.height(obj.height);
+        }
         const sx = node.scaleX();
         const sy = node.scaleY();
+        const placement = {
+          x: node.x(),
+          y: node.y(),
+          rotation: allowRotation ? node.rotation() : obj.rotation,
+        };
+        if (!allowScale) {
+          onChange(placement);
+          return;
+        }
         if (obj.lockAspectRatio) {
           node.scaleX(sx < 0 ? -1 : 1);
           node.scaleY(1);
           onChange({
-            x: node.x(),
-            y: node.y(),
-            rotation: node.rotation(),
+            ...placement,
             width: Math.max(16, node.width() * Math.abs(sx)),
             height: Math.max(16, node.height() * Math.abs(sy)),
             scaleX: sx < 0 ? -1 : 1,
@@ -104,9 +126,7 @@ const CanvasImage = React.forwardRef(function CanvasImage(
           return;
         }
         onChange({
-          x: node.x(),
-          y: node.y(),
-          rotation: node.rotation(),
+          ...placement,
           scaleX: sx,
           scaleY: sy,
         });
@@ -171,6 +191,7 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
   onTextChange,
   onFinishEdit,
   fixedSizeFieldIds,
+  transformPolicy,
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
@@ -505,7 +526,7 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                   guide.x,
                   guide.y,
                 ]}
-                stroke='#2563eb'
+                stroke={guide.stroke || '#2563eb'}
                 dash={[12, 8]}
                 strokeWidth={2}
                 listening={false}
@@ -526,46 +547,79 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                 scaleX: obj.scaleX,
                 scaleY: obj.scaleY,
                 draggable: !pinching && obj.id !== editingTextId,
+                dragBoundFunc: (pos: { x: number; y: number }) => {
+                  const limit = movementLimitForObject(template, obj);
+                  if (!limit || !(view.scale > 0)) return pos;
+                  const local = {
+                    x: (pos.x - view.x) / view.scale,
+                    y: (pos.y - view.y) / view.scale,
+                  };
+                  const clamped = clampOrigin({ ...obj, x: local.x, y: local.y }, limit);
+                  return {
+                    x: view.x + clamped.x * view.scale,
+                    y: view.y + clamped.y * view.scale,
+                  };
+                },
                 onClick: () => onSelect(obj.id),
                 onTap: () => onSelect(obj.id),
                 onDblClick: (event: any) => startTextEdit(obj, event),
                 onDblTap: (event: any) => startTextEdit(obj, event),
                 onDragEnd: (e: any) => {
                   const node = e.target;
-                  if (obj.type === 'text') {
-                    patchObject(obj.id, {
+                  const patch = obj.type === 'text'
+                    ? {
                       x: node.x(),
                       y: node.y(),
                       width: node.width(),
                       height: node.height(),
-                    });
-                    return;
-                  }
-                  patchObject(obj.id, { x: node.x(), y: node.y() });
+                    }
+                    : { x: node.x(), y: node.y() };
+                  const limit = movementLimitForObject(template, obj);
+                  const pos = limit
+                    ? clampOrigin({ ...obj, ...patch }, limit)
+                    : { x: patch.x, y: patch.y };
+                  patchObject(obj.id, { ...patch, x: pos.x, y: pos.y });
                 },
                 onTransformEnd: (e: any) => {
                   const node = e.target;
-                  const sx = node.scaleX();
-                  const sy = node.scaleY();
-                  if (obj.type === 'text') {
-                    patchObject(obj.id, {
-                      x: node.x(),
-                      y: node.y(),
-                      width: Math.max(16, node.width()),
-                      height: Math.max(16, node.height()),
-                      rotation: node.rotation(),
-                      scaleX: sx,
-                      scaleY: sy,
-                    });
-                    return;
+                  const allowRotation = transformPolicy?.allowRotation !== false;
+                  const allowScale = transformPolicy?.allowScale !== false;
+                  if (!allowRotation) node.rotation(obj.rotation || 0);
+                  if (!allowScale) {
+                    node.scaleX(obj.scaleX || 1);
+                    node.scaleY(obj.scaleY || 1);
+                    node.width(obj.width);
+                    node.height(obj.height);
                   }
-                  patchObject(obj.id, {
+                  const placement = {
                     x: node.x(),
                     y: node.y(),
-                    rotation: node.rotation(),
-                    scaleX: sx,
-                    scaleY: sy,
-                  });
+                    rotation: allowRotation ? node.rotation() : obj.rotation,
+                  };
+                  const sx = node.scaleX();
+                  const sy = node.scaleY();
+                  const patch = !allowScale
+                    ? placement
+                    : obj.type === 'text'
+                      ? {
+                        ...placement,
+                        width: Math.max(16, node.width()),
+                        height: Math.max(16, node.height()),
+                        scaleX: sx,
+                        scaleY: sy,
+                      }
+                      : { ...placement, scaleX: sx, scaleY: sy };
+                  const limit = movementLimitForObject(template, obj);
+                  const confined = limit ? confineToRegion({ ...obj, ...patch }, limit) : null;
+                  patchObject(obj.id, confined
+                    ? {
+                      ...patch,
+                      x: confined.x,
+                      y: confined.y,
+                      scaleX: confined.scaleX,
+                      scaleY: confined.scaleY,
+                    }
+                    : patch);
                 },
               };
               if (obj.type === 'text') {
@@ -601,14 +655,33 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                   }}
                   obj={obj}
                   listening={!pinching}
+                  allowRotation={transformPolicy?.allowRotation !== false}
+                  allowScale={transformPolicy?.allowScale !== false}
+                  dragBoundFunc={common.dragBoundFunc}
                   onSelect={() => onSelect(obj.id)}
-                  onChange={(patch) => patchObject(obj.id, patch)}
+                  onChange={(patch) => {
+                    const limit = movementLimitForObject(template, obj);
+                    const shrink = 'scaleX' in patch || 'width' in patch;
+                    const confined = !limit
+                      ? null
+                      : shrink
+                        ? confineToRegion({ ...obj, ...patch }, limit)
+                        : { ...obj, ...patch, ...clampOrigin({ ...obj, ...patch }, limit) };
+                    patchObject(obj.id, confined
+                      ? {
+                        ...patch,
+                        x: confined.x,
+                        y: confined.y,
+                        ...(shrink ? { scaleX: confined.scaleX, scaleY: confined.scaleY } : {}),
+                      }
+                      : patch);
+                  }}
                 />
               );
             })}
             <Transformer
               ref={trRef}
-              rotateEnabled
+              rotateEnabled={transformPolicy?.allowRotation !== false}
               borderStroke='#3b82f6'
               anchorStroke='#3b82f6'
               anchorFill='#ffffff'
@@ -617,7 +690,7 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                 (state.objects.find((obj) => obj.id === selectedId)?.type === 'text')
                 || Boolean(state.objects.find((obj) => obj.id === selectedId)?.lockAspectRatio)
               }
-              enabledAnchors={[
+              enabledAnchors={transformPolicy?.allowScale === false ? [] : [
                 'top-left',
                 'top-right',
                 'bottom-left',

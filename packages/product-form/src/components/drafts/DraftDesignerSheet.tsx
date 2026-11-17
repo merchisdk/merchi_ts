@@ -33,13 +33,20 @@ import { CgSpinner } from 'react-icons/cg';
 import { useMerchiFormContext } from '../../context/MerchiProductFormProvider';
 import {
   canvasPaintOrder,
+  allowedColoursForText,
   colourChoiceFromFill,
+  confineToRegion,
   createObjectId,
+  editorAllows,
+  editorPolicyForField,
   designGroupCount,
   detachField,
   fitTextBox,
   isBackgroundFill,
+  movementLimitForObject,
   productHasVariationGroups,
+  normaliseAllowedColours,
+  restrictedColourSwatches,
   seedOrSyncCanvas,
   templatesForGroup,
   textColourSwatches,
@@ -617,37 +624,49 @@ export default function DraftDesignerSheet({
     hookForm.setValue(path, text, { shouldDirty: true });
   }
 
+  function policyFor(obj?: DraftCanvasObject | null) {
+    if (obj?.merchiFieldId == null) return {};
+    return editorPolicyForField(template, obj.merchiFieldId);
+  }
+
   function patchSelected(patch: Partial<DraftCanvasObject>) {
     if (!selectedId) return;
     const current = stateRef.current;
     const target = current.objects.find((obj) => obj.id === selectedId);
+    const policy = policyFor(target);
+    const nextPatch = { ...patch };
+    if (!editorAllows(policy, 'allowTextColour')) delete nextPatch.fill;
+    if (!editorAllows(policy, 'allowTextAlign')) delete nextPatch.align;
+    if (!editorAllows(policy, 'allowTextSize')) delete nextPatch.fontSize;
+    if (Object.keys(nextPatch).length === 0) return;
     commit({
       ...current,
       objects: current.objects.map((obj) => {
         if (obj.id !== selectedId) return obj;
-        const next = { ...obj, ...patch };
+        let next = { ...obj, ...nextPatch };
         if (
           next.type === 'text'
-          && ('text' in patch || 'fontSize' in patch || 'fontFamily' in patch)
+          && ('text' in nextPatch || 'fontSize' in nextPatch || 'fontFamily' in nextPatch)
         ) {
-          return { ...next, ...fitTextBox(next) };
+          next = { ...next, ...fitTextBox(next) };
         }
-        return next;
+        const limit = movementLimitForObject(template, next);
+        return limit ? { ...next, ...confineToRegion(next, limit) } : next;
       }),
-    }, `${selectedId}:${Object.keys(patch).sort().join(',')}`);
+    }, `${selectedId}:${Object.keys(nextPatch).sort().join(',')}`);
     if (
       target?.type === 'text'
       && target.colourFieldId != null
-      && patch.fill
+      && nextPatch.fill
     ) {
-      syncLinkedTextColour(target.colourFieldId, patch.fill);
+      syncLinkedTextColour(target.colourFieldId, nextPatch.fill);
     }
     if (
       target?.type === 'text'
       && target.merchiFieldId != null
-      && typeof patch.text === 'string'
+      && typeof nextPatch.text === 'string'
     ) {
-      syncLinkedText(target.merchiFieldId, patch.text);
+      syncLinkedText(target.merchiFieldId, nextPatch.text);
     }
   }
 
@@ -1116,6 +1135,10 @@ export default function DraftDesignerSheet({
                 onTextChange={(text) => patchSelected({ text })}
                 onFinishEdit={() => setEditingTextId(null)}
                 fixedSizeFieldIds={fixedSizeFieldIds}
+                transformPolicy={{
+                  allowRotation: editorAllows(policyFor(selected), 'allowRotation'),
+                  allowScale: editorAllows(policyFor(selected), 'allowScale'),
+                }}
               />
             </React.Suspense>
           </DraftCanvasBoundary>
@@ -1172,71 +1195,78 @@ export default function DraftDesignerSheet({
                       ))}
                     </select>
                   </label>
+                  {editorAllows(policyFor(selected), 'allowTextSize') ? (
+                    <div className='merchi-product-draft-field'>
+                      <span className='merchi-product-draft-field-label'>Size</span>
+                      <div className='merchi-product-draft-size'>
+                        <button
+                          type='button'
+                          className='merchi-product-draft-stepper'
+                          onClick={() => patchSelected({
+                            fontSize: Math.max(12, (selected.fontSize || 48) - 8),
+                          })}
+                          aria-label='Smaller text'
+                        >
+                          A-
+                        </button>
+                        <select
+                          aria-label='Text size'
+                          value={Math.round(selected.fontSize || 48)}
+                          onChange={(e) => patchSelected({ fontSize: Number(e.target.value) })}
+                        >
+                          {Array.from(new Set([...TEXT_SIZES, Math.round(selected.fontSize || 48)]))
+                            .sort((a, b) => a - b)
+                            .map((size) => (
+                              <option key={size} value={size}>{size}</option>
+                            ))}
+                        </select>
+                        <button
+                          type='button'
+                          className='merchi-product-draft-stepper'
+                          onClick={() => patchSelected({
+                            fontSize: Math.min(240, (selected.fontSize || 48) + 8),
+                          })}
+                          aria-label='Larger text'
+                        >
+                          A+
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                {editorAllows(policyFor(selected), 'allowTextAlign') ? (
                   <div className='merchi-product-draft-field'>
-                    <span className='merchi-product-draft-field-label'>Size</span>
-                    <div className='merchi-product-draft-size'>
-                      <button
-                        type='button'
-                        className='merchi-product-draft-stepper'
-                        onClick={() => patchSelected({
-                          fontSize: Math.max(12, (selected.fontSize || 48) - 8),
-                        })}
-                        aria-label='Smaller text'
-                      >
-                        A-
-                      </button>
-                      <select
-                        aria-label='Text size'
-                        value={Math.round(selected.fontSize || 48)}
-                        onChange={(e) => patchSelected({ fontSize: Number(e.target.value) })}
-                      >
-                        {Array.from(new Set([...TEXT_SIZES, Math.round(selected.fontSize || 48)]))
-                          .sort((a, b) => a - b)
-                          .map((size) => (
-                            <option key={size} value={size}>{size}</option>
-                          ))}
-                      </select>
-                      <button
-                        type='button'
-                        className='merchi-product-draft-stepper'
-                        onClick={() => patchSelected({
-                          fontSize: Math.min(240, (selected.fontSize || 48) + 8),
-                        })}
-                        aria-label='Larger text'
-                      >
-                        A+
-                      </button>
+                    <span className='merchi-product-draft-field-label'>Align</span>
+                    <div className='merchi-product-draft-align' role='group' aria-label='Text alignment'>
+                      {TEXT_ALIGNMENTS.map(({ value, label, Icon }) => {
+                        const active = (selected.align || 'left') === value;
+                        return (
+                          <button
+                            key={value}
+                            type='button'
+                            className={active ? 'is-active' : ''}
+                            aria-pressed={active}
+                            aria-label={label}
+                            title={label}
+                            onClick={() => patchSelected({ align: value })}
+                          >
+                            <Icon />
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                </div>
-                <div className='merchi-product-draft-field'>
-                  <span className='merchi-product-draft-field-label'>Align</span>
-                  <div className='merchi-product-draft-align' role='group' aria-label='Text alignment'>
-                    {TEXT_ALIGNMENTS.map(({ value, label, Icon }) => {
-                      const active = (selected.align || 'left') === value;
-                      return (
-                        <button
-                          key={value}
-                          type='button'
-                          className={active ? 'is-active' : ''}
-                          aria-pressed={active}
-                          aria-label={label}
-                          title={label}
-                          onClick={() => patchSelected({ align: value })}
-                        >
-                          <Icon />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                {selected.colourFieldId != null ? (
+                ) : null}
+                {selected.colourFieldId != null && editorAllows(policyFor(selected), 'allowTextColour') ? (
                   <ColourPicker
                     label='Colour'
                     value={selected.fill || '#111111'}
-                    choices={textColourSwatches(variationsForGroup(formValues, groupIndex).find(
-                      (item: any) => Number(item?.variationField?.id) === Number(selected.colourFieldId)
-                    ))}
+                    choices={restrictedColourSwatches(
+                      textColourSwatches(variationsForGroup(formValues, groupIndex).find(
+                        (item: any) => Number(item?.variationField?.id) === Number(selected.colourFieldId)
+                      )),
+                      allowedColoursForText(template, selected.merchiFieldId, selected.colourFieldId),
+                    )}
                     onChange={(fill) => patchSelected({ fill })}
                   />
                 ) : null}
@@ -1303,6 +1333,10 @@ export default function DraftDesignerSheet({
                 <ColourPicker
                   label='Fill colour'
                   value={selected.fill || '#cccccc'}
+                  choices={restrictedColourSwatches(
+                    null,
+                    normaliseAllowedColours(policyFor(selected).allowedColours),
+                  )}
                   onChange={(fill) => patchSelected({ fill })}
                 />
               </>
