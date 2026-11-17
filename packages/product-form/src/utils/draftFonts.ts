@@ -51,3 +51,34 @@ export function ensureDraftFonts(): void {
   link.href = GOOGLE_FONTS_HREF;
   document.head.appendChild(link);
 }
+
+function requestedFamilies(families?: Iterable<string>): string[] {
+  const requested = families ? Array.from(families).filter(Boolean) : [];
+  return requested.length
+    ? Array.from(new Set(requested))
+    : DRAFT_TEXT_FONTS.map((font) => font.value);
+}
+
+export function loadDraftFonts(families?: Iterable<string>): Promise<void> {
+  if (typeof document === 'undefined') return Promise.resolve();
+  ensureDraftFonts();
+  const fonts = document.fonts;
+  const names = requestedFamilies(families);
+  const loadFaces = () => {
+    if (!fonts?.load) return Promise.resolve();
+    return Promise.all(names.map((name) => (
+      fonts.load(`48px ${cssFontFamily(name)}`).catch(() => undefined)
+    ))).then(() => undefined);
+  };
+  const link = document.getElementById('merchi-draft-fonts') as HTMLLinkElement | null;
+  if (!link || link.dataset.loaded === 'true') return loadFaces();
+  return new Promise((resolve) => {
+    const finish = () => {
+      link.dataset.loaded = 'true';
+      loadFaces().then(resolve);
+    };
+    link.addEventListener('load', finish, { once: true });
+    link.addEventListener('error', finish, { once: true });
+    window.setTimeout(finish, 2000);
+  });
+}

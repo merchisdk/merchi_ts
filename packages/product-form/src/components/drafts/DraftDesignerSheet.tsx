@@ -41,9 +41,11 @@ import {
   productHasVariationGroups,
   seedOrSyncCanvas,
   templatesForGroup,
+  unclipTextBox,
   variationsForGroup,
 } from '../../utils/draftTemplates';
 import {
+  EMBROIDERY,
   embroideryMillimetres,
   embroideryValueJson,
   parseEmbroideryValue,
@@ -68,6 +70,7 @@ import {
   DRAFT_TEXT_FONTS,
   cssFontFamily,
   ensureDraftFonts,
+  loadDraftFonts,
 } from '../../utils/draftFonts';
 
 const DraftCanvas = React.lazy(() => import('./DraftCanvas'));
@@ -204,6 +207,13 @@ function ColourPicker({
   );
 }
 
+function visualTextSize(obj: DraftCanvasObject): { width: number; height: number } {
+  return {
+    width: obj.width * Math.abs(Number(obj.scaleX) || 1),
+    height: obj.height * Math.abs(Number(obj.scaleY) || 1),
+  };
+}
+
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -271,6 +281,13 @@ export default function DraftDesignerSheet({
     [product, formValues, groupIndex],
   );
   const template = templates[Math.min(templateIndex, templates.length - 1)] || templates[0];
+  const fixedSizeFieldIds = useMemo(
+    () => variationsForGroup(formValues, groupIndex)
+      .filter((item: any) => Number(item?.variationField?.fieldType) === EMBROIDERY)
+      .map((item: any) => Number(item?.variationField?.id))
+      .filter((id: number) => Number.isFinite(id)),
+    [formValues, groupIndex],
+  );
 
   useEffect(() => {
     if (open) setGroupIndex(initialGroupIndex);
@@ -331,6 +348,45 @@ export default function DraftDesignerSheet({
       });
     if (!same) replaceState(next);
   }, [open, variationSyncKey, template?.id, groupIndex]);
+
+  const textMeasureKey = state.objects
+    .filter((obj) => obj.type === 'text')
+    .map((obj) => `${obj.id}\0${obj.text}\0${obj.fontSize}\0${obj.fontFamily}`)
+    .join('\n');
+
+  useEffect(() => {
+    if (!open) return undefined;
+    let cancelled = false;
+    const families = stateRef.current.objects
+      .filter((obj) => obj.type === 'text')
+      .map((obj) => obj.fontFamily || DEFAULT_DRAFT_FONT);
+    const fit = () => {
+      if (cancelled) return;
+      const current = stateRef.current;
+      const embroideryIds = new Set(
+        variationsForGroup(hookForm.getValues(), groupIndex)
+          .filter((item: any) => Number(item?.variationField?.fieldType) === EMBROIDERY)
+          .map((item: any) => Number(item?.variationField?.id))
+      );
+      let changed = false;
+      const objects = current.objects.map((obj) => {
+        if (obj.merchiFieldId != null && embroideryIds.has(Number(obj.merchiFieldId))) return obj;
+        const next = unclipTextBox(obj);
+        if (next !== obj) changed = true;
+        return next;
+      });
+      if (!changed) return;
+      const next = { ...current, objects };
+      syncEmbroideryFields(next, current);
+      replaceState(next);
+    };
+    loadDraftFonts(families).then(fit);
+    document.fonts?.addEventListener?.('loadingdone', fit);
+    return () => {
+      cancelled = true;
+      document.fonts?.removeEventListener?.('loadingdone', fit);
+    };
+  }, [open, textMeasureKey, groupIndex]);
 
   function replaceState(next: DraftCanvasState) {
     stateRef.current = next;
@@ -395,12 +451,18 @@ export default function DraftDesignerSheet({
     for (const obj of next.objects) {
       if (obj.merchiFieldId == null) continue;
       const before = previous.objects.find((item) => item.id === obj.id);
-      if (before && before.width === obj.width && before.height === obj.height) continue;
+      const visual = visualTextSize(obj);
+      const previousVisual = before ? visualTextSize(before) : null;
+      if (
+        previousVisual
+        && previousVisual.width === visual.width
+        && previousVisual.height === visual.height
+      ) continue;
       const variation = variations.find(
         (item: any) => Number(item?.variationField?.id) === Number(obj.merchiFieldId)
       );
       if (Number(variation?.variationField?.fieldType) !== 16) continue;
-      const mm = embroideryMillimetres(obj.width, obj.height, template);
+      const mm = embroideryMillimetres(visual.width, visual.height, template);
       if (!mm) continue;
       const path = variationValuePath(hookForm.getValues(), obj.merchiFieldId);
       if (!path) continue;
@@ -736,7 +798,7 @@ export default function DraftDesignerSheet({
       );
       const next = upsertGroupTemplateDraft(drafts, product.id, groupIndex, {
         templateId: template.id,
-        canvasJson: state,
+        canvasJson: stateRef.current,
         ...pngs,
       });
       saveDrafts(product.id, next);
@@ -950,6 +1012,7 @@ export default function DraftDesignerSheet({
                 }}
                 onTextChange={(text) => patchSelected({ text })}
                 onFinishEdit={() => setEditingTextId(null)}
+                fixedSizeFieldIds={fixedSizeFieldIds}
               />
             </React.Suspense>
           </DraftCanvasBoundary>

@@ -7,6 +7,7 @@ import {
   designGroupCount,
   downloadableDraftTemplates,
   detachField,
+  expandTextBox,
   fitInside,
   fitTextBox,
   inferArtworkRole,
@@ -172,6 +173,13 @@ test('normaliseCssColour ignores option ids and keeps hex or names', () => {
   expect(normaliseCssColour(undefined, '')).toBeUndefined();
 });
 
+test('expandTextBox grows a short box from the centre and leaves a wider box', () => {
+  const narrow = { x: 100, y: 40, width: 80, height: 50, text: 'example text' };
+  const grown = expandTextBox(narrow, 140, 50);
+  expect(grown).toMatchObject({ x: 70, y: 40, width: 140, height: 50 });
+  expect(expandTextBox(grown, 100, 40)).toBe(grown);
+});
+
 test('fitTextBox shrinks to the text instead of the region', () => {
   const fitted = fitTextBox({
     x: 0,
@@ -237,6 +245,90 @@ test('seedOrSyncCanvas places linked fields and updates content only', () => {
   const syncedText = synced.objects.find((o) => o.merchiFieldId === 1)!;
   expect(syncedText.text).toBe('Beta');
   expect(syncedText.x + syncedText.width / 2).toBeCloseTo(movedCenter);
+});
+
+test('seedOrSyncCanvas keeps a customer text box and restores saved textStyle', () => {
+  const template = {
+    width: 1000,
+    height: 1000,
+    editedByVariationFields: [{ id: 1 }],
+  };
+  const savedStyle = {
+    colour: '#abcdef',
+    textSize: 72,
+    font: 'Pacifico',
+    align: 'right',
+    x: 15,
+    y: 25,
+    width: 400,
+    height: 80,
+    rotation: 8,
+    scaleX: 1.2,
+    scaleY: 0.9,
+  };
+  const seeded = seedOrSyncCanvas(null, template, [{
+    value: 'Saved',
+    textStyle: savedStyle,
+    variationField: { id: 1, fieldType: FieldType.TEXT_INPUT },
+  }]);
+  const linked = seeded.objects.find((obj) => obj.merchiFieldId === 1)!;
+  expect(linked).toMatchObject({
+    text: 'Saved',
+    fill: '#abcdef',
+    fontSize: 72,
+    fontFamily: 'Pacifico',
+    align: 'right',
+    x: 15,
+    y: 25,
+    width: 400,
+    height: 80,
+    rotation: 8,
+    scaleX: 1.2,
+    scaleY: 0.9,
+  });
+
+  const withAdded = {
+    ...seeded,
+    objects: [
+      ...seeded.objects,
+      {
+        id: 'added',
+        type: 'text' as const,
+        x: 40,
+        y: 50,
+        width: 320,
+        height: 90,
+        rotation: 12,
+        scaleX: 1.4,
+        scaleY: 0.8,
+        text: 'Team night',
+        fontSize: 56,
+        fontFamily: 'Oswald',
+        fill: '#112233',
+        align: 'center',
+      },
+    ],
+  };
+  const synced = seedOrSyncCanvas(withAdded, template, [{
+    value: 'Saved',
+    textStyle: { ...savedStyle, x: 1, y: 1 },
+    variationField: { id: 1, fieldType: FieldType.TEXT_INPUT },
+  }]);
+  expect(synced.objects.find((obj) => obj.merchiFieldId === 1)?.x).toBe(15);
+  expect(synced.objects.find((obj) => obj.id === 'added')).toMatchObject({
+    x: 40,
+    y: 50,
+    width: 320,
+    height: 90,
+    rotation: 12,
+    scaleX: 1.4,
+    scaleY: 0.8,
+    text: 'Team night',
+    fontSize: 56,
+    fontFamily: 'Oswald',
+    fill: '#112233',
+    align: 'center',
+  });
 });
 
 test('detachField prevents re-seeding that field', () => {

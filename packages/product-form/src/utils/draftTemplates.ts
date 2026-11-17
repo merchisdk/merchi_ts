@@ -467,16 +467,22 @@ export function measureDraftText(
   text: string,
   fontSize = 48,
   fontFamily?: string,
-): { width: number; height: number } {
+): { width: number; height: number; measured: boolean } {
   const lines = String(text || 'Text').split('\n');
   const size = Math.max(12, Number(fontSize) || 48);
   let width = 0;
+  let measured = false;
   if (typeof document !== 'undefined') {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.font = `${size}px ${cssFontFamily(fontFamily)}`;
-      width = Math.max(...lines.map((line) => ctx.measureText(line || ' ').width), 0);
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.font = `normal ${size}px ${cssFontFamily(fontFamily)}`;
+        width = Math.max(...lines.map((line) => ctx.measureText(line || ' ').width), 0);
+        measured = width > 0;
+      }
+    } catch {
+      measured = false;
     }
   }
   if (!(width > 0)) {
@@ -485,7 +491,38 @@ export function measureDraftText(
   return {
     width: Math.ceil(width + size * 0.16),
     height: Math.ceil(Math.max(1, lines.length) * size * 1.15),
+    measured,
   };
+}
+
+export function expandTextBox<T extends { x?: number; y?: number; width?: number; height?: number }>(
+  obj: T,
+  minWidth: number,
+  minHeight: number,
+): T {
+  const currentWidth = Number(obj.width) || 0;
+  const currentHeight = Number(obj.height) || 0;
+  const width = Math.max(currentWidth, minWidth);
+  const height = Math.max(currentHeight, minHeight);
+  if (width === currentWidth && height === currentHeight) return obj;
+  return {
+    ...obj,
+    width,
+    height,
+    x: (Number(obj.x) || 0) + (currentWidth - width) / 2,
+    y: (Number(obj.y) || 0) + (currentHeight - height) / 2,
+  };
+}
+
+export function unclipTextBox<T extends DraftCanvasObject>(obj: T): T {
+  if (obj.type !== 'text') return obj;
+  const measured = measureDraftText(obj.text || 'Text', obj.fontSize, obj.fontFamily);
+  if (!measured.measured) return obj;
+  const lines = String(obj.text || 'Text').split('\n').length;
+  const lineHeight = Math.max(12, Number(obj.fontSize) || 48);
+  const currentHeight = Number(obj.height) || 0;
+  const minHeight = currentHeight + 0.5 >= lines * lineHeight ? currentHeight : measured.height;
+  return expandTextBox(obj, measured.width, minHeight);
 }
 
 export function fitTextBox(
@@ -554,6 +591,25 @@ export function createObjectId(): string {
   return `obj-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** Placement saved on Variation.textStyle. Only keys the variation actually has. */
+export function canvasPatchFromTextStyle(style: any): Partial<DraftCanvasObject> {
+  if (!style || typeof style !== 'object' || Array.isArray(style)) return {};
+  const patch: Partial<DraftCanvasObject> = {};
+  const colour = String(style.colour || style.color || '').trim();
+  if (colour) patch.fill = colour;
+  const font = String(style.font || style.fontFamily || '').trim();
+  if (font) patch.fontFamily = font;
+  const align = String(style.align || '').trim();
+  if (align) patch.align = align;
+  const textSize = Number(style.textSize ?? style.fontSize);
+  if (Number.isFinite(textSize)) patch.fontSize = textSize;
+  for (const key of ['x', 'y', 'width', 'height', 'rotation', 'scaleX', 'scaleY'] as const) {
+    const number = Number(style[key]);
+    if (Number.isFinite(number)) patch[key] = number;
+  }
+  return patch;
+}
+
 export function seedOrSyncCanvas(
   existing: DraftCanvasState | null | undefined,
   template: any,
@@ -561,9 +617,11 @@ export function seedOrSyncCanvas(
 ): DraftCanvasState {
   const width = Number(template?.width) || DEFAULT_ARTBOARD.width;
   const height = Number(template?.height) || DEFAULT_ARTBOARD.height;
-  const objects: DraftCanvasObject[] = (existing?.objects || []).map((obj) => (
-    obj.type === 'text' ? { ...obj, ...fitTextBox(obj) } : { ...obj }
-  ));
+  const objects: DraftCanvasObject[] = (existing?.objects || []).map((obj) => {
+    if (obj.type !== 'text') return { ...obj };
+    if (Number(obj.width) > 1 && Number(obj.height) > 1) return { ...obj };
+    return { ...obj, ...fitTextBox(obj) };
+  });
   const detached = new Set(existing?.detachedFieldIds || []);
   const linked = linkedVariationsForTemplate(template, variations);
   const linkedFields = linked.map((variation) => variation?.variationField).filter(Boolean);
@@ -593,6 +651,7 @@ export function seedOrSyncCanvas(
     field: any,
     fieldId: number,
     content: ReturnType<typeof variationCanvasContent>,
+    textStyle?: any,
   ) => {
     const boxes = placementBoxes(role, kind, template);
     const key = `${role}:${kind}`;
@@ -620,7 +679,17 @@ export function seedOrSyncCanvas(
       fontFamily: kind === 'text' ? DEFAULT_DRAFT_FONT : undefined,
       fontSize: Math.max(28, Math.round(place.height * 0.62)),
     };
-    if (kind === 'text') Object.assign(next, fitTextBox(next));
+    if (kind === 'text') {
+      const saved = canvasPatchFromTextStyle(textStyle);
+      Object.assign(next, saved);
+      if (saved.width == null && saved.height == null) {
+        const fitted = fitTextBox(next);
+        next.width = fitted.width;
+        next.height = fitted.height;
+        if (saved.x == null) next.x = fitted.x;
+        if (saved.y == null) next.y = fitted.y;
+      }
+    }
     if (kind === 'rect') objects.unshift(next);
     else objects.push(next);
   };
@@ -645,14 +714,17 @@ export function seedOrSyncCanvas(
         if (px) {
           found.width = px.width;
           found.height = px.height;
+          found.scaleX = (Number(found.scaleX) || 1) < 0 ? -1 : 1;
+          found.scaleY = (Number(found.scaleY) || 1) < 0 ? -1 : 1;
         }
         if (content.kind === 'text') found.text = content.text || found.text;
         if (content.kind === 'image' && content.src) found.src = content.src;
         continue;
       }
       if (content.kind === 'text' && content.text != null) {
+        const textChanged = found.text !== content.text;
         found.text = content.text;
-        Object.assign(found, fitTextBox(found));
+        if (textChanged) Object.assign(found, fitTextBox(found));
       }
       if (content.kind === 'image' && content.src) found.src = content.src;
       if (content.kind === 'rect' && content.fill) found.fill = content.fill;
@@ -669,7 +741,7 @@ export function seedOrSyncCanvas(
     if (content.kind === 'text' && !content.text) continue;
     if (content.kind === 'image' && !content.src) continue;
     if (content.kind === 'rect' && !content.fill) continue;
-    placeObject(content.kind, role, field, fieldId, content);
+    placeObject(content.kind, role, field, fieldId, content, variation?.textStyle);
   }
 
   for (const variation of linked) {

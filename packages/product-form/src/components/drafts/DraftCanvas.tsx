@@ -3,10 +3,10 @@ import * as React from 'react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
 import type { DraftCanvasHandle, DraftCanvasObject, DraftCanvasState } from '../../utils/types';
-import { cssFontFamily } from '../../utils/draftFonts';
+import { cssFontFamily, DEFAULT_DRAFT_FONT, loadDraftFonts } from '../../utils/draftFonts';
 import { captureStageArtboard, exportDraftPngs } from '../../utils/draftExport';
 import { FaMinus, FaPlus } from 'react-icons/fa';
-import { fitInside, fitTextBox, isBackgroundFill, isFullArtboardFill, printAreaGuides } from '../../utils/draftTemplates';
+import { fitInside, isBackgroundFill, isFullArtboardFill, printAreaGuides, unclipTextBox } from '../../utils/draftTemplates';
 import { useHtmlImage } from './useHtmlImage';
 
 interface Props {
@@ -20,6 +20,7 @@ interface Props {
   onEditText: (id: string) => void;
   onTextChange?: (text: string) => void;
   onFinishEdit?: () => void;
+  fixedSizeFieldIds?: number[];
 }
 
 function fitView(width: number, height: number, artW: number, artH: number) {
@@ -169,6 +170,7 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
   onEditText,
   onTextChange,
   onFinishEdit,
+  fixedSizeFieldIds,
 }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
@@ -181,10 +183,31 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
   const caretRef = useRef<number | null>(null);
   const [size, setSize] = useState({ width: 320, height: 360 });
   const [view, setView] = useState({ x: 0, y: 0, scale: 1 });
+  const [fontEpoch, setFontEpoch] = useState(0);
+  const fontKey = state.objects
+    .filter((obj) => obj.type === 'text')
+    .map((obj) => obj.fontFamily || DEFAULT_DRAFT_FONT)
+    .join('\n');
   const pinchRef = useRef({ dist: 0, scale: 1, x: 0, y: 0 });
   const [pinching, setPinching] = useState(false);
   const templateImage = useHtmlImage(templateSrc);
   const guides = useMemo(() => printAreaGuides(template), [template]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      if (!cancelled) setFontEpoch((epoch) => epoch + 1);
+    };
+    const families = state.objects
+      .filter((obj) => obj.type === 'text')
+      .map((obj) => obj.fontFamily || DEFAULT_DRAFT_FONT);
+    loadDraftFonts(families).then(refresh);
+    document.fonts?.addEventListener?.('loadingdone', refresh);
+    return () => {
+      cancelled = true;
+      document.fonts?.removeEventListener?.('loadingdone', refresh);
+    };
+  }, [fontKey]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -507,27 +530,32 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                 onTap: () => onSelect(obj.id),
                 onDblClick: (event: any) => startTextEdit(obj, event),
                 onDblTap: (event: any) => startTextEdit(obj, event),
-                onDragEnd: (e: any) => patchObject(obj.id, { x: e.target.x(), y: e.target.y() }),
+                onDragEnd: (e: any) => {
+                  const node = e.target;
+                  if (obj.type === 'text') {
+                    patchObject(obj.id, {
+                      x: node.x(),
+                      y: node.y(),
+                      width: node.width(),
+                      height: node.height(),
+                    });
+                    return;
+                  }
+                  patchObject(obj.id, { x: node.x(), y: node.y() });
+                },
                 onTransformEnd: (e: any) => {
                   const node = e.target;
                   const sx = node.scaleX();
                   const sy = node.scaleY();
                   if (obj.type === 'text') {
-                    const fontSize = Math.max(12, Math.round((obj.fontSize || 48) * Math.abs(sy)));
-                    node.scaleX(sx < 0 ? -1 : 1);
-                    node.scaleY(1);
-                    const fitted = fitTextBox({
-                      ...obj,
+                    patchObject(obj.id, {
                       x: node.x(),
                       y: node.y(),
-                      fontSize,
-                    });
-                    patchObject(obj.id, {
-                      ...fitted,
+                      width: Math.max(16, node.width()),
+                      height: Math.max(16, node.height()),
                       rotation: node.rotation(),
-                      fontSize,
-                      scaleX: sx < 0 ? -1 : 1,
-                      scaleY: 1,
+                      scaleX: sx,
+                      scaleY: sy,
                     });
                     return;
                   }
@@ -541,10 +569,17 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                 },
               };
               if (obj.type === 'text') {
+                const fixedSize = obj.merchiFieldId != null
+                  && (fixedSizeFieldIds || []).some((id) => Number(id) === Number(obj.merchiFieldId));
+                const shown = fontEpoch > 0 && !fixedSize ? unclipTextBox(obj) : obj;
                 return (
                   <Text
                     key={obj.id}
                     {...common}
+                    x={shown.x}
+                    y={shown.y}
+                    width={shown.width}
+                    height={shown.height}
                     text={obj.text || 'Text'}
                     fontSize={obj.fontSize || 48}
                     fill={obj.fill || '#111111'}
