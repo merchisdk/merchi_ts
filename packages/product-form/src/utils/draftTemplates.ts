@@ -315,6 +315,79 @@ export function variationsForGroup(
   return [...independent, ...group];
 }
 
+function variationIndex(variations: any[], fieldId: number): number {
+  return (variations || []).findIndex(
+    (variation: any) => Number(variation?.variationField?.id) === Number(fieldId)
+  );
+}
+
+export function variationValuePathForGroup(
+  formValues: any,
+  fieldId: number,
+  groupIndex: number,
+): string | null {
+  const inGroup = variationIndex(
+    formValues?.variationsGroups?.[groupIndex]?.variations,
+    fieldId,
+  );
+  if (inGroup >= 0) {
+    return `variationsGroups[${groupIndex}].variations[${inGroup}].value`;
+  }
+  const top = variationIndex(formValues?.variations, fieldId);
+  if (top >= 0) return `variations[${top}].value`;
+  return null;
+}
+
+function colourKey(value: any): string {
+  return (normaliseCssColour(value) || '').toLowerCase();
+}
+
+function colourOptions(variation: any): any[] {
+  const options = variation?.selectableOptions?.length
+    ? variation.selectableOptions
+    : variation?.variationField?.options || [];
+  return options.filter((option: any) => option && option.available !== false && option.isVisible !== false);
+}
+
+function optionColour(option: any): string {
+  return colourKey(option?.colour || option?.color || option?.value);
+}
+
+export function textColourSwatches(variation: any): { colour: string; label: string }[] | null {
+  const type = parseInt(String(variation?.variationField?.fieldType), 10);
+  if (type !== FieldType.COLOUR_SELECT && type !== FieldType.PANTONE_COLOUR_SELECT) return null;
+  if (type === FieldType.PANTONE_COLOUR_SELECT && variation?.variationField?.allowAllPantones) {
+    return null;
+  }
+  const swatches = colourOptions(variation).map((option: any) => {
+    const colour = normaliseCssColour(option?.colour || option?.color || option?.value);
+    if (!colour || /^\d+$/.test(colour)) return null;
+    return { colour, label: String(option?.value || colour) };
+  }).filter(Boolean) as { colour: string; label: string }[];
+  return swatches.length ? swatches : null;
+}
+
+export function colourChoiceFromFill(variation: any, fill: string): { value: string } | null {
+  const field = variation?.variationField;
+  const type = parseInt(String(field?.fieldType), 10);
+  const colour = colourKey(fill);
+  if (!field || !colour) return null;
+
+  if (type === FieldType.COLOUR_PICKER) {
+    if (colourKey(variation?.value) === colour) return null;
+    return { value: colour };
+  }
+
+  if (type !== FieldType.COLOUR_SELECT && type !== FieldType.PANTONE_COLOUR_SELECT) return null;
+  if (type === FieldType.PANTONE_COLOUR_SELECT && field.allowAllPantones) return null;
+  const match = colourOptions(variation).find((option: any) => optionColour(option) === colour);
+  const id = match?.optionId ?? match?.id;
+  if (id == null) return null;
+  const value = String(id);
+  if (String(variation?.value ?? '') === value) return null;
+  return { value };
+}
+
 function isValidBbox(bbox: any): bbox is number[] {
   if (!Array.isArray(bbox) || bbox.length !== 4) return false;
   const [x, y, w, h] = bbox.map(Number);

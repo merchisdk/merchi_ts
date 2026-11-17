@@ -33,6 +33,7 @@ import { CgSpinner } from 'react-icons/cg';
 import { useMerchiFormContext } from '../../context/MerchiProductFormProvider';
 import {
   canvasPaintOrder,
+  colourChoiceFromFill,
   createObjectId,
   designGroupCount,
   detachField,
@@ -41,7 +42,9 @@ import {
   productHasVariationGroups,
   seedOrSyncCanvas,
   templatesForGroup,
+  textColourSwatches,
   unclipTextBox,
+  variationValuePathForGroup,
   variationsForGroup,
 } from '../../utils/draftTemplates';
 import {
@@ -64,6 +67,7 @@ import {
   DraftCanvasHandle,
   DraftCanvasObject,
   DraftCanvasState,
+  FieldType,
 } from '../../utils/types';
 import {
   DEFAULT_DRAFT_FONT,
@@ -161,47 +165,59 @@ function LayerIcon({ obj }: { obj: DraftCanvasObject }) {
   return <FaFillDrip />;
 }
 
+function sameColour(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 function ColourPicker({
   label,
   value,
   onChange,
+  choices,
 }: {
   label: string;
   value: string;
   onChange: (colour: string) => void;
+  choices?: { colour: string; label: string }[] | null;
 }) {
-  const current = value.toLowerCase();
+  const swatches = choices?.length
+    ? choices
+    : QUICK_COLOURS.map((colour) => ({ colour, label: colour }));
+  const chosen = swatches.some((swatch) => sameColour(swatch.colour, value));
   return (
     <div className='merchi-product-draft-field'>
       <span className='merchi-product-draft-field-label'>{label}</span>
       <div className='merchi-product-draft-swatches' role='group' aria-label={label}>
-        {QUICK_COLOURS.map((colour) => (
-          <button
-            key={colour}
-            type='button'
-            className={`merchi-product-draft-swatch${current === colour ? ' is-active' : ''}`}
-            style={{ backgroundColor: colour }}
-            aria-label={colour}
-            aria-pressed={current === colour}
-            onClick={() => onChange(colour)}
+        {swatches.map((swatch) => {
+          const active = sameColour(swatch.colour, value);
+          return (
+            <button
+              key={`${swatch.label}:${swatch.colour}`}
+              type='button'
+              className={`merchi-product-draft-swatch${active ? ' is-active' : ''}`}
+              style={{ backgroundColor: swatch.colour }}
+              aria-label={swatch.label}
+              aria-pressed={active}
+              onClick={() => onChange(swatch.colour)}
+            >
+              {active ? <FaCheck /> : null}
+            </button>
+          );
+        })}
+        {choices?.length ? null : (
+          <label
+            className={`merchi-product-draft-swatch is-custom${chosen ? '' : ' is-active'}`}
+            style={chosen ? undefined : { backgroundColor: value }}
           >
-            {current === colour ? <FaCheck /> : null}
-          </button>
-        ))}
-        <label
-          className={`merchi-product-draft-swatch is-custom${
-            QUICK_COLOURS.includes(current) ? '' : ' is-active'
-          }`}
-          style={QUICK_COLOURS.includes(current) ? undefined : { backgroundColor: current }}
-        >
-          <span className='merchi-sr-only'>Custom colour</span>
-          {QUICK_COLOURS.includes(current) ? <FaPlus /> : <FaCheck />}
-          <input
-            type='color'
-            value={HEX_COLOUR.test(value) ? value : '#111111'}
-            onChange={(e) => onChange(e.target.value)}
-          />
-        </label>
+            <span className='merchi-sr-only'>Custom colour</span>
+            {chosen ? <FaPlus /> : <FaCheck />}
+            <input
+              type='color'
+              value={HEX_COLOUR.test(value) ? value : '#111111'}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          </label>
+        )}
       </div>
     </div>
   );
@@ -271,6 +287,7 @@ export default function DraftDesignerSheet({
   const stateRef = useRef(state);
   stateRef.current = state;
   const historyRef = useRef<CanvasHistory>(emptyHistory());
+  const linkedFormSnapshot = useRef<{ path: string; value: string; quote: boolean }[]>([]);
 
   const templates = useMemo(
     () => templatesForGroup(
@@ -292,6 +309,32 @@ export default function DraftDesignerSheet({
   useEffect(() => {
     if (open) setGroupIndex(initialGroupIndex);
   }, [open, initialGroupIndex]);
+
+  useEffect(() => {
+    if (!open) return;
+    const values = hookForm.getValues();
+    const groupCount = values?.variationsGroups?.length || 1;
+    const entries: { path: string; value: string; quote: boolean }[] = [];
+    for (let index = 0; index < groupCount; index += 1) {
+      for (const variation of variationsForGroup(values, index)) {
+        const id = Number(variation?.variationField?.id);
+        const type = Number(variation?.variationField?.fieldType);
+        const quote = type === FieldType.COLOUR_PICKER
+          || type === FieldType.COLOUR_SELECT
+          || type === FieldType.PANTONE_COLOUR_SELECT;
+        const text = type === FieldType.TEXT_INPUT || type === FieldType.TEXT_AREA;
+        if (!quote && !text) continue;
+        const path = variationValuePathForGroup(values, id, index);
+        if (!path || entries.some((entry) => entry.path === path)) continue;
+        entries.push({
+          path,
+          value: variation?.value == null ? '' : String(variation.value),
+          quote,
+        });
+      }
+    }
+    linkedFormSnapshot.current = entries;
+  }, [open]);
 
   useEffect(() => {
     if (!open) setConfirmClose(false);
@@ -416,6 +459,15 @@ export default function DraftDesignerSheet({
 
   function restore(target: DraftCanvasState) {
     syncEmbroideryFields(target, stateRef.current);
+    for (const obj of target.objects) {
+      if (obj.type !== 'text') continue;
+      if (obj.merchiFieldId != null && typeof obj.text === 'string') {
+        syncLinkedText(obj.merchiFieldId, obj.text);
+      }
+      if (obj.colourFieldId != null && obj.fill) {
+        syncLinkedTextColour(obj.colourFieldId, obj.fill);
+      }
+    }
     const variations = variationsForGroup(hookForm.getValues(), groupIndex);
     replaceState(template ? seedOrSyncCanvas(target, template, variations) : target);
     historyRef.current.mergeKey = null;
@@ -540,9 +592,35 @@ export default function DraftDesignerSheet({
     return obj.type === 'image' ? 'Image' : 'Colour';
   }
 
+  function syncLinkedTextColour(colourFieldId: number, fill: string) {
+    const values = hookForm.getValues();
+    const variation = variationsForGroup(values, groupIndex).find(
+      (item: any) => Number(item?.variationField?.id) === Number(colourFieldId)
+    );
+    const choice = colourChoiceFromFill(variation, fill);
+    const path = variationValuePathForGroup(values, colourFieldId, groupIndex);
+    if (!choice || !path) return;
+    hookForm.setValue(path, choice.value, { shouldDirty: true });
+    Promise.resolve().then(() => getQuote());
+  }
+
+  function syncLinkedText(fieldId: number, text: string) {
+    const values = hookForm.getValues();
+    const variation = variationsForGroup(values, groupIndex).find(
+      (item: any) => Number(item?.variationField?.id) === Number(fieldId)
+    );
+    const type = Number(variation?.variationField?.fieldType);
+    if (type !== FieldType.TEXT_INPUT && type !== FieldType.TEXT_AREA) return;
+    if (String(variation?.value ?? '') === text) return;
+    const path = variationValuePathForGroup(values, fieldId, groupIndex);
+    if (!path) return;
+    hookForm.setValue(path, text, { shouldDirty: true });
+  }
+
   function patchSelected(patch: Partial<DraftCanvasObject>) {
     if (!selectedId) return;
     const current = stateRef.current;
+    const target = current.objects.find((obj) => obj.id === selectedId);
     commit({
       ...current,
       objects: current.objects.map((obj) => {
@@ -557,6 +635,20 @@ export default function DraftDesignerSheet({
         return next;
       }),
     }, `${selectedId}:${Object.keys(patch).sort().join(',')}`);
+    if (
+      target?.type === 'text'
+      && target.colourFieldId != null
+      && patch.fill
+    ) {
+      syncLinkedTextColour(target.colourFieldId, patch.fill);
+    }
+    if (
+      target?.type === 'text'
+      && target.merchiFieldId != null
+      && typeof patch.text === 'string'
+    ) {
+      syncLinkedText(target.merchiFieldId, patch.text);
+    }
   }
 
   function addText() {
@@ -770,6 +862,17 @@ export default function DraftDesignerSheet({
   function handleDroppedFiles(files: FileList | null) {
     const file = Array.from(files || []).find((item) => item.type.startsWith('image/'));
     if (file) addImage(file);
+  }
+
+  function discardLinkedFields() {
+    let quote = false;
+    for (const entry of linkedFormSnapshot.current) {
+      const current = hookForm.getValues(entry.path);
+      if (String(current ?? '') === entry.value) continue;
+      hookForm.setValue(entry.path, entry.value, { shouldDirty: true });
+      if (entry.quote) quote = true;
+    }
+    if (quote) Promise.resolve().then(() => getQuote());
   }
 
   function requestClose() {
@@ -1131,6 +1234,9 @@ export default function DraftDesignerSheet({
                   <ColourPicker
                     label='Colour'
                     value={selected.fill || '#111111'}
+                    choices={textColourSwatches(variationsForGroup(formValues, groupIndex).find(
+                      (item: any) => Number(item?.variationField?.id) === Number(selected.colourFieldId)
+                    ))}
                     onChange={(fill) => patchSelected({ fill })}
                   />
                 ) : null}
@@ -1454,7 +1560,14 @@ export default function DraftDesignerSheet({
               <button type='button' onClick={() => setConfirmClose(false)}>
                 Keep editing
               </button>
-              <button type='button' className='is-leave' onClick={onClose}>
+              <button
+                type='button'
+                className='is-leave'
+                onClick={() => {
+                  discardLinkedFields();
+                  onClose();
+                }}
+              >
                 Leave
               </button>
             </div>

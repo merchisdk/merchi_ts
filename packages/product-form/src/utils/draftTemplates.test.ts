@@ -3,6 +3,7 @@ import {
   blankTemplate,
   bboxToPixels,
   canvasKindForFieldType,
+  colourChoiceFromFill,
   defaultPlacement,
   designGroupCount,
   downloadableDraftTemplates,
@@ -19,7 +20,9 @@ import {
   regionsForRole,
   seedOrSyncCanvas,
   selectedOptionIdsFromVariations,
+  textColourSwatches,
   variationCanvasContent,
+  variationValuePathForGroup,
   visibleTemplatesForGroup,
 } from './draftTemplates';
 
@@ -396,6 +399,38 @@ test('fitInside preserves ratio inside a box', () => {
   expect(fitInside({ x: 0, y: 0, width: 200, height: 100 }, 100, 100, false)).toEqual({
     x: 0, y: 0, width: 200, height: 100,
   });
+});
+
+test('colourChoiceFromFill selects the matching priced colour and leaves other colours', () => {
+  const variation = {
+    value: '1',
+    selectableOptions: [
+      { optionId: 1, value: 'Red', colour: '#ff0000', unitCost: 1 },
+      { optionId: 2, value: 'Blue', colour: '#0000ff', unitCost: 3, available: false },
+      { optionId: 3, value: 'Blue', colour: '#0000FF', unitCost: 2 },
+    ],
+    variationField: { fieldType: FieldType.COLOUR_SELECT },
+  };
+  expect(colourChoiceFromFill(variation, '#0000ff')).toEqual({ value: '3' });
+  expect(colourChoiceFromFill(variation, '#00ff00')).toBeNull();
+  expect(colourChoiceFromFill({ ...variation, value: '3' }, '#0000ff')).toBeNull();
+  expect(colourChoiceFromFill({
+    value: '#ff0000',
+    variationField: { fieldType: FieldType.COLOUR_PICKER },
+  }, '#0000ff')).toEqual({ value: '#0000ff' });
+  expect(textColourSwatches(variation)?.map((swatch) => swatch.label)).toEqual(['Red', 'Blue']);
+});
+
+test('variationValuePathForGroup uses the design group before another group', () => {
+  const form = {
+    variations: [{ variationField: { id: 8 } }],
+    variationsGroups: [
+      { variations: [{ variationField: { id: 4 } }] },
+      { variations: [{ variationField: { id: 4 } }, { variationField: { id: 5 } }] },
+    ],
+  };
+  expect(variationValuePathForGroup(form, 4, 1)).toBe('variationsGroups[1].variations[0].value');
+  expect(variationValuePathForGroup(form, 8, 1)).toBe('variations[0].value');
 });
 
 test('seedOrSyncCanvas applies a linked colour to text instead of a rect', () => {
