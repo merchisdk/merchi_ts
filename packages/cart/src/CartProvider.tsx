@@ -794,28 +794,35 @@ const CartProvider = ({
 
   const [fetchingShipmentGroups, setFetchingShipmentGroups] = useState(false);
   async function updateCartShipmentAddress(address: any) {
-    // Updates the receiver address on cart and fetches new shipment quotes
-    const token = await getCartCookieToken((domainId as string | number));
-    const addressFields = sanitizeAddressFields(address);
-    const receiverAddress = makeAddress(addressFields, true);
-    let cartEnt = makeCart(cart, false, token);
+    const cartId = cart?.id;
+    if (!cartId || cart.invoice?.unpaid === false) return;
+
     setFetchingShipmentGroups(true);
     try {
-      cartEnt.receiverAddress = receiverAddress;
-      cartEnt = await cartEnt.save({embed: cartEmbed});
-      const cartJson = cartEnt.toJson();
+      // A second tab can replace the cookie while this checkout still shows its original cart.
+      const cookie = !cart.token && domainId ? await getCartCookie(domainId, cart.isTest) : null;
+      const token = cart.token || (cookie?.[0] === String(cartId) ? cookie[1] : undefined);
+      if (!token) {
+        alertError('Unable to verify this cart. Reload checkout and try again.');
+        return;
+      }
+
+      const addressFields = sanitizeAddressFields(address);
+      const shipmentApi = new Merchi(undefined, undefined, undefined, token, merchi.backendUri);
+      const cartEnt = new shipmentApi.Cart().fromJson(cart);
+      cartEnt.receiverAddress = makeAddress(addressFields, true);
+      const savedCart = await cartEnt.save({embed: cartEmbed});
+      const cartJson = savedCart.toJson();
       saveCheckoutAddress(domainId, addressFields);
-      const query: Array<any> = [];
-      query.push(['cart_token', cart.token]);
-      const cartWithShipmentGroups = await merchi.authenticatedFetch(
-        `/generate-cart-shipment-quotes/${cart.id}/`,
-        {method: 'GET', query}
+      const cartWithShipmentGroups = await shipmentApi.authenticatedFetch(
+        `/generate-cart-shipment-quotes/${cartId}/`,
+        {method: 'GET'}
       );
 
-      setCart({
+      setCart((current: any) => current?.id === cartId ? {
         ...cartJson,
         shipmentGroups: cartWithShipmentGroups.shipmentGroups || []
-      });
+      } : current);
     } catch (e: any) {
       reportCartFailure(e, CART_FAILURE_SOURCES.update);
       alertError(e.errorMessage || e.message || 'Unable to set address');
