@@ -38,7 +38,7 @@ import {
   confineToRegion,
   createObjectId,
   editorAllows,
-  editorPolicyForField,
+  editorPolicyForObject,
   designGroupCount,
   detachField,
   fitTextBox,
@@ -625,8 +625,12 @@ export default function DraftDesignerSheet({
   }
 
   function policyFor(obj?: DraftCanvasObject | null) {
-    if (obj?.merchiFieldId == null) return {};
-    return editorPolicyForField(template, obj.merchiFieldId);
+    return editorPolicyForObject(template, obj);
+  }
+
+  function settleAdded(obj: DraftCanvasObject): DraftCanvasObject {
+    const limit = movementLimitForObject(template, obj);
+    return limit ? { ...obj, ...confineToRegion(obj, limit) } : obj;
   }
 
   function patchSelected(patch: Partial<DraftCanvasObject>) {
@@ -672,6 +676,9 @@ export default function DraftDesignerSheet({
 
   function addText() {
     const id = createObjectId();
+    const colours = normaliseAllowedColours(
+      editorPolicyForObject(template, { type: 'text' }).allowedColours,
+    );
     const drafted: DraftCanvasObject = {
       id,
       type: 'text',
@@ -685,10 +692,10 @@ export default function DraftDesignerSheet({
       text: 'Your text',
       fontSize: 56,
       fontFamily: DEFAULT_DRAFT_FONT,
-      fill: '#111111',
+      fill: colours[0] || '#111111',
       align: 'left',
     };
-    const obj = { ...drafted, ...fitTextBox(drafted) };
+    const obj = settleAdded({ ...drafted, ...fitTextBox(drafted) });
     const current = stateRef.current;
     commit({ ...current, objects: [...current.objects, obj] });
     setSelectedId(id);
@@ -712,8 +719,9 @@ export default function DraftDesignerSheet({
       name: file.name || undefined,
       lockAspectRatio: true,
     };
+    const placed = settleAdded(obj);
     const current = stateRef.current;
-    commit({ ...current, objects: [...current.objects, obj] });
+    commit({ ...current, objects: [...current.objects, placed] });
     setSelectedId(id);
     setEditingTextId(null);
   }
@@ -1257,16 +1265,22 @@ export default function DraftDesignerSheet({
                     </div>
                   </div>
                 ) : null}
-                {selected.colourFieldId != null && editorAllows(policyFor(selected), 'allowTextColour') ? (
+                {editorAllows(policyFor(selected), 'allowTextColour')
+                  && (selected.colourFieldId != null || selected.merchiFieldId == null) ? (
                   <ColourPicker
                     label='Colour'
                     value={selected.fill || '#111111'}
-                    choices={restrictedColourSwatches(
-                      textColourSwatches(variationsForGroup(formValues, groupIndex).find(
-                        (item: any) => Number(item?.variationField?.id) === Number(selected.colourFieldId)
-                      )),
-                      allowedColoursForText(template, selected.merchiFieldId, selected.colourFieldId),
-                    )}
+                    choices={selected.colourFieldId != null
+                      ? restrictedColourSwatches(
+                        textColourSwatches(variationsForGroup(formValues, groupIndex).find(
+                          (item: any) => Number(item?.variationField?.id) === Number(selected.colourFieldId)
+                        )),
+                        allowedColoursForText(template, selected.merchiFieldId, selected.colourFieldId),
+                      )
+                      : (() => {
+                        const allowed = normaliseAllowedColours(policyFor(selected).allowedColours);
+                        return allowed.length ? restrictedColourSwatches(null, allowed) : null;
+                      })()}
                     onChange={(fill) => patchSelected({ fill })}
                   />
                 ) : null}

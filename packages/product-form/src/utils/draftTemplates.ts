@@ -524,10 +524,13 @@ export function movementLimitForObject(template: any, obj: any): PixelBox | null
   const binding = obj.merchiFieldId != null
     ? bindingForField(fieldBindingsFrom(template), obj.merchiFieldId)
     : undefined;
+  const extraRole = obj.merchiFieldId == null && obj.type === 'text'
+    ? additionalEditorFrom(template).textRegionRole
+    : undefined;
   const role = movementRegionRole(
     template,
     obj.type,
-    binding?.regionRole || obj.regionRole,
+    binding?.regionRole || extraRole || obj.regionRole,
   );
   if (!role) return null;
   const boxes = regionsForRole(template?.customisationMap, role);
@@ -555,6 +558,19 @@ export function bindingForField(
 
 export function editorPolicyForField(template: any, fieldId: any): DraftEditorPermissions {
   const editor = bindingForField(fieldBindingsFrom(template), fieldId)?.editor;
+  if (!editor || typeof editor !== 'object') return {};
+  return editor;
+}
+
+export function additionalEditorFrom(template: any): any {
+  const raw = template?.customisationMap?.additionalEditor;
+  return raw && typeof raw === 'object' ? raw : {};
+}
+
+export function editorPolicyForObject(template: any, obj: any): DraftEditorPermissions {
+  if (obj?.merchiFieldId != null) return editorPolicyForField(template, obj.merchiFieldId);
+  const extra = additionalEditorFrom(template);
+  const editor = obj?.type === 'text' ? extra.text : obj?.type === 'image' ? extra.image : null;
   if (!editor || typeof editor !== 'object') return {};
   return editor;
 }

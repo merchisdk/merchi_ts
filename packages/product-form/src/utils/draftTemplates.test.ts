@@ -10,6 +10,7 @@ import {
   colourChoiceFromFill,
   editorAllows,
   editorPolicyForField,
+  editorPolicyForObject,
   normaliseAllowedColours,
   restrictedColourSwatches,
   defaultPlacement,
@@ -481,6 +482,44 @@ test('editor permissions default to allowed and can limit a linked colour', () =
     ['#ff0000'],
   )?.map((swatch) => swatch.label)).toEqual(['Red']);
   expect(restrictedColourSwatches(null, [])).toBeNull();
+});
+
+test('extra text and pictures use template limits, and a linked option keeps its own', () => {
+  const template = {
+    width: 1000,
+    height: 500,
+    customisationMap: {
+      regions: [
+        { role: 'print_area', bbox: [0.2, 0.2, 0.6, 0.6] },
+        { role: 'text_placeholder', bbox: [0.1, 0.1, 0.3, 0.2] },
+      ],
+      fieldBindings: [{
+        fieldId: 4,
+        role: 'text',
+        editor: { allowRotation: false },
+        regionRole: 'text_placeholder',
+      }],
+      additionalEditor: {
+        text: { allowTextSize: false, allowedColours: ['#111111'] },
+        image: { allowScale: false },
+        textRegionRole: 'print_area',
+      },
+    },
+  };
+  const box = { x: 0, y: 0, width: 10, height: 10, rotation: 0, scaleX: 1, scaleY: 1 };
+  expect(editorAllows(editorPolicyForObject(template, { type: 'text' }), 'allowTextSize')).toBe(false);
+  expect(editorAllows(editorPolicyForObject(template, { type: 'text' }), 'allowRotation')).toBe(true);
+  expect(editorAllows(
+    editorPolicyForObject(template, { type: 'text', merchiFieldId: 4 }),
+    'allowRotation',
+  )).toBe(false);
+  expect(editorAllows(editorPolicyForObject(template, { type: 'image' }), 'allowScale')).toBe(false);
+  expect(movementLimitForObject(template, { type: 'text', ...box })).toEqual({
+    x: 200, y: 100, width: 600, height: 300,
+  });
+  expect(movementLimitForObject(template, { type: 'text', merchiFieldId: 4, ...box })).toEqual({
+    x: 100, y: 50, width: 300, height: 100,
+  });
 });
 
 test('variationValuePathForGroup uses the design group before another group', () => {
