@@ -251,8 +251,7 @@ async function renderState(
   const regionFills = fills.filter((obj) => !isFullArtboardFill(obj, state.width, state.height));
   await drawList(sheetFills, objectsOnly ? 'source-over' : 'multiply');
   await drawList(regionFills);
-  await drawList(content.filter((obj) => obj.type !== 'image'));
-  await drawList(content.filter((obj) => obj.type === 'image'));
+  await drawList(content);
 
   return canvas.toDataURL('image/png');
 }
