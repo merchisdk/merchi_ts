@@ -198,6 +198,11 @@ function TabPaneConfirm() {
   useEffect(() => { setTestCheckout(readTestCheckoutFlag()); }, []);
   async function submit() {
     if (submitting.current || testCheckout === null) return;
+    const currentMode = readTestCheckoutFlag();
+    if (currentMode !== testCheckout) {
+      setTestCheckout(currentMode);
+      return;
+    }
     submitting.current = true;
     setLoading(true);
     try {
