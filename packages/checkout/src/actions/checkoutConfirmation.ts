@@ -11,6 +11,7 @@ type CheckoutConfirmation =
 export async function confirmCheckoutSubmission(
   send: () => Promise<Response>,
   kind: 'order' | 'quote request',
+  requireTestEntity = false,
 ): Promise<CheckoutConfirmation> {
   const unconfirmed = `We couldn't confirm your ${kind}. Check for a confirmation email or contact the store before submitting again.`;
 
@@ -33,6 +34,9 @@ export async function confirmCheckoutSubmission(
     const entity = kind === 'order' ? payload?.invoice : payload?.job;
     if (!Number.isSafeInteger(entity?.id) || entity.id <= 0) {
       throw new Error('Checkout response did not contain a valid confirmation ID.');
+    }
+    if (requireTestEntity && entity.isTest !== true) {
+      throw new Error('The API did not confirm this was a test submission.');
     }
     return { confirmed: true, entity };
   } catch (error) {

@@ -4,7 +4,7 @@ import { appendClientToOwnDraft, cleanClientFiles } from '../utils';
 import { getMerchiSourceJobTagEntities } from '../merchi_source';
 import { jobSourceFieldsForApi } from '../job_source';
 
-export async function submitBuyNow(urlApi: string, jobJson: any) {
+export async function submitBuyNow(urlApi: string, jobJson: any, testCheckout = false) {
   const clientFiles = cleanClientFiles(jobJson.clientFiles || []);
   const tags = getMerchiSourceJobTagEntities() || [];
   const job = appendClientToOwnDraft({...jobJson, ...jobSourceFieldsForApi(), clientFiles, tags});
@@ -20,12 +20,12 @@ export async function submitBuyNow(urlApi: string, jobJson: any) {
   const formData = encodeMerchiApiData(invoice);
   const fetchOptions: any = {method: 'POST', mode: 'cors', body: formData};
   return await fetch(
-    `${urlApi}public-supplier-buy/`,
+    `${urlApi}${testCheckout ? 'public-test-buy' : 'public-supplier-buy'}/`,
     fetchOptions,
   );
 }
 
-export async function submitQuoteRequest(urlApi: string, jobJson: any) {
+export async function submitQuoteRequest(urlApi: string, jobJson: any, testCheckout = false) {
   const clientFiles = cleanClientFiles(jobJson.clientFiles || []);
   const tags = getMerchiSourceJobTagEntities() || [];
   const job = appendClientToOwnDraft({...jobJson, ...jobSourceFieldsForApi(), clientFiles, tags});
@@ -34,7 +34,7 @@ export async function submitQuoteRequest(urlApi: string, jobJson: any) {
   const formData = encodeMerchiApiData(job);
   const fetchOptions: any = {method: 'POST', mode: 'cors', body: formData};
   return await fetch(
-    `${urlApi}public-${viewAttr}-quote/`,
+    `${urlApi}public-${testCheckout ? 'test' : viewAttr}-quote/`,
     fetchOptions,
   );
 }
