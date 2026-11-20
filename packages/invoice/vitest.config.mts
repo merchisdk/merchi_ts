@@ -1,1 +1,1 @@
-export default { test: { environment: "jsdom", include: ["src/**/*.test.tsx"] } };
+export default { esbuild: { jsx: "automatic" }, test: { environment: "jsdom", include: ["src/**/*.test.tsx"] } };

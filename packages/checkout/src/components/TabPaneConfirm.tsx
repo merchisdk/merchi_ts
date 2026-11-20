@@ -229,8 +229,8 @@ function TabPaneConfirm() {
       clearCheckoutSession(product);
       const rawRedirect = redirectAfterQuoteSuccessUrl ?? redirectAfterSuccessUrl;
       const quoteRedirect = typeof rawRedirect === 'string' ? rawRedirect.trim() : '';
-      setJob(prev => ({ ...prev, id: result.entity.id }));
-      if (quoteRedirect) {
+      setJob(prev => ({ ...prev, id: result.entity.id, isTest: result.entity.isTest }));
+      if (quoteRedirect && !result.entity.isTest) {
         try {
           redirectOnSuccess(quoteRedirect, redirectWithValue, result.entity.totalCost, {
             invoiceId: result.entity.id,

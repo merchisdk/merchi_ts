@@ -1,5 +1,6 @@
 type CheckoutEntity = {
   id: number;
+  isTest?: boolean;
   totalCost?: number;
   client?: unknown;
 };

@@ -1,4 +1,5 @@
 'use client';
+import TestOrderNotice from '@merchi/invoice/lib/TestOrderNotice';
 import Cookies from 'js-cookie';
 import { useMerchiCheckboutContext } from './MerchiCheckoutProvider';
 import { tabIdComplete } from '../tabs_utils';
@@ -39,20 +40,18 @@ function TabPaneSubmitted() {
     urlFrontend,
   } = useMerchiCheckboutContext();
   const activeSession = Cookies.get('session_token');
+  const isTest = isBuyRequest ? invoice?.isTest : job?.isTest;
   const msg = isBuyRequest
     ? messageSuccessBuyRequest
     : messageSuccessQuoteRequest;
   return (
     <TabPane tabId={tabIdComplete}>
-      <TitleStep
-        title={`Thank You - ${isBuyRequest ? 'Received' : 'Submitted'}`}
-      />
+      {!isTest && <TitleStep title={`Thank You - ${isBuyRequest ? 'Received' : 'Submitted'}`} />}
+      {isTest && !isBuyRequest && <TestOrderNotice title={`Test quote #${job.id}`} />}
       {isBuyRequest && invoice?.id ? <InvoiceInfo invoice={invoice} /> : null}
       <div className='d-flex justify-content-center'>
         <div className='w-100'>
-          <div className='py-3'>
-            <p>{msg}</p>
-          </div>
+          {!isTest && <div className='py-3'><p>{msg}</p></div>}
           <div
             className={
               isProductEmbedForm
