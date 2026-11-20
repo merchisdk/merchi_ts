@@ -1,4 +1,5 @@
 'use client';
+import TestOrderNotice from '@merchi/invoice/lib/TestOrderNotice';
 import React from 'react';
 import { useMerchiCheckboutContext } from './MerchiCheckoutProvider';
 import ButtonInvoiceDownload from './buttons/ButtonInvoiceDownload';
@@ -17,12 +18,14 @@ function InvoiceInfo({ invoice: invoiceProp }: Props) {
   const paid = !unpaid;
   return (
     <div className='w-100 d-flex flex-column align-items-center pt-3'>
-      <h5 className={`container-invoice-heading mb-0 ${classNameMerchiCheckoutSubtitle}`}>
-        Invoice #{id}
-      </h5>
-      {paid && (
+      {invoice.isTest ? (
+        <TestOrderNotice title={`Test order · Invoice #${id}`} paymentReceived={unpaid === false} />
+      ) : (
         <>
-          <p className='mt-0 mb-0'>Paid, thank you!</p>
+          <h5 className={`container-invoice-heading mb-0 ${classNameMerchiCheckoutSubtitle}`}>
+            Invoice #{id}
+          </h5>
+          {paid && <p className='mt-0 mb-0'>Paid, thank you!</p>}
         </>
       )}
       <p className='mt-2 mb-2'>Download your {paid ? 'receipt' : 'invoice'}.</p>

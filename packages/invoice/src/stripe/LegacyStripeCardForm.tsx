@@ -16,6 +16,7 @@ interface Props {
   callbackStripePaymentSuccess: (invoiceJson: any) => void;
   invoice: any;
   PaymentButton?: any;
+  testKey?: string;
   urlApi: string;
 }
 
@@ -24,6 +25,7 @@ function StripeCardForm({
   callbackStripePaymentSuccess,
   invoice,
   PaymentButton,
+  testKey,
   urlApi,
 }: Props) {
   const { domain } = invoice;
@@ -59,8 +61,8 @@ function StripeCardForm({
   }
   const [stripePublicKey, setStripePublicKey] = useState(companyPubKey);
   useEffect(() => {
-    if (!stripePublicKey && canUseConnect) stripeInitPromise(urlApi).then(setStripePublicKey)
-  }, [stripePublicKey, canUseConnect]);
+    if (!testKey && !stripePublicKey && canUseConnect) stripeInitPromise(urlApi).then(setStripePublicKey)
+  }, [stripePublicKey, canUseConnect, testKey, urlApi]);
   return (
     <>
       {company.isTesting && badgeTestMode}
@@ -72,7 +74,7 @@ function StripeCardForm({
         loadingStripePaymentButtons={loadingStripePaymentButtons}
         PaymentButton={PaymentButton}
         setLoadingStripePayment={setLoadingStripePayment}
-        stripePubKey={stripePublicKey}
+        stripePubKey={testKey ?? stripePublicKey}
       />
     </>
   );
