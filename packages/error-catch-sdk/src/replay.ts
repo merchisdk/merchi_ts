@@ -256,9 +256,9 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
     const startedGeneration = generation;
     void import("@rrweb/record").then(({ record }) => {
       if (!active || generation !== startedGeneration || !permitted()) return;
-      takeSnapshot = () => record.takeFullSnapshot();
+      let hasInitialSnapshot = false;
       const readSnapshotImages = createReplayImageReader((id) => record.mirror.getNode(id), PRIVATE_REPLAY_SELECTOR);
-      // record() emits the initial snapshot synchronously, before returning cleanup.
+      // rrweb can emit its first snapshot synchronously or defer startup until window.load.
       const stop = record({
         maskAllInputs: true,
         ...(maskingEnabled ? { maskTextSelector: "*" } : {}),
@@ -272,6 +272,7 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
             if (!active || generation !== startedGeneration) return;
             if (!permitted() || containsPaymentReplayContent(raw)) { pause(); return; }
             if (raw.type === 5 || raw.type === 6) return;
+            if (raw.type === 2) hasInitialSnapshot = true;
             const event = sanitizeReplayEvent(raw, maskingEnabled, raw.type === 2 ? readSnapshotImages() : undefined);
             buffer.push(event);
             const bytes = new TextEncoder().encode(JSON.stringify(event)).length;
@@ -284,7 +285,14 @@ export function startStorefrontReplay(reporter: FrontendErrorReporter, options: 
         },
       });
       if (!active || generation !== startedGeneration || !permitted()) stop?.();
-      else stopRecord = stop;
+      else if (stop) {
+        stopRecord = stop;
+        takeSnapshot = () => {
+          if (!hasInitialSnapshot) return;
+          try { record.takeFullSnapshot(); }
+          catch { /* A replay refresh must not surface as a storefront error. */ }
+        };
+      }
     }).catch(() => { if (generation === startedGeneration) pause(); });
   };
   const onPageHide = (): void => { for (const clip of clips.values()) finish(clip); };
