@@ -3,9 +3,10 @@
 import * as React from 'react';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Elements, ExpressCheckoutElement, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import type { Stripe, StripeElementsOptions } from '@stripe/stripe-js';
+import type { StripeElementsOptions } from '@stripe/stripe-js';
 import { loadStripe } from '@stripe/stripe-js/pure';
 import { captureUnexpected } from '@merchi/error-catch';
+import { useStripeLoader } from './useStripeLoader';
 
 export interface StripePaymentFormProps {
   apiUrl: string;
@@ -176,35 +177,14 @@ function StripePaymentElements({ publishableKey, options, locale, children }: {
   locale: NonNullable<StripePaymentFormProps['locale']>;
   children: React.ReactNode;
 }) {
-  const [stripe, setStripe] = useState<Stripe | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [loadAttempt, setLoadAttempt] = useState(0);
+  const { stripe, failed, retry } = useStripeLoader(publishableKey, loadStripe);
   const text = stripeLoadMessages[locale];
-
-  useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        const instance = await loadStripe(publishableKey);
-        if (!instance) throw new Error('Stripe.js did not initialize');
-        if (active) setStripe(instance);
-      } catch (error) {
-        if (!active) return;
-        setFailed(true);
-        captureUnexpected(error, {
-          source: 'manual', operation: { name: 'payment.initialize', outcome: 'failed' },
-        });
-      }
-    }
-    void load();
-    return () => { active = false; };
-  }, [publishableKey, loadAttempt]);
 
   if (failed) {
     return <>
       <p role="alert" className="merchi-stripe-payment__error">{text.error}</p>
       <button type="button" className="merchi-stripe-payment__button merchi-stripe-payment__button--secondary"
-        onClick={() => { setFailed(false); setLoadAttempt(previous => previous + 1); }}>
+        onClick={retry}>
         {text.retry}
       </button>
     </>;
