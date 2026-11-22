@@ -24,6 +24,7 @@ import { persistTestCheckoutFlag, readTestCheckoutFlag } from './utilities/test_
 import { reportAddCartItemFailure, reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
 import { isAutomatedClient } from './utilities/automatedClient';
 import { canReplaceMissingCart } from './utilities/cartLoadFailure';
+import { getCheckoutCartClient } from './utilities/checkoutCartClient';
 import {
   appendJobSourceToFormData,
   captureAndReadJobSource,
@@ -794,28 +795,32 @@ const CartProvider = ({
 
   const [fetchingShipmentGroups, setFetchingShipmentGroups] = useState(false);
   async function updateCartShipmentAddress(address: any) {
-    // Updates the receiver address on cart and fetches new shipment quotes
-    const token = await getCartCookieToken((domainId as string | number));
-    const addressFields = sanitizeAddressFields(address);
-    const receiverAddress = makeAddress(addressFields, true);
-    let cartEnt = makeCart(cart, false, token);
+    const cartId = cart?.id;
+    if (!cartId || cart.invoice?.unpaid === false) return;
+
     setFetchingShipmentGroups(true);
     try {
-      cartEnt.receiverAddress = receiverAddress;
-      cartEnt = await cartEnt.save({embed: cartEmbed});
-      const cartJson = cartEnt.toJson();
+      const shipmentApi = await getCheckoutCartClient(cart, domainId, merchi.backendUri);
+      if (!shipmentApi) {
+        alertError('Unable to verify this cart. Reload checkout and try again.');
+        return;
+      }
+
+      const addressFields = sanitizeAddressFields(address);
+      const cartEnt = new shipmentApi.Cart().fromJson(cart);
+      cartEnt.receiverAddress = makeAddress(addressFields, true);
+      const savedCart = await cartEnt.save({embed: cartEmbed});
+      const cartJson = savedCart.toJson();
       saveCheckoutAddress(domainId, addressFields);
-      const query: Array<any> = [];
-      query.push(['cart_token', cart.token]);
-      const cartWithShipmentGroups = await merchi.authenticatedFetch(
-        `/generate-cart-shipment-quotes/${cart.id}/`,
-        {method: 'GET', query}
+      const cartWithShipmentGroups = await shipmentApi.authenticatedFetch(
+        `/generate-cart-shipment-quotes/${cartId}/`,
+        {method: 'GET'}
       );
 
-      setCart({
+      setCart((current: any) => current?.id === cartId ? {
         ...cartJson,
         shipmentGroups: cartWithShipmentGroups.shipmentGroups || []
-      });
+      } : current);
     } catch (e: any) {
       reportCartFailure(e, CART_FAILURE_SOURCES.update);
       alertError(e.errorMessage || e.message || 'Unable to set address');
@@ -825,18 +830,24 @@ const CartProvider = ({
   }
 
   async function getCartShipmentOptions() {
+    const cartId = cart?.id;
+    if (!cartId) return;
+
     setFetchingShipmentGroups(true);
     try {
-      const query: Array<any> = [];
-      query.push(['cart_token', cart.token]);
-      const cartWithGroups = await merchi.authenticatedFetch(
-        `/generate-cart-shipment-quotes/${cart.id}/`,
-        {method: 'GET', query}
+      const shipmentApi = await getCheckoutCartClient(cart, domainId, merchi.backendUri);
+      if (!shipmentApi) {
+        alertError('Unable to verify this cart. Reload checkout and try again.');
+        return;
+      }
+      const cartWithGroups = await shipmentApi.authenticatedFetch(
+        `/generate-cart-shipment-quotes/${cartId}/`,
+        {method: 'GET'}
       );
-      setCart({
-        ...cart,
+      setCart((current: any) => current?.id === cartId ? {
+        ...current,
         shipmentGroups: cartWithGroups.shipmentGroups || []
-      });
+      } : current);
     } catch (e: any) {
       reportCartFailure(e, CART_FAILURE_SOURCES.shipping);
       alertError(e.errorMessage || e.message || 'Unable to fetch shipment options');
