@@ -3,6 +3,7 @@ import { createRoot, Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 
 import CartProvider, { useCartContext } from './CartProvider';
+import { ActiveFormShipmentAddressAndNotes } from './forms/FormShipmentAddressAndNotes';
 import { getCartCookie, getCartCookieToken, setCartCookie } from './utilities/cookie';
 import { cartNeedsSourceUpdate } from './utilities/job_source';
 import { reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
@@ -46,7 +47,13 @@ jest.mock('./utilities/cookie', () => ({
   setCartCookie: jest.fn(),
   readHandoffCart: jest.fn(),
 }));
-jest.mock('./utilities/local_storage', () => ({ getSavedCheckoutCustomer: () => null, saveCheckoutAddress: jest.fn() }));
+jest.mock('./utilities/local_storage', () => ({
+  ...jest.requireActual('./utilities/local_storage'),
+  getSavedCheckoutCustomer: () => null,
+  saveCheckoutAddress: jest.fn(),
+}));
+jest.mock('./forms/InputsAddress', () => ({ __esModule: true, default: () => null }));
+jest.mock('./components', () => ({ Title: () => null }));
 jest.mock('./utilities/job_source', () => ({
   captureAndReadJobSource: () => null,
   jobSourceFieldsForApi: () => ({}),
@@ -527,6 +534,18 @@ describe('cart load and replacement failures', () => {
     expect(mockShipmentQuotes).toHaveBeenCalledWith('saved-token', '/generate-cart-shipment-quotes/42/', { method: 'GET' });
   });
 
+  it('refreshes shipment options with the displayed cart token when the cookie changes', async () => {
+    mockGet.mockResolvedValue({ toJson: () => ({ id: 42, token: 'visible-token', cartItems: [{ id: 7 }] }) });
+    await act(async () => root.render(<CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>));
+    (getCartCookie as jest.Mock).mockResolvedValue(['99', 'new-token']);
+    mockShipmentQuotes.mockResolvedValue({ shipmentGroups: [{ id: 1 }] });
+
+    await act(async () => { await context.getCartShipmentOptions?.(); });
+
+    expect(mockShipmentQuotes).toHaveBeenCalledWith('visible-token', '/generate-cart-shipment-quotes/42/', { method: 'GET' });
+    expect(context.cart).toMatchObject({ id: 42, cartItems: [{ id: 7 }], shipmentGroups: [{ id: 1 }] });
+  });
+
   it('keeps the cart intact when only a different cart’s token is available', async () => {
     await mountSavedCart();
     (getCartCookie as jest.Mock).mockResolvedValue(['99', 'new-token']);
@@ -541,6 +560,36 @@ describe('cart load and replacement failures', () => {
     expect(context.cart.id).toBe(42);
     expect(context.alert.message).toContain('Reload checkout');
   });
+
+  it.each(['visible-token', undefined])(
+    'submits the displayed checkout cart after another tab replaces its cookie (%s)',
+    async token => {
+      mockGet.mockResolvedValue({ toJson: () => ({ id: 42, token, cartItems: [{ id: 7 }] }) });
+      await act(async () => root.render(
+        <CartProvider domainId={5} createCartAndCookie={() => {}}>
+          <Probe />
+          <ActiveFormShipmentAddressAndNotes />
+        </CartProvider>,
+      ));
+      (getCartCookie as jest.Mock).mockResolvedValue(['99', 'new-token']);
+      (getCartCookieToken as jest.Mock).mockResolvedValue('new-token');
+      mockSaveCart.mockImplementation((id, cartToken) => cartToken === 'visible-token'
+        ? Promise.resolve({ toJson: () => ({ id, token: cartToken }) })
+        : Promise.reject(Object.assign(new Error('Authentication required'), { statusCode: 401 })));
+
+      const form = container.querySelector('form')!;
+      await act(async () => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+
+      if (token) {
+        expect(mockSaveCart).toHaveBeenCalledTimes(1);
+        expect(mockSaveCart).toHaveBeenCalledWith(42, token);
+      } else {
+        expect(mockSaveCart).not.toHaveBeenCalled();
+        expect(context.alert.message).toContain('Reload checkout');
+      }
+      expect(context.cart.id).toBe(42);
+    },
+  );
   it.each([
     new TypeError('Failed to fetch'),
     { statusCode: 503, message: 'Service unavailable' },

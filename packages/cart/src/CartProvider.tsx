@@ -24,6 +24,7 @@ import { persistTestCheckoutFlag, readTestCheckoutFlag } from './utilities/test_
 import { reportAddCartItemFailure, reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
 import { isAutomatedClient } from './utilities/automatedClient';
 import { canReplaceMissingCart } from './utilities/cartLoadFailure';
+import { getCheckoutCartClient } from './utilities/checkoutCartClient';
 import {
   appendJobSourceToFormData,
   captureAndReadJobSource,
@@ -799,16 +800,13 @@ const CartProvider = ({
 
     setFetchingShipmentGroups(true);
     try {
-      // A second tab can replace the cookie while this checkout still shows its original cart.
-      const cookie = !cart.token && domainId ? await getCartCookie(domainId, cart.isTest) : null;
-      const token = cart.token || (cookie?.[0] === String(cartId) ? cookie[1] : undefined);
-      if (!token) {
+      const shipmentApi = await getCheckoutCartClient(cart, domainId, merchi.backendUri);
+      if (!shipmentApi) {
         alertError('Unable to verify this cart. Reload checkout and try again.');
         return;
       }
 
       const addressFields = sanitizeAddressFields(address);
-      const shipmentApi = new Merchi(undefined, undefined, undefined, token, merchi.backendUri);
       const cartEnt = new shipmentApi.Cart().fromJson(cart);
       cartEnt.receiverAddress = makeAddress(addressFields, true);
       const savedCart = await cartEnt.save({embed: cartEmbed});
@@ -832,18 +830,24 @@ const CartProvider = ({
   }
 
   async function getCartShipmentOptions() {
+    const cartId = cart?.id;
+    if (!cartId) return;
+
     setFetchingShipmentGroups(true);
     try {
-      const query: Array<any> = [];
-      query.push(['cart_token', cart.token]);
-      const cartWithGroups = await merchi.authenticatedFetch(
-        `/generate-cart-shipment-quotes/${cart.id}/`,
-        {method: 'GET', query}
+      const shipmentApi = await getCheckoutCartClient(cart, domainId, merchi.backendUri);
+      if (!shipmentApi) {
+        alertError('Unable to verify this cart. Reload checkout and try again.');
+        return;
+      }
+      const cartWithGroups = await shipmentApi.authenticatedFetch(
+        `/generate-cart-shipment-quotes/${cartId}/`,
+        {method: 'GET'}
       );
-      setCart({
-        ...cart,
+      setCart((current: any) => current?.id === cartId ? {
+        ...current,
         shipmentGroups: cartWithGroups.shipmentGroups || []
-      });
+      } : current);
     } catch (e: any) {
       reportCartFailure(e, CART_FAILURE_SOURCES.shipping);
       alertError(e.errorMessage || e.message || 'Unable to fetch shipment options');
