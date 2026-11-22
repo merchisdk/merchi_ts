@@ -103,6 +103,9 @@ export class VariationField extends Entity {
   public multipleSelect?: boolean;
 
   @VariationField.property()
+  public rebaseShipmentMeasurements?: boolean;
+
+  @VariationField.property()
   public showFilePreview?: boolean;
 
   @VariationField.property()
