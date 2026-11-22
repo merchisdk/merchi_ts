@@ -1,7 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { FaFilePdf, FaRegImage } from 'react-icons/fa';
-import { formatCurrency, currencyTotalCostShowIncTax } from './currency';
+import { formatCurrency, formatQuotedUnitPrice, currencyTotalCostShowIncTax } from './currency';
 import {
   isInstructionsType,
   isProductSupplierMOD,
@@ -94,10 +94,6 @@ function productSetupSuffix(product: any) {
   if (!setupPrice) return '';
   const label = product.setupPerGroup ? 'setup per group' : 'setup';
   return ` + ${formatCost(product, setupPrice)} ${label}`;
-}
-
-function formatUnitPriceWithSetup(product: any) {
-  return `${formatCost(product, Number(product?.unitPrice) || 0)}${productSetupSuffix(product)}`;
 }
 
 function isPdf(file: any) {
@@ -828,9 +824,9 @@ function VariationGroupInfo({
     (v: any) => !isInstructionsType(v?.variationField?.fieldType)
   );
   const costLabel = isResell ? 'Unit Cost' : 'Group Cost';
-  const unitPriceValue = showSetupOnUnitPrice
-    ? formatUnitPriceWithSetup(product)
-    : formatCost(product, Number(product?.unitPrice) || 0);
+  const usesAverage = group.costPerUnit == null && job.costPerUnit != null && job.variationsGroups.length > 1;
+  const unitPrice = formatQuotedUnitPrice(product, group.costPerUnit ?? job.costPerUnit);
+  const unitPriceValue = showSetupOnUnitPrice ? unitPrice + productSetupSuffix(product) : unitPrice;
 
   return (
     <section className='merchi-checkout-summary-group'>
@@ -840,7 +836,7 @@ function VariationGroupInfo({
       {!isResell && quantity > 0 && (
         <SummaryFieldRow label='Quantity' value={quantity} />
       )}
-      <SummaryFieldRow label='Unit Price' value={unitPriceValue} />
+      <SummaryFieldRow label={usesAverage ? 'Average Unit Price' : 'Unit Price'} value={unitPriceValue} />
       {visibleVariations.length > 0 && (
         <VariationsInfo
           quantity={quantity}
@@ -857,8 +853,9 @@ function VariationGroupInfo({
 }
 
 export default function JobInfoContent() {
-  const { job } = useMerchiCheckboutContext();
-  const { product, quantity = 0, variations = [], variationsGroups = [] } = job;
+  const { job, product: checkoutProduct } = useMerchiCheckboutContext();
+  const product = { ...checkoutProduct, ...job.product };
+  const { quantity = 0, variations = [], variationsGroups = [] } = job;
   const extraJobInputs = designInputsFor(job?.designInputs);
   const { needsShipping } = product;
   const totalCost = currencyTotalCostShowIncTax(job);
@@ -904,7 +901,7 @@ export default function JobInfoContent() {
           )}
           <SummaryFieldRow
             label='Unit Price'
-            value={formatUnitPriceWithSetup(product)}
+            value={formatQuotedUnitPrice(product, job.costPerUnit) + productSetupSuffix(product)}
           />
           {jobLevelVariations.length > 0 && (
             <VariationsInfo

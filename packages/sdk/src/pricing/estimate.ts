@@ -305,6 +305,7 @@ export function estimateQuote(
   }
 
   const groupCosts: number[] = [];
+  const groupUnitPrices: number[] = [];
   let cost = 0;
   let costPerUnit: number;
   let groupQuantities: number[];
@@ -321,13 +322,12 @@ export function estimateQuote(
     const totalQty = groupQuantities.reduce((a, b) => a + b, 0);
     const restricted = Boolean(rules.product.discountGroup?.groupRestricted);
     const baseUnitPrice = unitPriceAt(rules, totalQty);
-    const perGroupCpu: number[] = [];
 
     for (let gi = 0; gi < groups.length; gi++) {
       const group = groups[gi];
       const gQty = groupQuantities[gi];
       const cpu = restricted ? unitPriceAt(rules, gQty) : baseUnitPrice;
-      perGroupCpu.push(cpu);
+      groupUnitPrices.push(cpu);
       // Server `VariationsGroups.update_cost` (variations_groups.py ~238):
       // `if not self.quantity: self.group_cost = 0; return` — a zero-qty group
       // contributes exactly 0 and adds NO field/variation costs.
@@ -355,7 +355,7 @@ export function estimateQuote(
     }
 
     costPerUnit = totalQty > 0
-      ? perGroupCpu.reduce((acc, cpu, i) => acc + cpu * groupQuantities[i], 0) / totalQty
+      ? groupUnitPrices.reduce((acc, cpu, i) => acc + cpu * groupQuantities[i], 0) / totalQty
       : baseUnitPrice;
 
     // Independent (job-level) field visibility is scoped to independent
@@ -422,6 +422,7 @@ export function estimateQuote(
     // `result["groupCost"] = self.group_cost` is serialized UNROUNDED
     // (variations_groups.py ~154); round to 3dp to match the Numeric scale.
     groupCosts: groupCosts.map((c) => roundHalfEven(c, 3)),
+    groupUnitPrices: groupUnitPrices.map((price) => roundHalfEven(price, 3)),
     currency: rules.currency,
   };
 }
