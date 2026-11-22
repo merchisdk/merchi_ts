@@ -22,6 +22,7 @@ import {
 } from '../components/utils';
 import { pricing } from '@merchi/sdk';
 import { toSelections } from '../utils/selections';
+import { quotedGroupUnitPrice } from '../utils/quotedGroupUnitPrice';
 import { scrollToFirstFormError } from '../utils/formErrors';
 import {
   buildDesiredVariationsFromFields,
@@ -599,6 +600,7 @@ export const MerchiProductFormProvider = ({
             ...group,
             variations: groupReconcile.variations,
             groupCost: serverGroup.groupCost,
+            costPerUnit: quotedGroupUnitPrice(serverGroup, serverJob, product),
             inventoryCount: serverGroup.inventoryCount,
             inventorySufficient: serverGroup.inventorySufficient,
             matchingInventories: serverGroup.matchingInventories,
@@ -702,6 +704,7 @@ export const MerchiProductFormProvider = ({
     if (pricingRules.hasGroups && Array.isArray(values.variationsGroups)) {
       values.variationsGroups.forEach((g: any, i: number) => {
         g.groupCost = result.groupCosts[i] ?? 0;
+        g.costPerUnit = result.groupUnitPrices?.[i];
         const groupScope = {
           fieldValues: selections.fieldValues,
           groups: selections.groups ? [selections.groups[i]] : [],
