@@ -3,10 +3,21 @@ import {
   blankTemplate,
   bboxToPixels,
   canvasKindForFieldType,
+  clampOrigin,
+  confineToRegion,
+  movementLimitForObject,
+  allowedColoursForText,
+  colourChoiceFromFill,
+  editorAllows,
+  editorPolicyForField,
+  editorPolicyForObject,
+  normaliseAllowedColours,
+  restrictedColourSwatches,
   defaultPlacement,
   designGroupCount,
   downloadableDraftTemplates,
   detachField,
+  expandTextBox,
   fitInside,
   fitTextBox,
   inferArtworkRole,
@@ -18,7 +29,9 @@ import {
   regionsForRole,
   seedOrSyncCanvas,
   selectedOptionIdsFromVariations,
+  textColourSwatches,
   variationCanvasContent,
+  variationValuePathForGroup,
   visibleTemplatesForGroup,
 } from './draftTemplates';
 
@@ -172,6 +185,13 @@ test('normaliseCssColour ignores option ids and keeps hex or names', () => {
   expect(normaliseCssColour(undefined, '')).toBeUndefined();
 });
 
+test('expandTextBox grows a short box from the centre and leaves a wider box', () => {
+  const narrow = { x: 100, y: 40, width: 80, height: 50, text: 'example text' };
+  const grown = expandTextBox(narrow, 140, 50);
+  expect(grown).toMatchObject({ x: 70, y: 40, width: 140, height: 50 });
+  expect(expandTextBox(grown, 100, 40)).toBe(grown);
+});
+
 test('fitTextBox shrinks to the text instead of the region', () => {
   const fitted = fitTextBox({
     x: 0,
@@ -239,6 +259,90 @@ test('seedOrSyncCanvas places linked fields and updates content only', () => {
   expect(syncedText.x + syncedText.width / 2).toBeCloseTo(movedCenter);
 });
 
+test('seedOrSyncCanvas keeps a customer text box and restores saved textStyle', () => {
+  const template = {
+    width: 1000,
+    height: 1000,
+    editedByVariationFields: [{ id: 1 }],
+  };
+  const savedStyle = {
+    colour: '#abcdef',
+    textSize: 72,
+    font: 'Pacifico',
+    align: 'right',
+    x: 15,
+    y: 25,
+    width: 400,
+    height: 80,
+    rotation: 8,
+    scaleX: 1.2,
+    scaleY: 0.9,
+  };
+  const seeded = seedOrSyncCanvas(null, template, [{
+    value: 'Saved',
+    textStyle: savedStyle,
+    variationField: { id: 1, fieldType: FieldType.TEXT_INPUT },
+  }]);
+  const linked = seeded.objects.find((obj) => obj.merchiFieldId === 1)!;
+  expect(linked).toMatchObject({
+    text: 'Saved',
+    fill: '#abcdef',
+    fontSize: 72,
+    fontFamily: 'Pacifico',
+    align: 'right',
+    x: 15,
+    y: 25,
+    width: 400,
+    height: 80,
+    rotation: 8,
+    scaleX: 1.2,
+    scaleY: 0.9,
+  });
+
+  const withAdded = {
+    ...seeded,
+    objects: [
+      ...seeded.objects,
+      {
+        id: 'added',
+        type: 'text' as const,
+        x: 40,
+        y: 50,
+        width: 320,
+        height: 90,
+        rotation: 12,
+        scaleX: 1.4,
+        scaleY: 0.8,
+        text: 'Team night',
+        fontSize: 56,
+        fontFamily: 'Oswald',
+        fill: '#112233',
+        align: 'center',
+      },
+    ],
+  };
+  const synced = seedOrSyncCanvas(withAdded, template, [{
+    value: 'Saved',
+    textStyle: { ...savedStyle, x: 1, y: 1 },
+    variationField: { id: 1, fieldType: FieldType.TEXT_INPUT },
+  }]);
+  expect(synced.objects.find((obj) => obj.merchiFieldId === 1)?.x).toBe(15);
+  expect(synced.objects.find((obj) => obj.id === 'added')).toMatchObject({
+    x: 40,
+    y: 50,
+    width: 320,
+    height: 90,
+    rotation: 12,
+    scaleX: 1.4,
+    scaleY: 0.8,
+    text: 'Team night',
+    fontSize: 56,
+    fontFamily: 'Oswald',
+    fill: '#112233',
+    align: 'center',
+  });
+});
+
 test('detachField prevents re-seeding that field', () => {
   const template = {
     width: 500,
@@ -304,6 +408,130 @@ test('fitInside preserves ratio inside a box', () => {
   expect(fitInside({ x: 0, y: 0, width: 200, height: 100 }, 100, 100, false)).toEqual({
     x: 0, y: 0, width: 200, height: 100,
   });
+});
+
+test('colourChoiceFromFill selects the matching priced colour and leaves other colours', () => {
+  const variation = {
+    value: '1',
+    selectableOptions: [
+      { optionId: 1, value: 'Red', colour: '#ff0000', unitCost: 1 },
+      { optionId: 2, value: 'Blue', colour: '#0000ff', unitCost: 3, available: false },
+      { optionId: 3, value: 'Blue', colour: '#0000FF', unitCost: 2 },
+    ],
+    variationField: { fieldType: FieldType.COLOUR_SELECT },
+  };
+  expect(colourChoiceFromFill(variation, '#0000ff')).toEqual({ value: '3' });
+  expect(colourChoiceFromFill(variation, '#00ff00')).toBeNull();
+  expect(colourChoiceFromFill({ ...variation, value: '3' }, '#0000ff')).toBeNull();
+  expect(colourChoiceFromFill({
+    value: '#ff0000',
+    variationField: { fieldType: FieldType.COLOUR_PICKER },
+  }, '#0000ff')).toEqual({ value: '#0000ff' });
+  expect(textColourSwatches(variation)?.map((swatch) => swatch.label)).toEqual(['Red', 'Blue']);
+});
+
+test('movement stays inside the text area or print area', () => {
+  const template = {
+    width: 1000,
+    height: 500,
+    customisationMap: {
+      regions: [
+        { role: 'print_area', bbox: [0.2, 0.2, 0.6, 0.6] },
+        { role: 'text_placeholder', bbox: [0.1, 0.1, 0.3, 0.2] },
+      ],
+      fieldBindings: [{ fieldId: 4, role: 'text', regionRole: 'print_area' }],
+    },
+  };
+  const text = { type: 'text', x: 0, y: 0, width: 100, height: 40, rotation: 0, scaleX: 1, scaleY: 1 };
+  expect(movementLimitForObject(template, text)).toEqual({ x: 100, y: 50, width: 300, height: 100 });
+  expect(movementLimitForObject(template, { ...text, merchiFieldId: 4 })).toEqual({
+    x: 200, y: 100, width: 600, height: 300,
+  });
+  expect(movementLimitForObject(template, { type: 'image', x: 0, y: 0, width: 10, height: 10 })).toEqual({
+    x: 200, y: 100, width: 600, height: 300,
+  });
+  expect(clampOrigin({ ...text, x: 0, y: 0 }, { x: 100, y: 50, width: 300, height: 100 })).toEqual({
+    x: 100, y: 50,
+  });
+  const shrunk = confineToRegion(
+    { ...text, x: 100, y: 50, width: 400, height: 40 },
+    { x: 100, y: 50, width: 300, height: 100 },
+  );
+  expect(shrunk.scaleX).toBeCloseTo(0.75);
+  expect(shrunk.x).toBeGreaterThanOrEqual(100);
+  expect(shrunk.x + shrunk.width * shrunk.scaleX).toBeLessThanOrEqual(400.01);
+});
+
+test('editor permissions default to allowed and can limit a linked colour', () => {
+  const template = {
+    customisationMap: {
+      fieldBindings: [
+        { fieldId: 1, role: 'text', editor: { allowRotation: false, allowedColours: ['#FF0000', '#00FF00'] } },
+        { fieldId: 9, role: 'text_fill', editor: { allowedColours: ['#ff0000', '#0000ff'] } },
+      ],
+    },
+  };
+  const policy = editorPolicyForField(template, 1);
+  expect(editorAllows(policy, 'allowRotation')).toBe(false);
+  expect(editorAllows(policy, 'allowScale')).toBe(true);
+  expect(editorAllows(editorPolicyForField(template, 4), 'allowTextSize')).toBe(true);
+  expect(normaliseAllowedColours(['#FF0000', 'nope', '#ff0000'])).toEqual(['#ff0000']);
+  expect(allowedColoursForText(template, 1, 9)).toEqual(['#ff0000']);
+  expect(restrictedColourSwatches(
+    [{ colour: '#ff0000', label: 'Red' }, { colour: '#00ff00', label: 'Green' }],
+    ['#ff0000'],
+  )?.map((swatch) => swatch.label)).toEqual(['Red']);
+  expect(restrictedColourSwatches(null, [])).toBeNull();
+});
+
+test('extra text and pictures use template limits, and a linked option keeps its own', () => {
+  const template = {
+    width: 1000,
+    height: 500,
+    customisationMap: {
+      regions: [
+        { role: 'print_area', bbox: [0.2, 0.2, 0.6, 0.6] },
+        { role: 'text_placeholder', bbox: [0.1, 0.1, 0.3, 0.2] },
+      ],
+      fieldBindings: [{
+        fieldId: 4,
+        role: 'text',
+        editor: { allowRotation: false },
+        regionRole: 'text_placeholder',
+      }],
+      additionalEditor: {
+        text: { allowTextSize: false, allowedColours: ['#111111'] },
+        image: { allowScale: false },
+        textRegionRole: 'print_area',
+      },
+    },
+  };
+  const box = { x: 0, y: 0, width: 10, height: 10, rotation: 0, scaleX: 1, scaleY: 1 };
+  expect(editorAllows(editorPolicyForObject(template, { type: 'text' }), 'allowTextSize')).toBe(false);
+  expect(editorAllows(editorPolicyForObject(template, { type: 'text' }), 'allowRotation')).toBe(true);
+  expect(editorAllows(
+    editorPolicyForObject(template, { type: 'text', merchiFieldId: 4 }),
+    'allowRotation',
+  )).toBe(false);
+  expect(editorAllows(editorPolicyForObject(template, { type: 'image' }), 'allowScale')).toBe(false);
+  expect(movementLimitForObject(template, { type: 'text', ...box })).toEqual({
+    x: 200, y: 100, width: 600, height: 300,
+  });
+  expect(movementLimitForObject(template, { type: 'text', merchiFieldId: 4, ...box })).toEqual({
+    x: 100, y: 50, width: 300, height: 100,
+  });
+});
+
+test('variationValuePathForGroup uses the design group before another group', () => {
+  const form = {
+    variations: [{ variationField: { id: 8 } }],
+    variationsGroups: [
+      { variations: [{ variationField: { id: 4 } }] },
+      { variations: [{ variationField: { id: 4 } }, { variationField: { id: 5 } }] },
+    ],
+  };
+  expect(variationValuePathForGroup(form, 4, 1)).toBe('variationsGroups[1].variations[0].value');
+  expect(variationValuePathForGroup(form, 8, 1)).toBe('variations[0].value');
 });
 
 test('seedOrSyncCanvas applies a linked colour to text instead of a rect', () => {

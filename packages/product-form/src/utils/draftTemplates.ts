@@ -5,6 +5,7 @@ import {
   DraftCanvasObject,
   DraftCanvasObjectType,
   DraftCanvasState,
+  DraftEditorPermissions,
   DraftFieldBinding,
   FieldType,
 } from './types';
@@ -315,6 +316,79 @@ export function variationsForGroup(
   return [...independent, ...group];
 }
 
+function variationIndex(variations: any[], fieldId: number): number {
+  return (variations || []).findIndex(
+    (variation: any) => Number(variation?.variationField?.id) === Number(fieldId)
+  );
+}
+
+export function variationValuePathForGroup(
+  formValues: any,
+  fieldId: number,
+  groupIndex: number,
+): string | null {
+  const inGroup = variationIndex(
+    formValues?.variationsGroups?.[groupIndex]?.variations,
+    fieldId,
+  );
+  if (inGroup >= 0) {
+    return `variationsGroups[${groupIndex}].variations[${inGroup}].value`;
+  }
+  const top = variationIndex(formValues?.variations, fieldId);
+  if (top >= 0) return `variations[${top}].value`;
+  return null;
+}
+
+function colourKey(value: any): string {
+  return (normaliseCssColour(value) || '').toLowerCase();
+}
+
+function colourOptions(variation: any): any[] {
+  const options = variation?.selectableOptions?.length
+    ? variation.selectableOptions
+    : variation?.variationField?.options || [];
+  return options.filter((option: any) => option && option.available !== false && option.isVisible !== false);
+}
+
+function optionColour(option: any): string {
+  return colourKey(option?.colour || option?.color || option?.value);
+}
+
+export function textColourSwatches(variation: any): { colour: string; label: string }[] | null {
+  const type = parseInt(String(variation?.variationField?.fieldType), 10);
+  if (type !== FieldType.COLOUR_SELECT && type !== FieldType.PANTONE_COLOUR_SELECT) return null;
+  if (type === FieldType.PANTONE_COLOUR_SELECT && variation?.variationField?.allowAllPantones) {
+    return null;
+  }
+  const swatches = colourOptions(variation).map((option: any) => {
+    const colour = normaliseCssColour(option?.colour || option?.color || option?.value);
+    if (!colour || /^\d+$/.test(colour)) return null;
+    return { colour, label: String(option?.value || colour) };
+  }).filter(Boolean) as { colour: string; label: string }[];
+  return swatches.length ? swatches : null;
+}
+
+export function colourChoiceFromFill(variation: any, fill: string): { value: string } | null {
+  const field = variation?.variationField;
+  const type = parseInt(String(field?.fieldType), 10);
+  const colour = colourKey(fill);
+  if (!field || !colour) return null;
+
+  if (type === FieldType.COLOUR_PICKER) {
+    if (colourKey(variation?.value) === colour) return null;
+    return { value: colour };
+  }
+
+  if (type !== FieldType.COLOUR_SELECT && type !== FieldType.PANTONE_COLOUR_SELECT) return null;
+  if (type === FieldType.PANTONE_COLOUR_SELECT && field.allowAllPantones) return null;
+  const match = colourOptions(variation).find((option: any) => optionColour(option) === colour);
+  const id = match?.optionId ?? match?.id;
+  if (id == null) return null;
+  const value = String(id);
+  if (String(variation?.value ?? '') === value) return null;
+  return { value };
+}
+
 function isValidBbox(bbox: any): bbox is number[] {
   if (!Array.isArray(bbox) || bbox.length !== 4) return false;
   const [x, y, w, h] = bbox.map(Number);
@@ -343,6 +417,131 @@ export function bboxToPixels(
   };
 }
 
+export type PixelBox = { x: number; y: number; width: number; height: number };
+
+export function objectBounds(obj: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+}): PixelBox {
+  const w = (Number(obj.width) || 0) * Math.abs(Number(obj.scaleX) || 1);
+  const h = (Number(obj.height) || 0) * Math.abs(Number(obj.scaleY) || 1);
+  const rad = ((Number(obj.rotation) || 0) * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const signX = (Number(obj.scaleX) || 1) < 0 ? -1 : 1;
+  const signY = (Number(obj.scaleY) || 1) < 0 ? -1 : 1;
+  const points = [
+    [0, 0],
+    [w * signX, 0],
+    [w * signX, h * signY],
+    [0, h * signY],
+  ].map(([px, py]) => [
+    obj.x + px * cos - py * sin,
+    obj.y + px * sin + py * cos,
+  ]);
+  const xs = points.map((point) => point[0]);
+  const ys = points.map((point) => point[1]);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
+function shiftInside(start: number, size: number, limitStart: number, limitSize: number): number {
+  if (!(size > 0) || !(limitSize > 0)) return 0;
+  if (size >= limitSize) {
+    return (limitStart + limitSize / 2) - (start + size / 2);
+  }
+  if (start < limitStart) return limitStart - start;
+  if (start + size > limitStart + limitSize) return limitStart + limitSize - (start + size);
+  return 0;
+}
+
+export function clampOrigin<T extends {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+}>(obj: T, limit: PixelBox): { x: number; y: number } {
+  const bounds = objectBounds(obj);
+  return {
+    x: obj.x + shiftInside(bounds.x, bounds.width, limit.x, limit.width),
+    y: obj.y + shiftInside(bounds.y, bounds.height, limit.y, limit.height),
+  };
+}
+
+export function confineToRegion<T extends {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation?: number;
+  scaleX?: number;
+  scaleY?: number;
+}>(obj: T, limit: PixelBox): T {
+  const bounds = objectBounds(obj);
+  const fit = Math.min(
+    1,
+    limit.width / Math.max(bounds.width, 1),
+    limit.height / Math.max(bounds.height, 1),
+  );
+  const scaled = fit < 0.999
+    ? {
+      ...obj,
+      scaleX: (Number(obj.scaleX) || 1) * fit,
+      scaleY: (Number(obj.scaleY) || 1) * fit,
+    }
+    : obj;
+  const pos = clampOrigin(scaled, limit);
+  if (pos.x === obj.x && pos.y === obj.y && scaled === obj) return obj;
+  return { ...scaled, x: pos.x, y: pos.y };
+}
+
+export function movementRegionRole(
+  template: any,
+  kind: string,
+  preferred?: string,
+): 'print_area' | 'text_placeholder' | null {
+  const map = template?.customisationMap;
+  const prefer = preferred === 'print_area' || preferred === 'text_placeholder' ? preferred : null;
+  if (prefer && regionsForRole(map, prefer).length) return prefer;
+  if (kind === 'text' && regionsForRole(map, 'text_placeholder').length) return 'text_placeholder';
+  if ((kind === 'text' || kind === 'image') && regionsForRole(map, 'print_area').length) return 'print_area';
+  return null;
+}
+
+export function movementLimitForObject(template: any, obj: any): PixelBox | null {
+  if (!obj || obj.type === 'rect') return null;
+  const binding = obj.merchiFieldId != null
+    ? bindingForField(fieldBindingsFrom(template), obj.merchiFieldId)
+    : undefined;
+  const extraRole = obj.merchiFieldId == null && obj.type === 'text'
+    ? additionalEditorFrom(template).textRegionRole
+    : undefined;
+  const role = movementRegionRole(
+    template,
+    obj.type,
+    binding?.regionRole || extraRole || obj.regionRole,
+  );
+  if (!role) return null;
+  const boxes = regionsForRole(template?.customisationMap, role);
+  const index = Number.isInteger(Number(obj?.regionIndex)) ? Number(obj.regionIndex) : 0;
+  const box = boxes[index] || boxes[0];
+  if (!box) return null;
+  const width = Number(template?.width) || DEFAULT_ARTBOARD.width;
+  const height = Number(template?.height) || DEFAULT_ARTBOARD.height;
+  return bboxToPixels(box, width, height);
+}
+
 export function fieldBindingsFrom(template: any): DraftFieldBinding[] {
   const raw = template?.customisationMap?.fieldBindings;
   if (!Array.isArray(raw)) return [];
@@ -355,6 +554,80 @@ export function bindingForField(
 ): DraftFieldBinding | undefined {
   const id = Number(fieldId);
   return bindings.find((item) => Number(item.fieldId) === id);
+}
+
+export function editorPolicyForField(template: any, fieldId: any): DraftEditorPermissions {
+  const editor = bindingForField(fieldBindingsFrom(template), fieldId)?.editor;
+  if (!editor || typeof editor !== 'object') return {};
+  return editor;
+}
+
+export function additionalEditorFrom(template: any): any {
+  const raw = template?.customisationMap?.additionalEditor;
+  return raw && typeof raw === 'object' ? raw : {};
+}
+
+export function editorPolicyForObject(template: any, obj: any): DraftEditorPermissions {
+  if (obj?.merchiFieldId != null) return editorPolicyForField(template, obj.merchiFieldId);
+  const extra = additionalEditorFrom(template);
+  const editor = obj?.type === 'text' ? extra.text : obj?.type === 'image' ? extra.image : null;
+  if (!editor || typeof editor !== 'object') return {};
+  return editor;
+}
+
+export function editorAllows(
+  policy: DraftEditorPermissions | undefined,
+  key: 'allowRotation' | 'allowScale' | 'allowTextColour' | 'allowTextAlign' | 'allowTextSize',
+): boolean {
+  return policy?.[key] !== false;
+}
+
+export function normaliseAllowedColours(colours: any): string[] {
+  if (!Array.isArray(colours)) return [];
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const colour of colours) {
+    const normalised = normaliseCssColour(colour);
+    if (!normalised) continue;
+    const key = normalised.toLowerCase();
+    if (!/^#[0-9a-f]{6}$/.test(key)) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(key);
+  }
+  return result;
+}
+
+export function allowedColoursForText(
+  template: any,
+  textFieldId: any,
+  colourFieldId: any,
+): string[] {
+  const lists = [
+    normaliseAllowedColours(editorPolicyForField(template, textFieldId).allowedColours),
+    colourFieldId == null
+      ? []
+      : normaliseAllowedColours(editorPolicyForField(template, colourFieldId).allowedColours),
+  ].filter((list) => list.length > 0);
+  if (lists.length === 0) return [];
+  return lists.slice(1).reduce(
+    (current, list) => current.filter((colour) => list.includes(colour)),
+    lists[0],
+  );
+}
+
+export function restrictedColourSwatches(
+  swatches: { colour: string; label: string }[] | null,
+  allowed: string[],
+): { colour: string; label: string }[] | null {
+  if (allowed.length === 0) return swatches;
+  if (!swatches?.length) {
+    return allowed.map((colour) => ({ colour, label: colour }));
+  }
+  const filtered = swatches.filter((swatch) => (
+    allowed.includes(String(swatch.colour || '').toLowerCase())
+  ));
+  return filtered.length > 0 ? filtered : swatches;
 }
 
 function fieldName(field: any): string {
@@ -444,6 +717,12 @@ export function isBackgroundFill(obj: { type?: string }): boolean {
   return obj?.type === 'rect';
 }
 
+export function canvasPaintOrder<T extends { type?: string }>(objects: T[]): T[] {
+  const fills = objects.filter(isBackgroundFill);
+  const content = objects.filter((obj) => !isBackgroundFill(obj));
+  return [...fills, ...content];
+}
+
 export function isFullArtboardFill(
   obj: { x?: number; y?: number; width?: number; height?: number },
   artWidth: number,
@@ -461,16 +740,22 @@ export function measureDraftText(
   text: string,
   fontSize = 48,
   fontFamily?: string,
-): { width: number; height: number } {
+): { width: number; height: number; measured: boolean } {
   const lines = String(text || 'Text').split('\n');
   const size = Math.max(12, Number(fontSize) || 48);
   let width = 0;
+  let measured = false;
   if (typeof document !== 'undefined') {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.font = `${size}px ${cssFontFamily(fontFamily)}`;
-      width = Math.max(...lines.map((line) => ctx.measureText(line || ' ').width), 0);
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.font = `normal ${size}px ${cssFontFamily(fontFamily)}`;
+        width = Math.max(...lines.map((line) => ctx.measureText(line || ' ').width), 0);
+        measured = width > 0;
+      }
+    } catch {
+      measured = false;
     }
   }
   if (!(width > 0)) {
@@ -479,7 +764,38 @@ export function measureDraftText(
   return {
     width: Math.ceil(width + size * 0.16),
     height: Math.ceil(Math.max(1, lines.length) * size * 1.15),
+    measured,
   };
+}
+
+export function expandTextBox<T extends { x?: number; y?: number; width?: number; height?: number }>(
+  obj: T,
+  minWidth: number,
+  minHeight: number,
+): T {
+  const currentWidth = Number(obj.width) || 0;
+  const currentHeight = Number(obj.height) || 0;
+  const width = Math.max(currentWidth, minWidth);
+  const height = Math.max(currentHeight, minHeight);
+  if (width === currentWidth && height === currentHeight) return obj;
+  return {
+    ...obj,
+    width,
+    height,
+    x: (Number(obj.x) || 0) + (currentWidth - width) / 2,
+    y: (Number(obj.y) || 0) + (currentHeight - height) / 2,
+  };
+}
+
+export function unclipTextBox<T extends DraftCanvasObject>(obj: T): T {
+  if (obj.type !== 'text') return obj;
+  const measured = measureDraftText(obj.text || 'Text', obj.fontSize, obj.fontFamily);
+  if (!measured.measured) return obj;
+  const lines = String(obj.text || 'Text').split('\n').length;
+  const lineHeight = Math.max(12, Number(obj.fontSize) || 48);
+  const currentHeight = Number(obj.height) || 0;
+  const minHeight = currentHeight + 0.5 >= lines * lineHeight ? currentHeight : measured.height;
+  return expandTextBox(obj, measured.width, minHeight);
 }
 
 export function fitTextBox(
@@ -502,7 +818,12 @@ function placementBoxes(
   role: DraftArtworkRole,
   kind: DraftCanvasObjectType,
   template: any,
+  preferred?: string,
 ): number[][] {
+  if (kind !== 'rect' && role !== 'body_colour_fill') {
+    const movement = movementRegionRole(template, kind, preferred);
+    if (movement) return regionsForRole(template?.customisationMap, movement);
+  }
   if (role === 'body_colour_fill' || kind === 'rect') {
     const body = regionsForRole(template?.customisationMap, 'body_colour_fill');
     if (body.length) return body;
@@ -548,6 +869,25 @@ export function createObjectId(): string {
   return `obj-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** Placement saved on Variation.textStyle. Only keys the variation actually has. */
+export function canvasPatchFromTextStyle(style: any): Partial<DraftCanvasObject> {
+  if (!style || typeof style !== 'object' || Array.isArray(style)) return {};
+  const patch: Partial<DraftCanvasObject> = {};
+  const colour = String(style.colour || style.color || '').trim();
+  if (colour) patch.fill = colour;
+  const font = String(style.font || style.fontFamily || '').trim();
+  if (font) patch.fontFamily = font;
+  const align = String(style.align || '').trim();
+  if (align) patch.align = align;
+  const textSize = Number(style.textSize ?? style.fontSize);
+  if (Number.isFinite(textSize)) patch.fontSize = textSize;
+  for (const key of ['x', 'y', 'width', 'height', 'rotation', 'scaleX', 'scaleY'] as const) {
+    const number = Number(style[key]);
+    if (Number.isFinite(number)) patch[key] = number;
+  }
+  return patch;
+}
+
 export function seedOrSyncCanvas(
   existing: DraftCanvasState | null | undefined,
   template: any,
@@ -555,9 +895,11 @@ export function seedOrSyncCanvas(
 ): DraftCanvasState {
   const width = Number(template?.width) || DEFAULT_ARTBOARD.width;
   const height = Number(template?.height) || DEFAULT_ARTBOARD.height;
-  const objects: DraftCanvasObject[] = (existing?.objects || []).map((obj) => (
-    obj.type === 'text' ? { ...obj, ...fitTextBox(obj) } : { ...obj }
-  ));
+  const objects: DraftCanvasObject[] = (existing?.objects || []).map((obj) => {
+    if (obj.type !== 'text') return { ...obj };
+    if (Number(obj.width) > 1 && Number(obj.height) > 1) return { ...obj };
+    return { ...obj, ...fitTextBox(obj) };
+  });
   const detached = new Set(existing?.detachedFieldIds || []);
   const linked = linkedVariationsForTemplate(template, variations);
   const linkedFields = linked.map((variation) => variation?.variationField).filter(Boolean);
@@ -587,9 +929,12 @@ export function seedOrSyncCanvas(
     field: any,
     fieldId: number,
     content: ReturnType<typeof variationCanvasContent>,
+    textStyle?: any,
   ) => {
-    const boxes = placementBoxes(role, kind, template);
-    const key = `${role}:${kind}`;
+    const binding = bindingForField(fieldBindingsFrom(template), fieldId);
+    const boxes = placementBoxes(role, kind, template, binding?.regionRole);
+    const movement = movementRegionRole(template, kind, binding?.regionRole);
+    const key = `${movement || role}:${kind}`;
     const regionIndex = usedRegions[key] || 0;
     usedRegions[key] = regionIndex + 1;
     const box = boxes[regionIndex] || boxes[0];
@@ -602,6 +947,8 @@ export function seedOrSyncCanvas(
       type: kind,
       merchiFieldId: fieldId,
       artworkRole: role,
+      regionRole: movement || undefined,
+      regionIndex: movement ? regionIndex : undefined,
       locked: kind === 'rect',
       rotation: 0,
       scaleX: 1,
@@ -614,9 +961,53 @@ export function seedOrSyncCanvas(
       fontFamily: kind === 'text' ? DEFAULT_DRAFT_FONT : undefined,
       fontSize: Math.max(28, Math.round(place.height * 0.62)),
     };
-    if (kind === 'text') Object.assign(next, fitTextBox(next));
+    if (kind === 'text') {
+      const saved = canvasPatchFromTextStyle(textStyle);
+      Object.assign(next, saved);
+      if (saved.width == null && saved.height == null) {
+        const fitted = fitTextBox(next);
+        next.width = fitted.width;
+        next.height = fitted.height;
+        if (saved.x == null) next.x = fitted.x;
+        if (saved.y == null) next.y = fitted.y;
+      }
+    }
+    const limit = movementLimitForObject(template, next);
+    if (limit && kind !== 'rect') {
+      const embroidery = parseInt(String(field?.fieldType), 10) === FieldType.EMBROIDERY;
+      Object.assign(
+        next,
+        embroidery ? { ...clampOrigin(next, limit) } : confineToRegion(next, limit),
+      );
+    }
     if (kind === 'rect') objects.unshift(next);
     else objects.push(next);
+  };
+
+  const holdInside = (
+    obj: DraftCanvasObject,
+    kind: DraftCanvasObjectType,
+    field: any,
+    shrink: boolean,
+  ) => {
+    if (kind === 'rect') return;
+    const binding = bindingForField(fieldBindingsFrom(template), field?.id);
+    const movement = movementRegionRole(template, kind, binding?.regionRole);
+    if (!movement) return;
+    const key = `${movement}:${kind}`;
+    const regionIndex = usedRegions[key] || 0;
+    usedRegions[key] = regionIndex + 1;
+    obj.regionRole = movement;
+    obj.regionIndex = regionIndex;
+    const limit = movementLimitForObject(template, obj);
+    if (!limit) return;
+    if (shrink) {
+      Object.assign(obj, confineToRegion(obj, limit));
+      return;
+    }
+    const pos = clampOrigin(obj, limit);
+    obj.x = pos.x;
+    obj.y = pos.y;
   };
 
   for (const variation of linked) {
@@ -639,14 +1030,18 @@ export function seedOrSyncCanvas(
         if (px) {
           found.width = px.width;
           found.height = px.height;
+          found.scaleX = (Number(found.scaleX) || 1) < 0 ? -1 : 1;
+          found.scaleY = (Number(found.scaleY) || 1) < 0 ? -1 : 1;
         }
         if (content.kind === 'text') found.text = content.text || found.text;
         if (content.kind === 'image' && content.src) found.src = content.src;
+        holdInside(found, content.kind, field, false);
         continue;
       }
       if (content.kind === 'text' && content.text != null) {
+        const textChanged = found.text !== content.text;
         found.text = content.text;
-        Object.assign(found, fitTextBox(found));
+        if (textChanged) Object.assign(found, fitTextBox(found));
       }
       if (content.kind === 'image' && content.src) found.src = content.src;
       if (content.kind === 'rect' && content.fill) found.fill = content.fill;
@@ -657,13 +1052,14 @@ export function seedOrSyncCanvas(
         found.locked = true;
         found.artworkRole = role;
       }
+      holdInside(found, content.kind, field, content.kind === 'text');
       continue;
     }
 
     if (content.kind === 'text' && !content.text) continue;
     if (content.kind === 'image' && !content.src) continue;
     if (content.kind === 'rect' && !content.fill) continue;
-    placeObject(content.kind, role, field, fieldId, content);
+    placeObject(content.kind, role, field, fieldId, content, variation?.textStyle);
   }
 
   for (const variation of linked) {
@@ -706,10 +1102,19 @@ export function printAreaGuides(template: any): Array<{
   y: number;
   width: number;
   height: number;
+  stroke: string;
 }> {
   const width = Number(template?.width) || DEFAULT_ARTBOARD.width;
   const height = Number(template?.height) || DEFAULT_ARTBOARD.height;
-  return regionsForRole(template?.customisationMap, 'print_area').map((bbox) =>
-    bboxToPixels(bbox, width, height)
-  );
+  const guides = [
+    ...regionsForRole(template?.customisationMap, 'print_area').map((bbox) => ({
+      ...bboxToPixels(bbox, width, height),
+      stroke: '#2563eb',
+    })),
+    ...regionsForRole(template?.customisationMap, 'text_placeholder').map((bbox) => ({
+      ...bboxToPixels(bbox, width, height),
+      stroke: '#d97706',
+    })),
+  ];
+  return guides;
 }

@@ -1,5 +1,5 @@
 import { productHasVariationGroups } from './draftTemplates';
-import { DraftTemplateData } from './types';
+import { DraftCanvasObject, DraftTemplateData, FieldType } from './types';
 
 const NAME_LIMIT = 80;
 const DESIGN_PREFIX = '[[client-design-inputs:';
@@ -89,6 +89,81 @@ function clipName(value: string, fallback: string): string {
 
 export function productAllowsAdditionalDesignObjects(product: any): boolean {
   return product?.allowAdditionalDesignObjects !== false;
+}
+
+const TEXT_VALUE_FIELDS = new Set<number>([FieldType.TEXT_INPUT, FieldType.TEXT_AREA]);
+
+function variationFieldId(variation: any): number | null {
+  const id = Number(variation?.variationField?.id);
+  return Number.isFinite(id) ? id : null;
+}
+
+function variationFieldType(variation: any): number | null {
+  const type = Number(variation?.variationField?.fieldType);
+  return Number.isFinite(type) ? type : null;
+}
+
+function mapVariation(
+  list: any[] | undefined,
+  fieldId: number,
+  update: (variation: any) => any,
+): { list: any[] | undefined; changed: boolean } {
+  if (!Array.isArray(list)) return { list, changed: false };
+  let changed = false;
+  const next = list.map((variation) => {
+    if (variationFieldId(variation) !== fieldId) return variation;
+    changed = true;
+    return update(variation);
+  });
+  return { list: changed ? next : list, changed };
+}
+
+export function applyCanvasTextToJob(job: any, drafts: DraftTemplateData[]): any {
+  if (!job) return job;
+  let variations = job.variations;
+  let groups = job.variationsGroups;
+  let changed = false;
+
+  const write = (groupIndex: number, obj: DraftCanvasObject) => {
+    const fieldId = Number(obj.merchiFieldId);
+    if (!Number.isFinite(fieldId)) return;
+    const textStyle = textStyleFromObject(obj);
+    const update = (variation: any) => {
+      const text = obj.text != null ? String(obj.text) : variation?.value;
+      const type = variationFieldType(variation);
+      return {
+        ...variation,
+        ...(textStyle ? { textStyle } : {}),
+        ...(type != null && TEXT_VALUE_FIELDS.has(type) ? { value: text } : {}),
+      };
+    };
+    const top = mapVariation(variations, fieldId, update);
+    if (top.changed) {
+      variations = top.list;
+      changed = true;
+      return;
+    }
+    if (!Array.isArray(groups) || groups[groupIndex] == null) return;
+    const group = groups[groupIndex];
+    const nested = mapVariation(group.variations, fieldId, update);
+    if (!nested.changed) return;
+    groups = groups.map((item: any, index: number) => (
+      index === groupIndex ? { ...item, variations: nested.list } : item
+    ));
+    changed = true;
+  };
+
+  for (const draft of drafts || []) {
+    for (const template of draft.templateData || []) {
+      for (const obj of template.canvasJson?.objects || []) {
+        if (obj?.type !== 'text' || obj.merchiFieldId == null) continue;
+        write(draft.groupIndex, obj);
+      }
+    }
+  }
+
+  if (!changed) return job;
+  return { ...job, variations, variationsGroups: groups };
 }
 
 export function collectDesignerInputs(

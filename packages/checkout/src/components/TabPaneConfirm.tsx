@@ -1,6 +1,7 @@
 'use client';
 import * as React from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { readTestCheckoutFlag } from '@merchi/invoice/lib/testCheckout';
 import { reportCheckoutFailure } from '../reportFailure';
 import { submitBuyNow, submitQuoteRequest } from '../actions/confirm';
 import { confirmCheckoutSubmission } from '../actions/checkoutConfirmation';
@@ -193,16 +194,24 @@ function TabPaneConfirm() {
   } = useMerchiCheckboutContext();
   const [loading, setLoading] = useState(false);
   const submitting = useRef(false);
+  const [testCheckout, setTestCheckout] = useState<boolean | null>(null);
+  useEffect(() => { setTestCheckout(readTestCheckoutFlag()); }, []);
   async function submit() {
-    if (submitting.current) return;
+    if (submitting.current || testCheckout === null) return;
+    const currentMode = readTestCheckoutFlag();
+    if (currentMode !== testCheckout) {
+      setTestCheckout(currentMode);
+      return;
+    }
     submitting.current = true;
     setLoading(true);
     try {
       const result = await confirmCheckoutSubmission(
         () => isBuyRequest
-          ? submitBuyNow(urlApi, { ...job, product: { id: product.id } })
-          : submitQuoteRequest(urlApi, job),
+          ? submitBuyNow(urlApi, { ...job, product: { id: product.id } }, testCheckout)
+          : submitQuoteRequest(urlApi, job, testCheckout),
         isBuyRequest ? 'order' : 'quote request',
+        testCheckout,
       );
       if (result.confirmed === false) {
         reportCheckoutFailure(result.error, result.statusCode);
@@ -220,8 +229,8 @@ function TabPaneConfirm() {
       clearCheckoutSession(product);
       const rawRedirect = redirectAfterQuoteSuccessUrl ?? redirectAfterSuccessUrl;
       const quoteRedirect = typeof rawRedirect === 'string' ? rawRedirect.trim() : '';
-      setJob(prev => ({ ...prev, id: result.entity.id }));
-      if (quoteRedirect) {
+      setJob(prev => ({ ...prev, id: result.entity.id, isTest: result.entity.isTest }));
+      if (quoteRedirect && !result.entity.isTest) {
         try {
           redirectOnSuccess(quoteRedirect, redirectWithValue, result.entity.totalCost, {
             invoiceId: result.entity.id,
@@ -241,12 +250,13 @@ function TabPaneConfirm() {
   return (
     <TabPane tabId={tabIdConfirm}>
       <TitleStep title='Confirm - Quote Summary' />
+      {testCheckout && <p role='status'>{isBuyRequest ? 'Test checkout' : 'Test quote'}</p>}
       <ConfirmInfo />
       {showDiscountCode && (
         <DiscountGroupContainer />
       )}
       <FooterButtons
-        forceDisabled={false}
+        forceDisabled={testCheckout === null}
         loading={loading}
         onClickNext={submit}
       />
