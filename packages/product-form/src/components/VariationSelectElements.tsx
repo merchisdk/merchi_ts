@@ -11,6 +11,27 @@ import { quoteAfterFieldChange } from './quoteAfterFieldChange';
 import { sortByPosition, splitSelectedOptions } from './utils';
 
 const MAX_GRID_OPTION_COUNT = 3;
+const MAX_OPTION_COLUMNS = 6;
+
+function asOptionColumns(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const parsed = Math.round(Number(value));
+  if (!Number.isFinite(parsed) || parsed < 1) return null;
+  return Math.min(parsed, MAX_OPTION_COLUMNS);
+}
+
+function optionColumnsForVariation(variation: any, product: any): number | null {
+  const direct = asOptionColumns(variation?.variationField?.optionColumns);
+  if (direct != null) return direct;
+  const id = Number(variation?.variationField?.id);
+  if (!Number.isFinite(id)) return null;
+  const fields = [
+    ...(product?.independentVariationFields || []),
+    ...(product?.groupVariationFields || []),
+  ];
+  const field = fields.find((item: any) => Number(item?.id) === id);
+  return asOptionColumns(field?.optionColumns);
+}
 
 function optionCountLabel(count: number) {
   return count === 1 ? '1 option' : `${count} options`;
@@ -137,10 +158,12 @@ export const VariationSelectElements: React.FC<Props> = ({
   variation,
   afterOptions,
 }) => {
+  const { product } = useMerchiFormContext();
   const { selectableOptions = [] } = variation;
   const isImage = inputType === 'image';
   const optionCount = selectableOptions.length;
   const optionLayout = optionCount > MAX_GRID_OPTION_COUNT ? 'scroll' : 'grid';
+  const optionColumns = isImage ? optionColumnsForVariation(variation, product) : null;
   const optionsRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -169,6 +192,12 @@ export const VariationSelectElements: React.FC<Props> = ({
         } merchi-embed-form_options--${optionLayout}`}
         data-option-layout={optionLayout}
         data-option-count={optionCount}
+        data-option-columns={optionColumns ?? undefined}
+        style={
+          optionColumns != null
+            ? { ['--merchi-option-columns' as string]: String(optionColumns) }
+            : undefined
+        }
       >
         {sortByPosition(selectableOptions).map((option: any, index: number) => (
           <VariationFieldOptionElement
