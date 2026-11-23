@@ -28,6 +28,10 @@ export const embedProduct = {
     selectedByVariationFieldOptions: {},
     editedByVariationFields: {},
   },
+  previewModels: {
+    file: {},
+    previewSurfaces: { draftTemplate: {} },
+  },
   groupBuyStatus: {},
   groupVariationFields: {
     options: { linkedFile: {}, linkedProductImage: {}, selectedBy: {} },

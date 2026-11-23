@@ -69,6 +69,7 @@ import {
   upsertGroupTemplateDraft,
 } from '../../utils/draftStorage';
 import { exportDraftPngs, templateImageSources } from '../../utils/draftExport';
+import type { PreviewSurfaceBinding } from './DraftProductPreview';
 import { productAllowsAdditionalDesignObjects } from '../../utils/designerInputs';
 import {
   DraftCanvasHandle,
@@ -85,6 +86,7 @@ import {
 } from '../../utils/draftFonts';
 
 const DraftCanvas = React.lazy(() => import('./DraftCanvas'));
+const DraftProductPreview = React.lazy(() => import('./DraftProductPreview'));
 
 class DraftCanvasBoundary extends React.Component<
   { children: React.ReactNode },
@@ -126,6 +128,15 @@ interface Props {
 
 function templateSrc(template: any, apiUrl?: string): string[] {
   return templateImageSources(template, apiUrl);
+}
+
+function surfaceBindings(model: any): PreviewSurfaceBinding[] {
+  return (model?.previewSurfaces || []).map((surface: any) => ({
+    materialName: surface.materialName || surface.material_name,
+    role: surface.role,
+    regionIndex: Number(surface.regionIndex ?? surface.region_index) || 0,
+    templateId: surface.draftTemplate?.id ?? surface.draftTemplateId ?? null,
+  })).filter((surface: PreviewSurfaceBinding) => Boolean(surface.materialName));
 }
 
 const QUICK_COLOURS = [
@@ -277,6 +288,7 @@ export default function DraftDesignerSheet({
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [sheetDragY, setSheetDragY] = useState(0);
   const [imagePanelOpen, setImagePanelOpen] = useState(false);
+  const [mobileView, setMobileView] = useState<'design' | 'product'>('design');
   const [dragOver, setDragOver] = useState(false);
   const [dragLayerId, setDragLayerId] = useState<string | null>(null);
   const [dropHint, setDropHint] = useState<{ id: string; place: LayerDropPlace } | null>(null);
@@ -305,6 +317,26 @@ export default function DraftDesignerSheet({
     [product, formValues, groupIndex],
   );
   const template = templates[Math.min(templateIndex, templates.length - 1)] || templates[0];
+  const previewModel = (product?.previewModels || [])[0];
+  const previewModelUrl = templateImageSources({ file: previewModel?.file }, apiUrl)[0] || '';
+  const previewSurfaces = useMemo(
+    () => surfaceBindings(previewModel),
+    [previewModel],
+  );
+  const textureStates = useMemo(() => {
+    const drafts = open && product?.id ? loadDrafts(product.id) : [];
+    const map: Record<string, DraftCanvasState> = {};
+    templates.forEach((item: any) => {
+      if (item?.id == null) return;
+      if (item.id === template?.id) {
+        map[item.id] = state;
+        return;
+      }
+      const saved = savedPreview(drafts, groupIndex, item.id);
+      if (saved?.canvasJson) map[item.id] = saved.canvasJson;
+    });
+    return map;
+  }, [open, product?.id, templates, template?.id, state, groupIndex]);
   const fixedSizeFieldIds = useMemo(
     () => variationsForGroup(formValues, groupIndex)
       .filter((item: any) => Number(item?.variationField?.fieldType) === EMBROIDERY)
@@ -1117,6 +1149,32 @@ export default function DraftDesignerSheet({
         ) : null}
 
         <div className='merchi-product-draft-sheet-body'>
+          {previewModelUrl ? (
+            <div className='merchi-product-draft-view-toggle' role='tablist' aria-label='Designer view'>
+              <button
+                type='button'
+                role='tab'
+                aria-selected={mobileView === 'design'}
+                className={`merchi-product-draft-chip${mobileView === 'design' ? ' is-active' : ''}`}
+                onClick={() => setMobileView('design')}
+              >
+                Design
+              </button>
+              <button
+                type='button'
+                role='tab'
+                aria-selected={mobileView === 'product'}
+                className={`merchi-product-draft-chip${mobileView === 'product' ? ' is-active' : ''}`}
+                onClick={() => setMobileView('product')}
+              >
+                On product
+              </button>
+            </div>
+          ) : null}
+          <div
+            className={`merchi-product-draft-stage${previewModelUrl ? ' has-preview' : ''} is-${mobileView}`}
+          >
+          <div className='merchi-product-draft-stage-pane is-design'>
           <DraftCanvasBoundary>
             <React.Suspense
               fallback={
@@ -1150,6 +1208,26 @@ export default function DraftDesignerSheet({
               />
             </React.Suspense>
           </DraftCanvasBoundary>
+          </div>
+          {previewModelUrl ? (
+            <div className='merchi-product-draft-stage-pane is-preview'>
+              <React.Suspense
+                fallback={
+                  <div className='merchi-product-draft-canvas-fallback'>Loading product…</div>
+                }
+              >
+                <DraftProductPreview
+                  modelUrl={previewModelUrl}
+                  surfaces={previewSurfaces}
+                  templates={templates}
+                  states={textureStates}
+                  variations={variationsForGroup(formValues, groupIndex)}
+                  activeTemplateId={template?.id}
+                />
+              </React.Suspense>
+            </div>
+          ) : null}
+          </div>
           {error ? <p className='merchi-product-draft-error'>{error}</p> : null}
         </div>
 
