@@ -3,8 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFrontendErrorReporter } from "../src/reporter.js";
 import { ReplayBuffer, isPaymentRelatedReplayPath, sanitizeReplayEvent, startStorefrontReplay, type StorefrontReplayController } from "../src/replay.js";
 
-const mock = vi.hoisted(() => ({ record: vi.fn(), stop: vi.fn(), emit: undefined as undefined | ((event: { type: number; timestamp: number; data: unknown }) => void) }));
-vi.mock("@rrweb/record", () => ({ record: mock.record }));
+const mock = vi.hoisted(() => ({
+  record: vi.fn(), stop: vi.fn(), takeFullSnapshot: vi.fn(),
+  emit: undefined as undefined | ((event: { type: number; timestamp: number; data: unknown }) => void),
+}));
+vi.mock("@rrweb/record", () => ({ record: Object.assign(mock.record, { takeFullSnapshot: mock.takeFullSnapshot }) }));
 const at = 1_800_000_000_000;
 const snapshot = (timestamp = at) => ({ type: 2, timestamp, data: { node: { type: 0, id: 1, childNodes: [] }, initialOffset: { top: 0, left: 0 } } });
 const meta = (timestamp = at) => ({ type: 4, timestamp, data: { href: "https://shop.example/?token=secret", width: 1000, height: 700 } });
@@ -89,7 +92,7 @@ describe("error-triggered replay lifecycle", () => {
     window.history.replaceState({}, "", "/"); document.body.innerHTML = "";
     vi.useFakeTimers(); vi.setSystemTime(at);
     vi.stubGlobal("Blob", Blob); vi.stubGlobal("CompressionStream", undefined);
-    mock.record.mockReset(); mock.stop.mockReset(); mock.emit = undefined;
+    mock.record.mockReset(); mock.stop.mockReset(); mock.takeFullSnapshot.mockReset(); mock.emit = undefined;
     mock.record.mockImplementation((options) => { mock.emit = options.emit; options.emit(meta(Date.now())); options.emit(snapshot(Date.now())); return mock.stop; });
   });
   afterEach(() => { controller?.stop(); controller = undefined; vi.useRealTimers(); vi.unstubAllGlobals(); });
@@ -107,6 +110,29 @@ describe("error-triggered replay lifecycle", () => {
     expect(mock.record.mock.calls[0]?.[0].maskTextSelector).toBeUndefined();
     window.history.pushState({}, "", "/checkout");
     expect(mock.stop).toHaveBeenCalledOnce();
+  });
+
+  it("waits for rrweb's first full snapshot before requesting one for public images", async () => {
+    mock.record.mockImplementation(({ emit }) => { mock.emit = emit; return mock.stop; });
+    mock.takeFullSnapshot.mockImplementation(() => { throw new Error("please take full snapshot after start recording"); });
+    const image = document.createElement("img");
+    image.setAttribute("data-replay-public-image", "");
+    Object.defineProperty(image, "currentSrc", { value: "https://shop.example/product.webp" });
+    document.body.append(image);
+    const { reporter, transport } = setup();
+    await vi.advanceTimersByTimeAsync(0);
+
+    image.dispatchEvent(new Event("load"));
+    await vi.advanceTimersByTimeAsync(500);
+    reporter.captureException(new Error("product error while the recorder starts"));
+    expect(mock.takeFullSnapshot).not.toHaveBeenCalled();
+    expect(transport.mock.calls[0]?.[1]).not.toHaveProperty("replayRequested");
+
+    mock.takeFullSnapshot.mockImplementation(() => mock.emit?.(snapshot(Date.now())));
+    mock.emit?.(snapshot(Date.now()));
+    image.dispatchEvent(new Event("load"));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(mock.takeFullSnapshot).toHaveBeenCalledOnce();
   });
 
   it("uploads readable page text without actual browser input or editable content", async () => {
