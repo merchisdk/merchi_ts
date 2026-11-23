@@ -91,6 +91,9 @@ export interface DraftCanvasObject {
   text?: string;
   fontSize?: number;
   fill?: string;
+  fillStyle?: 'solid' | 'swirl';
+  fills?: string[];
+  multiplyFill?: boolean;
   fontFamily?: string;
   align?: string;
   src?: string;

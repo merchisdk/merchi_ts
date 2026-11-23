@@ -6,8 +6,46 @@ import type { DraftCanvasHandle, DraftCanvasObject, DraftCanvasState } from '../
 import { cssFontFamily, DEFAULT_DRAFT_FONT, loadDraftFonts } from '../../utils/draftFonts';
 import { captureStageArtboard, exportDraftPngs } from '../../utils/draftExport';
 import { FaMinus, FaPlus } from 'react-icons/fa';
-import { clampOrigin, confineToRegion, fitInside, isBackgroundFill, isFullArtboardFill, movementLimitForObject, printAreaGuides, unclipTextBox } from '../../utils/draftTemplates';
+import { clampOrigin, confineToRegion, fitInside, isBackgroundFill, isFullArtboardFill, movementLimitForObject, printAreaGuides, renderSwirlCanvas, unclipTextBox } from '../../utils/draftTemplates';
 import { useHtmlImage } from './useHtmlImage';
+
+function backgroundComposite(
+  obj: DraftCanvasObject,
+  artWidth: number,
+  artHeight: number,
+): GlobalCompositeOperation {
+  return obj.multiplyFill || isFullArtboardFill(obj, artWidth, artHeight)
+    ? 'multiply'
+    : 'source-over';
+}
+
+function SwirlFill({
+  obj,
+  composite,
+}: {
+  obj: DraftCanvasObject;
+  composite: GlobalCompositeOperation;
+}) {
+  const pattern = useMemo(
+    () => renderSwirlCanvas(obj.width, obj.height, obj.fills || []),
+    [obj.width, obj.height, obj.fills],
+  );
+  if (!pattern) return null;
+  return (
+    <KonvaImage
+      image={pattern}
+      x={obj.x}
+      y={obj.y}
+      width={obj.width}
+      height={obj.height}
+      rotation={obj.rotation}
+      scaleX={obj.scaleX}
+      scaleY={obj.scaleY}
+      globalCompositeOperation={composite}
+      listening={false}
+    />
+  );
+}
 
 interface Props {
   state: DraftCanvasState;
@@ -488,25 +526,27 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                 listening={false}
               />
             ) : null}
-            {state.objects.filter(isBackgroundFill).map((obj) => (
-              <Rect
-                key={obj.id}
-                x={obj.x}
-                y={obj.y}
-                width={obj.width}
-                height={obj.height}
-                rotation={obj.rotation}
-                scaleX={obj.scaleX}
-                scaleY={obj.scaleY}
-                fill={obj.fill || '#cccccc'}
-                globalCompositeOperation={
-                  isFullArtboardFill(obj, state.width, state.height)
-                    ? 'multiply'
-                    : 'source-over'
-                }
-                listening={false}
-              />
-            ))}
+            {state.objects.filter(isBackgroundFill).map((obj) => {
+              const composite = backgroundComposite(obj, state.width, state.height);
+              if (obj.fillStyle === 'swirl' && (obj.fills || []).length > 1) {
+                return <SwirlFill key={obj.id} obj={obj} composite={composite} />;
+              }
+              return (
+                <Rect
+                  key={obj.id}
+                  x={obj.x}
+                  y={obj.y}
+                  width={obj.width}
+                  height={obj.height}
+                  rotation={obj.rotation}
+                  scaleX={obj.scaleX}
+                  scaleY={obj.scaleY}
+                  fill={obj.fill || '#cccccc'}
+                  globalCompositeOperation={composite}
+                  listening={false}
+                />
+              );
+            })}
             {guides.map((guide, index) => (
               <Line
                 key={`guide-${index}`}

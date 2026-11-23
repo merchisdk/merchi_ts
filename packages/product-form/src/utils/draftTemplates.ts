@@ -667,6 +667,179 @@ export function resolveArtworkRole(
   return inferred;
 }
 
+export function countsAsBackgroundColour(
+  field: any,
+  template: any,
+  linkedFields: any[] = [],
+): boolean {
+  const binding = bindingForField(fieldBindingsFrom(template), field?.id);
+  const role = binding?.role;
+  if (role && role !== 'auto') {
+    return role === 'body_colour_fill' && canvasKindForField(field) === 'rect';
+  }
+  return inferArtworkRole(field, linkedFields) === 'body_colour_fill';
+}
+
+export function bodyColourStrategy(template: any): 'segmentation' | 'mix' | null {
+  const strategy = template?.customisationMap?.bodyColourStrategy;
+  return strategy === 'segmentation' || strategy === 'mix' ? strategy : null;
+}
+
+export function splitBbox(bbox: number[], count: number): number[][] {
+  if (count <= 1) return [bbox];
+  const [x, y, w, h] = bbox;
+  const alongWidth = w >= h;
+  const slices: number[][] = [];
+  for (let index = 0; index < count; index += 1) {
+    if (alongWidth) {
+      const sliceW = w / count;
+      slices.push([x + sliceW * index, y, sliceW, h]);
+    } else {
+      const sliceH = h / count;
+      slices.push([x, y + sliceH * index, w, sliceH]);
+    }
+  }
+  return slices;
+}
+
+export function bodyColourBounds(template: any): number[] {
+  const body = regionsForRole(template?.customisationMap, 'body_colour_fill');
+  if (!body.length) {
+    const print = regionsForRole(template?.customisationMap, 'print_area');
+    return print[0] || [0, 0, 1, 1];
+  }
+  if (body.length === 1) return body[0];
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  body.forEach(([x, y, w, h]) => {
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x + w);
+    y1 = Math.max(y1, y + h);
+  });
+  return [x0, y0, x1 - x0, y1 - y0];
+}
+
+export function bodyColourSliceBoxes(template: any, count: number): number[][] {
+  const body = regionsForRole(template?.customisationMap, 'body_colour_fill');
+  if (body.length === count && count > 1) return body;
+  return splitBbox(bodyColourBounds(template), count);
+}
+
+export function swirlUnit(nx: number, ny: number): number {
+  const wave = Math.sin(nx * 6 + Math.sin(ny * 4) * 2) * 0.5
+    + Math.sin(ny * 5 + nx * 3) * 0.5;
+  return Math.min(1, Math.max(0, (wave + 1) / 2));
+}
+
+function channel(value: number): number {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function parseCssColour(value: string): [number, number, number] | null {
+  const raw = String(value || '').trim();
+  const hex = raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const text = hex[1].length === 3
+      ? hex[1].split('').map((part) => part + part).join('')
+      : hex[1];
+    return [
+      parseInt(text.slice(0, 2), 16),
+      parseInt(text.slice(2, 4), 16),
+      parseInt(text.slice(4, 6), 16),
+    ];
+  }
+  const rgb = raw.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (rgb) return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+  return null;
+}
+
+export function swirlRgb(
+  nx: number,
+  ny: number,
+  colours: Array<[number, number, number]>,
+): [number, number, number] {
+  if (colours.length <= 1) return colours[0] || [204, 204, 204];
+  const position = swirlUnit(nx, ny) * (colours.length - 1);
+  const index = Math.min(colours.length - 2, Math.floor(position));
+  const fraction = position - index;
+  const start = colours[index];
+  const end = colours[index + 1];
+  return [
+    channel(start[0] + (end[0] - start[0]) * fraction),
+    channel(start[1] + (end[1] - start[1]) * fraction),
+    channel(start[2] + (end[2] - start[2]) * fraction),
+  ];
+}
+
+export function renderSwirlCanvas(
+  width: number,
+  height: number,
+  fills: string[],
+): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width));
+  canvas.height = Math.max(1, Math.round(height));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const colours = fills
+    .map((fill) => parseCssColour(fill))
+    .filter((colour): colour is [number, number, number] => Boolean(colour));
+  if (colours.length < 2) {
+    ctx.fillStyle = fills[0] || '#cccccc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    return canvas;
+  }
+  const image = ctx.createImageData(canvas.width, canvas.height);
+  for (let y = 0; y < canvas.height; y += 1) {
+    const ny = y / Math.max(canvas.height, 1);
+    for (let x = 0; x < canvas.width; x += 1) {
+      const nx = x / Math.max(canvas.width, 1);
+      const [r, g, b] = swirlRgb(nx, ny, colours);
+      const offset = (y * canvas.width + x) * 4;
+      image.data[offset] = r;
+      image.data[offset + 1] = g;
+      image.data[offset + 2] = b;
+      image.data[offset + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+
+export function paintBodyFillTexture(
+  state: DraftCanvasState | null | undefined,
+): HTMLCanvasElement | null {
+  if (!state || typeof document === 'undefined') return null;
+  const swirls = (state.objects || []).filter(
+    (obj) => obj.fillStyle === 'swirl' && (obj.fills || []).length > 1,
+  );
+  const slices = (state.objects || []).filter(
+    (obj) => obj.type === 'rect'
+      && obj.artworkRole === 'body_colour_fill'
+      && obj.fill
+      && obj.fillStyle !== 'swirl',
+  );
+  if (!swirls.length && slices.length < 2) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(state.width));
+  canvas.height = Math.max(1, Math.round(state.height));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  swirls.forEach((obj) => {
+    const pattern = renderSwirlCanvas(obj.width, obj.height, obj.fills || []);
+    if (pattern) ctx.drawImage(pattern, obj.x, obj.y, obj.width, obj.height);
+  });
+  slices.forEach((obj) => {
+    ctx.fillStyle = obj.fill || '#cccccc';
+    ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+  });
+  return canvas;
+}
+
 export function inferTextTargetFieldId(
   field: any,
   template: any,
@@ -895,14 +1068,39 @@ export function seedOrSyncCanvas(
 ): DraftCanvasState {
   const width = Number(template?.width) || DEFAULT_ARTBOARD.width;
   const height = Number(template?.height) || DEFAULT_ARTBOARD.height;
-  const objects: DraftCanvasObject[] = (existing?.objects || []).map((obj) => {
-    if (obj.type !== 'text') return { ...obj };
-    if (Number(obj.width) > 1 && Number(obj.height) > 1) return { ...obj };
-    return { ...obj, ...fitTextBox(obj) };
-  });
   const detached = new Set(existing?.detachedFieldIds || []);
   const linked = linkedVariationsForTemplate(template, variations);
   const linkedFields = linked.map((variation) => variation?.variationField).filter(Boolean);
+  const strategy = bodyColourStrategy(template);
+  const linkOrder = (template?.editedByVariationFields || [])
+    .map((field: any) => Number(field?.id))
+    .filter((id: number) => !Number.isNaN(id));
+  const backgroundVariations = linked
+    .filter((variation) => {
+      const field = variation?.variationField;
+      const fieldId = field?.id;
+      if (fieldId == null || detached.has(fieldId)) return false;
+      return countsAsBackgroundColour(field, template, linkedFields);
+    })
+    .sort((a, b) => {
+      const aIndex = linkOrder.indexOf(Number(a?.variationField?.id));
+      const bIndex = linkOrder.indexOf(Number(b?.variationField?.id));
+      return (aIndex < 0 ? linkOrder.length : aIndex) - (bIndex < 0 ? linkOrder.length : bIndex);
+    });
+  const multiBackground = Boolean(strategy) && backgroundVariations.length >= 2;
+  const multiIds = new Set(
+    multiBackground
+      ? backgroundVariations.map((variation) => Number(variation?.variationField?.id))
+      : [],
+  );
+  const objects: DraftCanvasObject[] = (existing?.objects || [])
+    .filter((obj) => obj.fillStyle !== 'swirl')
+    .filter((obj) => obj.merchiFieldId == null || !multiIds.has(Number(obj.merchiFieldId)))
+    .map((obj) => {
+      if (obj.type !== 'text') return { ...obj };
+      if (Number(obj.width) > 1 && Number(obj.height) > 1) return { ...obj };
+      return { ...obj, ...fitTextBox(obj) };
+    });
   const usedRegions: Record<string, number> = {};
 
   for (const variation of linked) {
@@ -1014,7 +1212,7 @@ export function seedOrSyncCanvas(
     const field = variation?.variationField;
     const fieldId = field?.id;
     const content = variationCanvasContent(variation);
-    if (!content.kind || fieldId == null || detached.has(fieldId)) continue;
+    if (!content.kind || fieldId == null || detached.has(fieldId) || multiIds.has(Number(fieldId))) continue;
     const role = resolveArtworkRole(field, template, linkedFields);
     if (role === 'text_fill') continue;
 
@@ -1071,6 +1269,56 @@ export function seedOrSyncCanvas(
     if (role !== 'text_fill') continue;
     const targetId = inferTextTargetFieldId(field, template, linkedFields);
     applyColourToText(targetId, content.fill, fieldId);
+  }
+
+  if (multiBackground) {
+    const paints = backgroundVariations
+      .map((variation) => {
+        const content = variationCanvasContent(variation);
+        return {
+          fieldId: Number(variation?.variationField?.id),
+          fill: content.fill,
+        };
+      })
+      .filter((item) => item.fill);
+    const bounds = bodyColourBounds(template);
+    const boundsPx = bboxToPixels(bounds, width, height);
+    const multiplyFill = isFullArtboardFill(boundsPx, width, height);
+    if (strategy === 'mix' && paints.length >= 2) {
+      objects.unshift({
+        id: createObjectId(),
+        type: 'rect',
+        artworkRole: 'body_colour_fill',
+        fillStyle: 'swirl',
+        fills: paints.map((item) => item.fill as string),
+        fill: paints[0].fill,
+        multiplyFill,
+        locked: true,
+        rotation: 0,
+        scaleX: 1,
+        scaleY: 1,
+        ...boundsPx,
+      });
+    } else if (strategy === 'segmentation' && paints.length >= 2) {
+      const boxes = bodyColourSliceBoxes(template, paints.length);
+      const slices = paints.map((item, index) => {
+        const box = boxes[index] || boxes[0];
+        return {
+          id: createObjectId(),
+          type: 'rect' as const,
+          merchiFieldId: item.fieldId,
+          artworkRole: 'body_colour_fill' as const,
+          fill: item.fill,
+          multiplyFill,
+          locked: true,
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+          ...bboxToPixels(box, width, height),
+        };
+      });
+      objects.unshift(...slices);
+    }
   }
 
   return {

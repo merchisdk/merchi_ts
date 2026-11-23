@@ -1,5 +1,5 @@
 import { cssFontFamily, ensureDraftFonts } from './draftFonts';
-import { isBackgroundFill, isFullArtboardFill } from './draftTemplates';
+import { isBackgroundFill, isFullArtboardFill, renderSwirlCanvas } from './draftTemplates';
 import { DraftCanvasObject, DraftCanvasState } from './types';
 
 function resolveFileUrl(url: string, apiUrl?: string): string {
@@ -174,8 +174,14 @@ function drawObject(
   applyKonvaObjectTransform(ctx, obj);
 
   if (obj.type === 'rect') {
-    ctx.fillStyle = obj.fill || '#cccccc';
-    ctx.fillRect(0, 0, obj.width, obj.height);
+    const swirl = obj.fillStyle === 'swirl' && (obj.fills || []).length > 1
+      ? renderSwirlCanvas(obj.width, obj.height, obj.fills || [])
+      : null;
+    if (swirl) ctx.drawImage(swirl, 0, 0, obj.width, obj.height);
+    else {
+      ctx.fillStyle = obj.fill || '#cccccc';
+      ctx.fillRect(0, 0, obj.width, obj.height);
+    }
   } else if (obj.type === 'text') {
     drawText(ctx, obj);
   } else if (obj.type === 'image' && image) {
@@ -247,8 +253,12 @@ async function renderState(
       // blank artboard if the template image cannot load
     }
   }
-  const sheetFills = fills.filter((obj) => isFullArtboardFill(obj, state.width, state.height));
-  const regionFills = fills.filter((obj) => !isFullArtboardFill(obj, state.width, state.height));
+  const sheetFills = fills.filter((obj) => (
+    obj.multiplyFill || isFullArtboardFill(obj, state.width, state.height)
+  ));
+  const regionFills = fills.filter((obj) => (
+    !obj.multiplyFill && !isFullArtboardFill(obj, state.width, state.height)
+  ));
   await drawList(sheetFills, objectsOnly ? 'source-over' : 'multiply');
   await drawList(regionFills);
   await drawList(content);

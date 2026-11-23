@@ -28,6 +28,7 @@ import {
   productAllowsClientDesign,
   regionsForRole,
   seedOrSyncCanvas,
+  splitBbox,
   selectedOptionIdsFromVariations,
   textColourSwatches,
   variationCanvasContent,
@@ -588,6 +589,55 @@ test('seedOrSyncCanvas paints base colour even without a mapped region', () => {
   }, variations);
   expect(fromPrintArea.objects[0].x).toBeCloseTo(100);
   expect(fromPrintArea.objects[0].width).toBeCloseTo(800);
+});
+
+test('segmentation places one non-overlapping slice per background colour', () => {
+  const template = {
+    width: 1000,
+    height: 400,
+    editedByVariationFields: [{ id: 1 }, { id: 2 }],
+    customisationMap: {
+      bodyColourStrategy: 'segmentation',
+      bodyColourFieldIds: [1, 2],
+      fieldBindings: [
+        { fieldId: 1, role: 'body_colour_fill' },
+        { fieldId: 2, role: 'body_colour_fill' },
+      ],
+    },
+  };
+  const seeded = seedOrSyncCanvas(null, template, [
+    { variationField: { id: 1, fieldType: FieldType.COLOUR_PICKER, name: 'Band colour' }, value: '#ff0000' },
+    { variationField: { id: 2, fieldType: FieldType.COLOUR_PICKER, name: 'Second colour' }, value: '#0000ff' },
+  ]);
+  const fills = seeded.objects.filter((obj) => obj.type === 'rect');
+  expect(fills).toHaveLength(2);
+  expect(fills[0].x + fills[0].width).toBeCloseTo(fills[1].x);
+  expect(fills[0].width).toBeCloseTo(500);
+  expect(fills[1].width).toBeCloseTo(500);
+  expect(fills.map((obj) => obj.fill).sort()).toEqual(['#0000ff', '#ff0000']);
+});
+
+test('mix places one swirl fill for every background colour', () => {
+  const template = {
+    width: 800,
+    height: 200,
+    editedByVariationFields: [{ id: 1 }, { id: 2 }],
+    customisationMap: {
+      bodyColourStrategy: 'mix',
+      bodyColourFieldIds: [1, 2],
+    },
+  };
+  const seeded = seedOrSyncCanvas(null, template, [
+    { variationField: { id: 1, fieldType: FieldType.COLOUR_SELECT, name: 'Band colour' }, value: '#112233' },
+    { variationField: { id: 2, fieldType: FieldType.COLOUR_SELECT, name: 'Tip colour' }, value: '#abcdef' },
+  ]);
+  expect(seeded.objects).toHaveLength(1);
+  expect(seeded.objects[0].fillStyle).toBe('swirl');
+  expect(seeded.objects[0].fills).toEqual(['#112233', '#abcdef']);
+  expect(splitBbox([0, 0, 1, 0.2], 2)).toEqual([
+    [0, 0, 0.5, 0.2],
+    [0.5, 0, 0.5, 0.2],
+  ]);
 });
 
 test('defaultPlacement stacks text and centres images', () => {
