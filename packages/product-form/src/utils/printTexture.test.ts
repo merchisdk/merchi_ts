@@ -66,7 +66,7 @@ test('draw places text in print-area space without the template image', () => {
     translate: (x: number, y: number) => calls.push(['translate', x, y]),
     rotate: (radians: number) => calls.push(['rotate', radians]),
     clearRect: () => calls.push(['clear']),
-    fillRect: () => calls.push(['fillRect']),
+    fillRect: () => calls.push(['fillRect', ctx.fillStyle]),
     fillText: (text: string, x: number, y: number) => calls.push(['fillText', text, x, y]),
     drawImage: () => calls.push(['drawImage']),
   };
@@ -75,8 +75,36 @@ test('draw places text in print-area space without the template image', () => {
       { id: 't', type: 'text', x: 60, y: 70, width: 40, height: 20, rotation: 0, scaleX: 1, scaleY: 1, text: 'Go', fontSize: 16, align: 'left' },
     ],
   }), { x: 50, y: 40, width: 100, height: 50 }, new Map(), 100, 50);
+  expect(calls).toContainEqual(['fillRect', '#f4f4f5']);
   expect(calls).toContainEqual(['translate', -50, -40]);
   expect(calls).toContainEqual(['translate', 60, 70]);
   expect(calls).toContainEqual(['fillText', 'Go', 0, 10]);
   expect(calls.some((call) => call[0] === 'drawImage')).toBe(false);
+});
+
+test('print texture background is the design colour, with text drawn on top', () => {
+  const calls: unknown[][] = [];
+  const ctx = {
+    font: '',
+    fillStyle: '',
+    textAlign: 'left',
+    textBaseline: 'alphabetic',
+    save: () => calls.push(['save']),
+    restore: () => calls.push(['restore']),
+    scale: () => calls.push(['scale']),
+    translate: () => calls.push(['translate']),
+    rotate: () => calls.push(['rotate']),
+    clearRect: () => calls.push(['clear']),
+    fillRect: () => calls.push(['fillRect', ctx.fillStyle]),
+    fillText: (text: string) => calls.push(['fillText', text]),
+    drawImage: () => calls.push(['drawImage']),
+  };
+  drawPrintTexture(ctx, state({
+    objects: [
+      { id: 'c', type: 'rect', x: 0, y: 300, width: 1000, height: 80, rotation: 0, scaleX: 1, scaleY: 1, fill: '#22aa44' },
+      { id: 't', type: 'text', x: 60, y: 320, width: 40, height: 20, rotation: 0, scaleX: 1, scaleY: 1, text: 'Go', fontSize: 16 },
+    ],
+  }), { x: 0, y: 300, width: 1000, height: 80 }, new Map(), 200, 16, '#22aa44');
+  expect(calls).toContainEqual(['fillRect', '#22aa44']);
+  expect(calls).toContainEqual(['fillText', 'Go']);
 });

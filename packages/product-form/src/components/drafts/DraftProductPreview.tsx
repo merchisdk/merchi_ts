@@ -205,7 +205,15 @@ async function mountPreview(
       const entry = ensureTexture(surface.materialName, size.width, size.height);
       const ctx = entry.canvas.getContext('2d');
       if (!ctx) return;
-      drawPrintTexture(ctx, canvasState, area, images, size.width, size.height);
+      drawPrintTexture(
+        ctx,
+        canvasState,
+        area,
+        images,
+        size.width,
+        size.height,
+        bodyColourFromDesign(canvasState, props.variations),
+      );
       entry.texture.needsUpdate = true;
       mats.forEach((mat) => {
         mat.map = entry.texture;

@@ -30,7 +30,7 @@ export interface PrintDrawContext {
   textBaseline: CanvasTextBaseline | string;
 }
 
-/** Artwork that belongs on a print material. Body-colour rects stay off the texture. */
+/** Artwork that belongs on a print material. Rects supply the background colour, not extra shapes. */
 export function printObjects(state?: DraftCanvasState | null): DraftCanvasObject[] {
   const objects = state?.objects || [];
   const art = objects.filter((obj) => obj.type !== 'rect' && obj.type !== 'image');
@@ -94,9 +94,10 @@ export function drawPrintTexture(
   images: Map<string, unknown>,
   destWidth: number,
   destHeight: number,
+  background?: string,
 ): void {
   ctx.clearRect(0, 0, destWidth, destHeight);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = background || bodyColourFromDesign(state);
   ctx.fillRect(0, 0, destWidth, destHeight);
   ctx.save();
   ctx.scale(destWidth / Math.max(area.width, 1), destHeight / Math.max(area.height, 1));
