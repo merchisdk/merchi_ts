@@ -1,3 +1,4 @@
+import { readTestCheckoutFlag } from '@merchi/invoice/lib/testCheckout';
 import { isUserRegistered } from './utils';
 import { tabsInit } from './tabs_utils';
 import { tabIdPayment } from './tabs_utils';
@@ -25,7 +26,7 @@ function hasAddress(address: any) {
 export function checkoutSessionKey(product: any) {
   const productId = product?.id ?? 'unknown';
   const domainId = product?.domain?.id ?? product?.domainId ?? 'unknown';
-  return `${STORAGE_PREFIX}_${domainId}_${productId}`;
+  return `${STORAGE_PREFIX}_${domainId}_${productId}${readTestCheckoutFlag() ? '_test' : ''}`;
 }
 
 export function loadCheckoutSession(product: any): CheckoutSession | null {

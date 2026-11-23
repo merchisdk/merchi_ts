@@ -66,7 +66,7 @@ function MerchiInvoice({
       {!paid && (
         <>
           <div className='m-auto pt-2' style={{ maxWidth: 400 }}>
-            {!!acceptSquare && (
+            {!!acceptSquare && !invoice.isTest && (
               <Container description='Secure credit card payments powered by Square.'>
                 <Suspense fallback={null}>
                   <SquareCard

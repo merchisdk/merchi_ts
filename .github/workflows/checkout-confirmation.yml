@@ -16,4 +16,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: node --test packages/checkout/test/checkout-confirmation.test.mjs
+      - run: node --test packages/checkout/test/*.test.mjs

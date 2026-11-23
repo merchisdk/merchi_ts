@@ -53,3 +53,14 @@ test('checkout advances only when the response contains the new invoice or job',
     assert.match(incomplete.message, /couldn't confirm/);
   }
 });
+
+test('test orders and quotes require an explicit test record before proceeding', async () => {
+  for (const [kind, key] of [['order', 'invoice'], ['quote request', 'job']]) {
+    for (const isTest of [true, false, undefined]) {
+      const result = await confirmCheckoutSubmission(
+        () => Response.json({ [key]: { id: 8, isTest } }, { status: 201 }), kind, true,
+      );
+      assert.equal(result.confirmed, isTest === true);
+    }
+  }
+});

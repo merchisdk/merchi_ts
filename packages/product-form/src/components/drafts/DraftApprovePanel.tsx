@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMerchiFormContext } from '../../context/MerchiProductFormProvider';
 import {
+  applyCanvasTextToJob,
   CheckoutDesignInput,
   collectDesignerInputs,
   packDesignInputNotes,
@@ -149,6 +150,7 @@ export default function DraftApprovePanel({
         }
       }
 
+      const styledJob = applyCanvasTextToJob(job, draftData);
       const designInputs: CheckoutDesignInput[] = [];
       for (const input of collectDesignerInputs(product, draftData)) {
         if (input.kind === 'text') {
@@ -173,7 +175,7 @@ export default function DraftApprovePanel({
       const designInputNotes = packDesignInputNotes(designInputs);
 
       const jobData = {
-        ...job,
+        ...styledJob,
         clientFiles: clientFiles.map(asCheckoutClientFile),
         ...(designInputs.length ? { designInputs, designInputNotes } : {}),
         ownDrafts: [{

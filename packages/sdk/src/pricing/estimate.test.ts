@@ -299,6 +299,21 @@ test('group product: weighted unit price and summed group costs', () => {
   expect(r.costPerUnit).toBe(10);
 });
 
+test('group-restricted tiers return each base rate independently of setup and the weighted average', () => {
+  const rules: PricingRules = {
+    ...base, hasGroups: true,
+    product: {
+      unitPrice: 0.52, setupPerGroup: true, setupPrice: 5, minimumPrice: null,
+      discountGroup: { groupRestricted: true, discounts: [{ lowerLimit: 150, amount: 20.8 }] },
+    },
+  };
+  const quote = estimateQuote(rules, {
+    fieldValues: {}, groups: [149, 150].map(quantity => ({ quantity, fieldValues: {} })),
+  }) as QuoteResult;
+  expect(quote.groupUnitPrices).toEqual([0.52, 0.412]);
+  expect(quote.groupCosts).toEqual([82.48, 66.8]);
+});
+
 test('product setupPrice applied once to job', () => {
   const rules: PricingRules = {
     ...base,

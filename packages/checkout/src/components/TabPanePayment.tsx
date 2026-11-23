@@ -45,9 +45,11 @@ function TabPanePayment() {
                   alertErrorShow={alertErrorShow}
                   callbackCreditCardPaymentSuccess={(i: any) => {
                     const paidInvoice = i?.invoice ?? i;
-                    setInvoice(paidInvoice);
-                    if (paidInvoice?.unpaid) return;
-                    if (redirectAfterSuccessUrl) {
+                    if (!paidInvoice) return;
+                    const isTest = invoice.isTest || paidInvoice?.isTest;
+                    setInvoice({ ...invoice, ...paidInvoice, isTest });
+                    if (paidInvoice.unpaid || (isTest && paidInvoice.unpaid !== false)) return;
+                    if (redirectAfterSuccessUrl && !isTest) {
                       redirectOnSuccess(
                         redirectAfterSuccessUrl,
                         redirectWithValue,
@@ -61,7 +63,6 @@ function TabPanePayment() {
                         },
                       );
                     } else {
-                      setInvoice(i?.invoice ?? i);
                       nextTab();
                     }
                   }}

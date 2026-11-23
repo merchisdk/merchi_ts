@@ -13,6 +13,7 @@ module.exports = {
         diagnostics: false,
       },
     ],
+    '/invoice/lib/(?:testCheckout|TestOrderNotice)\\.js$': '<rootDir>/jest-esm-transform.cjs',
     '/error-catch-sdk/dist/.+\\.js$': '<rootDir>/jest-esm-transform.cjs',
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],

@@ -3,7 +3,8 @@ import { createRoot, Root } from 'react-dom/client';
 import { act } from 'react-dom/test-utils';
 
 import CartProvider, { useCartContext } from './CartProvider';
-import { getCartCookie, setCartCookie } from './utilities/cookie';
+import { ActiveFormShipmentAddressAndNotes } from './forms/FormShipmentAddressAndNotes';
+import { getCartCookie, getCartCookieToken, setCartCookie } from './utilities/cookie';
 import { cartNeedsSourceUpdate } from './utilities/job_source';
 import { reportCartFailure, CART_FAILURE_SOURCES } from './utilities/reportFailure';
 import { tabIdClearCart, tabIdItems } from './utilities/tabs';
@@ -11,18 +12,28 @@ import { tabIdClearCart, tabIdItems } from './utilities/tabs';
 const mockGet = jest.fn();
 const mockPost = jest.fn();
 const mockCreateItem = jest.fn();
+const mockSaveCart = jest.fn();
+const mockShipmentQuotes = jest.fn();
 
 jest.mock('@merchi/sdk', () => ({
-  Merchi: jest.fn().mockImplementation(() => ({
-    Cart: { get: (...args: unknown[]) => mockGet(...args) },
-    authenticatedFetch: (...args: unknown[]) => mockPost(...args),
+  Merchi: jest.fn().mockImplementation((_session, _client, _invoice, cartToken) => ({
+    Cart: Object.assign(jest.fn(() => ({
+      fromJson: (cart: { id: number }) => ({
+        save: () => mockSaveCart(cart.id, cartToken),
+      }),
+    })), { get: (...args: unknown[]) => mockGet(...args) }),
+    authenticatedFetch: (...args: unknown[]) => cartToken
+      ? mockShipmentQuotes(cartToken, ...args)
+      : mockPost(...args),
   })),
 }));
+jest.mock('./utilities/address', () => ({ makeAddress: jest.fn(), sanitizeAddressFields: jest.fn() }));
 jest.mock('./utilities/product', () => ({ makeProduct: jest.fn(json => json) }));
 jest.mock('./utilities/job', () => ({ makeJob: jest.fn(json => json) }));
 jest.mock('./utilities/cart', () => ({
-  makeCart: (json: any) => ({
+  makeCart: (json: any, _makeDirty?: boolean, cartToken?: string) => ({
     ...json,
+    save: () => mockSaveCart(json.id, cartToken),
     toFormData: () => new FormData(),
     fromJson: jest.fn(),
     toJson: () => ({ id: 99, token: 'new-token', isTest: false }),
@@ -36,7 +47,13 @@ jest.mock('./utilities/cookie', () => ({
   setCartCookie: jest.fn(),
   readHandoffCart: jest.fn(),
 }));
-jest.mock('./utilities/local_storage', () => ({ getSavedCheckoutCustomer: () => null }));
+jest.mock('./utilities/local_storage', () => ({
+  ...jest.requireActual('./utilities/local_storage'),
+  getSavedCheckoutCustomer: () => null,
+  saveCheckoutAddress: jest.fn(),
+}));
+jest.mock('./forms/InputsAddress', () => ({ __esModule: true, default: () => null }));
+jest.mock('./components', () => ({ Title: () => null }));
 jest.mock('./utilities/job_source', () => ({
   captureAndReadJobSource: () => null,
   jobSourceFieldsForApi: () => ({}),
@@ -46,7 +63,7 @@ jest.mock('./utilities/job_source', () => ({
 jest.mock('./utilities/reportFailure', () => ({
   reportCartFailure: jest.fn(),
   reportAddCartItemFailure: jest.fn((error, onError) => onError(error)),
-  CART_FAILURE_SOURCES: { load: 'cart.load', create: 'cart.create' },
+  CART_FAILURE_SOURCES: { load: 'cart.load', create: 'cart.create', update: 'cart.update' },
 }));
 
 let context: ReturnType<typeof useCartContext>;
@@ -487,6 +504,92 @@ describe('cart load and replacement failures', () => {
     expect(context.alert.show).toBe(true);
     expect(context.alert.message).toBe('The discount could not be applied.');
   });
+
+  it('updates the displayed cart when another tab has replaced the cart cookie', async () => {
+    mockGet.mockResolvedValue({ toJson: () => ({ id: 42, token: 'visible-token', cartItems: [{ id: 7 }] }) });
+    await act(async () => root.render(<CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>));
+    (getCartCookie as jest.Mock).mockResolvedValue(['99', 'new-token']);
+    (getCartCookieToken as jest.Mock).mockResolvedValue('new-token');
+    mockSaveCart.mockImplementation((id, token) => token === 'visible-token'
+      ? Promise.resolve({ toJson: () => ({ id, token, receiverAddress: { city: 'Melbourne' } }) })
+      : Promise.reject(Object.assign(new Error('Authentication required'), { statusCode: 401 })));
+    mockShipmentQuotes.mockResolvedValue({ shipmentGroups: [{ id: 1 }] });
+
+    await act(async () => { await context.updateCartShipmentAddress({ city: 'Melbourne' }); });
+
+    expect(mockSaveCart).toHaveBeenCalledWith(42, 'visible-token');
+    expect(mockShipmentQuotes).toHaveBeenCalledWith('visible-token', '/generate-cart-shipment-quotes/42/', { method: 'GET' });
+    expect(context.cart).toMatchObject({ id: 42, receiverAddress: { city: 'Melbourne' }, shipmentGroups: [{ id: 1 }] });
+    expect(reportCartFailure).not.toHaveBeenCalled();
+  });
+
+  it('uses the matching checkout cookie when the cart response has no token', async () => {
+    await mountSavedCart();
+    mockSaveCart.mockResolvedValue({ toJson: () => ({ id: 42 }) });
+    mockShipmentQuotes.mockResolvedValue({ shipmentGroups: [] });
+
+    await act(async () => { await context.updateCartShipmentAddress({ city: 'Melbourne' }); });
+
+    expect(mockSaveCart).toHaveBeenCalledWith(42, 'saved-token');
+    expect(mockShipmentQuotes).toHaveBeenCalledWith('saved-token', '/generate-cart-shipment-quotes/42/', { method: 'GET' });
+  });
+
+  it('refreshes shipment options with the displayed cart token when the cookie changes', async () => {
+    mockGet.mockResolvedValue({ toJson: () => ({ id: 42, token: 'visible-token', cartItems: [{ id: 7 }] }) });
+    await act(async () => root.render(<CartProvider domainId={5} createCartAndCookie={() => {}}><Probe /></CartProvider>));
+    (getCartCookie as jest.Mock).mockResolvedValue(['99', 'new-token']);
+    mockShipmentQuotes.mockResolvedValue({ shipmentGroups: [{ id: 1 }] });
+
+    await act(async () => { await context.getCartShipmentOptions?.(); });
+
+    expect(mockShipmentQuotes).toHaveBeenCalledWith('visible-token', '/generate-cart-shipment-quotes/42/', { method: 'GET' });
+    expect(context.cart).toMatchObject({ id: 42, cartItems: [{ id: 7 }], shipmentGroups: [{ id: 1 }] });
+  });
+
+  it('keeps the cart intact when only a different cart’s token is available', async () => {
+    await mountSavedCart();
+    (getCartCookie as jest.Mock).mockResolvedValue(['99', 'new-token']);
+    (getCartCookieToken as jest.Mock).mockResolvedValue('new-token');
+    mockSaveCart.mockRejectedValue(Object.assign(new Error('Authentication required'), { statusCode: 401 }));
+
+    await act(async () => { await context.updateCartShipmentAddress({ city: 'Melbourne' }); });
+
+    expect(mockSaveCart).not.toHaveBeenCalled();
+    expect(mockPost).not.toHaveBeenCalled();
+    expect(mockShipmentQuotes).not.toHaveBeenCalled();
+    expect(context.cart.id).toBe(42);
+    expect(context.alert.message).toContain('Reload checkout');
+  });
+
+  it.each(['visible-token', undefined])(
+    'submits the displayed checkout cart after another tab replaces its cookie (%s)',
+    async token => {
+      mockGet.mockResolvedValue({ toJson: () => ({ id: 42, token, cartItems: [{ id: 7 }] }) });
+      await act(async () => root.render(
+        <CartProvider domainId={5} createCartAndCookie={() => {}}>
+          <Probe />
+          <ActiveFormShipmentAddressAndNotes />
+        </CartProvider>,
+      ));
+      (getCartCookie as jest.Mock).mockResolvedValue(['99', 'new-token']);
+      (getCartCookieToken as jest.Mock).mockResolvedValue('new-token');
+      mockSaveCart.mockImplementation((id, cartToken) => cartToken === 'visible-token'
+        ? Promise.resolve({ toJson: () => ({ id, token: cartToken }) })
+        : Promise.reject(Object.assign(new Error('Authentication required'), { statusCode: 401 })));
+
+      const form = container.querySelector('form')!;
+      await act(async () => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+
+      if (token) {
+        expect(mockSaveCart).toHaveBeenCalledTimes(1);
+        expect(mockSaveCart).toHaveBeenCalledWith(42, token);
+      } else {
+        expect(mockSaveCart).not.toHaveBeenCalled();
+        expect(context.alert.message).toContain('Reload checkout');
+      }
+      expect(context.cart.id).toBe(42);
+    },
+  );
   it.each([
     new TypeError('Failed to fetch'),
     { statusCode: 503, message: 'Service unavailable' },
