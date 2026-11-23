@@ -41,6 +41,8 @@ import { DomainTag } from './entities/domain_tag.js';
 import { Draft } from './entities/draft.js';
 import { DraftComment } from './entities/draft_comment.js';
 import { DraftTemplate } from './entities/draft_template.js';
+import { ProductPreviewModel } from './entities/product_preview_model.js';
+import { ProductPreviewSurface } from './entities/product_preview_surface.js';
 import { EmailAddress } from './entities/email_address.js';
 import { EmailCounter } from './entities/email_counter.js';
 import { EnrolledDomain } from './entities/enrolled_domain.js';
@@ -141,6 +143,8 @@ export {
   Draft,
   DraftComment,
   DraftTemplate,
+  ProductPreviewModel,
+  ProductPreviewSurface,
   EmailAddress,
   EmailCounter,
   EnrolledDomain,

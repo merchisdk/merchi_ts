@@ -90,6 +90,7 @@
     "react-hook-form": "^7.45.4",
     "react-icons": "^4.10.1",
     "react-konva": "^19.2.5",
+    "three": "^0.170.0",
     "react-tooltip": "^5.23.0",
     "uuid": "^9.0.0"
   }
