@@ -37,6 +37,18 @@ export class VariationFieldsOption extends Entity {
   @VariationFieldsOption.property()
   public noInventory?: boolean;
 
+  @VariationFieldsOption.property({type: Number})
+  public unitWeight?: number | null;
+
+  @VariationFieldsOption.property({type: Number})
+  public unitHeight?: number | null;
+
+  @VariationFieldsOption.property({type: Number})
+  public unitWidth?: number | null;
+
+  @VariationFieldsOption.property({type: Number})
+  public unitDepth?: number | null;
+
   @VariationFieldsOption.property()
   public position?: number;
 

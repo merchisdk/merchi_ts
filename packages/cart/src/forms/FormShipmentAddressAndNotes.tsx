@@ -6,12 +6,11 @@ import {
   checkoutShipmentHydrationAction,
   shipmentFormId,
 } from "../utilities/shipment";
+import { getCheckoutCartClient } from "../utilities/checkoutCartClient";
 import { faMapMarkerAlt } from "@fortawesome/free-solid-svg-icons";
 import { useCartContext } from "../CartProvider";
 import { useEffect, useRef, useState } from "react";
-import { getCartCookieToken } from "../utilities/cookie";
 import { makeAddress, sanitizeAddressFields } from "../utilities/address";
-import { makeCart } from "../utilities/cart";
 import { cartEmbed } from "../utilities/helpers";
 import { tabIdCheckout } from "../utilities/tabs";
 import {
@@ -128,6 +127,12 @@ export function ActiveFormShipmentAddressAndNotes() {
   const receiverNotes = cart?.receiverNotes || saved.receiverNotes || "";
   const [addressFieldsOpen, setAddressFieldsOpen] = useState(false);
   const hydratedShipmentOptionsRef = useRef(false);
+  const currentCartId = useRef(cart?.id);
+
+  useEffect(() => {
+    currentCartId.current = cart?.id;
+    return () => { currentCartId.current = undefined; };
+  }, [cart?.id]);
 
   useEffect(() => {
     if (hydratedShipmentOptionsRef.current || !cart?.id) return;
@@ -156,19 +161,29 @@ export function ActiveFormShipmentAddressAndNotes() {
   ]);
 
   async function saveCartShipmentAddressAndGoToNextTab(values: any) {
+    const cartId = cart?.id;
+    if (!cartId || cart.invoice?.unpaid === false) return;
+
     const { receiverAddress: address, receiverNotes } = values;
     setLoadingTotals(true);
     try {
-      const cartToken = await getCartCookieToken(domainId as number);
+      const shipmentApi = await getCheckoutCartClient(cart, domainId);
+      if (!shipmentApi) {
+        alertError("Unable to verify this cart. Reload checkout and try again.");
+        return;
+      }
       // Never PATCH an existing Address via cart token — create a fresh embed.
       const addressFields = sanitizeAddressFields(address);
       const receiverAddress = makeAddress(addressFields, true);
-      const cartEnt = makeCart(cart, false, cartToken);
+      const cartEnt = new shipmentApi.Cart().fromJson(cart);
       cartEnt.receiverAddress = receiverAddress;
       cartEnt.receiverNotes = receiverNotes;
-      await cartEnt.save({ embed: cartEmbed });
+      const savedCart = await cartEnt.save({ embed: cartEmbed });
+      if (currentCartId.current !== cartId) return;
+
       saveCheckoutAddress(domainId, addressFields, receiverNotes);
-      setCart(cartEnt.toJson());
+      const cartJson = savedCart.toJson();
+      setCart((current: any) => current?.id === cartId ? cartJson : current);
       setActiveTabAndEditDisabled({
         tabId: tabIdCheckout,
         tabIndexToSet: 2,

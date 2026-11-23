@@ -120,6 +120,8 @@ export interface QuoteResult {
   taxAmount: number;
   totalCost: number;
   groupCosts: number[];
+  /** Base rates by variation group, before option and setup charges. */
+  groupUnitPrices?: number[];
   currency: string;
 }
 

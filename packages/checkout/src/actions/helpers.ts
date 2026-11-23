@@ -82,7 +82,9 @@ export function unpackRecursiveJsonIter(jsonObject: JsonObject, options?: Serial
       continue;
     }
 
-    if (Array.isArray(jsonObject[key])) {
+    if (key === 'textStyle' && typeof jsonObject[key] === 'object') {
+      appendData(key, JSON.stringify(jsonObject[key]));
+    } else if (Array.isArray(jsonObject[key])) {
       jsonObject[key].forEach((item: any, index: number) => {
         if ((typeof item === "object" || Array.isArray(item)) && item !== null) {
           const arrayPrefix = prefix ? `${prefix}-${key}-${index}` : `${key}-${index}`;

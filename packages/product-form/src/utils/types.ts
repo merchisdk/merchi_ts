@@ -53,11 +53,22 @@ export type DraftArtworkRole =
   | 'text_fill'
   | 'body_colour_fill';
 
+export interface DraftEditorPermissions {
+  allowRotation?: boolean;
+  allowScale?: boolean;
+  allowTextColour?: boolean;
+  allowTextAlign?: boolean;
+  allowTextSize?: boolean;
+  allowedColours?: string[];
+}
+
 export interface DraftFieldBinding {
   fieldId: number;
   role?: DraftArtworkRole;
   targetFieldId?: number;
   lockAspectRatio?: boolean;
+  editor?: DraftEditorPermissions;
+  regionRole?: 'print_area' | 'text_placeholder';
 }
 
 export interface DraftCanvasObject {
@@ -66,6 +77,8 @@ export interface DraftCanvasObject {
   merchiFieldId?: number;
   colourFieldId?: number;
   artworkRole?: DraftArtworkRole;
+  regionRole?: 'print_area' | 'text_placeholder';
+  regionIndex?: number;
   locked?: boolean;
   lockAspectRatio?: boolean;
   x: number;
@@ -78,9 +91,13 @@ export interface DraftCanvasObject {
   text?: string;
   fontSize?: number;
   fill?: string;
+  fillStyle?: 'solid' | 'swirl';
+  fills?: string[];
+  multiplyFill?: boolean;
   fontFamily?: string;
   align?: string;
   src?: string;
+  name?: string;
 }
 
 export interface DraftCanvasState {

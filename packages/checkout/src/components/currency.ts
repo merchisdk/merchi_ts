@@ -223,3 +223,14 @@ export function currencyTotalCostShowIncTax(job: any) {
   );
   return `${currency} ${withCurrency} ${includesTax(taxType)}`;
 }
+
+export function formatQuotedUnitPrice(
+  product: { unitPrice?: number | string; currency?: string },
+  quotedPrice?: number | string | null,
+) {
+  const price = Number(quotedPrice ?? product.unitPrice) || 0;
+  return formatCurrency(price, {
+    currency: product.currency || 'AUD',
+    decimalPlaces: Math.round(price * 1000) % 10 === 0 ? 2 : 3,
+  });
+}

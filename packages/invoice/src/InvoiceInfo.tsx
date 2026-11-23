@@ -1,4 +1,5 @@
 'use client';
+import TestOrderNotice from './TestOrderNotice';
 import ButtonInvoiceDownload from './buttons/ButtonInvoiceDownload';
 
 interface Props {
@@ -18,10 +19,12 @@ function InvoiceInfo({
   const paid = !unpaid;
   return (
     <div className='w-100 d-flex flex-column align-items-center'>
-      <h5 className='container-invoice-heading mb-0'>Invoice #{id}</h5>
-      {paid && (
+      {invoice.isTest ? (
+        <TestOrderNotice title={`Test order · Invoice #${id}`} paymentReceived={unpaid === false} />
+      ) : (
         <>
-          <p className='mt-0 mb-0'>Paid, thank you!</p>
+          <h5 className='container-invoice-heading mb-0'>Invoice #{id}</h5>
+          {paid && <p className='mt-0 mb-0'>Paid, thank you!</p>}
         </>
       )}
       <p className='mt-2 mb-2'>Download your {paid ? 'receipt' : 'invoice'}.</p>
