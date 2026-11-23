@@ -8,8 +8,9 @@ import {
 } from "@stripe/react-stripe-js";
 import {
   loadStripe,
-  PaymentRequestPaymentMethodEvent,
+  type PaymentRequestPaymentMethodEvent,
 } from "@stripe/stripe-js";
+import { useStripeLoader } from "@merchi/invoice";
 import { CARD_ELEMENT_OPTIONS } from "./utils";
 import pngStripe from "../assets/stripe-payment-secure.png";
 
@@ -140,8 +141,18 @@ function FormStripeCardFields({
   setLoadingStripePayment,
   stripePubKey,
 }: Props) {
-  return stripePubKey ? (
-    <Elements stripe={loadStripe(stripePubKey)}>
+  const { stripe, failed, retry } = useStripeLoader(stripePubKey, loadStripe);
+
+  if (failed) {
+    return (
+      <>
+        <p role="alert">Could not load the payment form. Check your connection and try again.</p>
+        <button type="button" onClick={retry}>Try loading the payment form again</button>
+      </>
+    );
+  }
+  return stripe ? (
+    <Elements stripe={stripe}>
       <InnerForm
         doStripePayment={doStripePayment}
         doStripePaymentRequestForButton={doStripePaymentRequestForButton}
