@@ -197,10 +197,19 @@ async function mountPreview(
         mat.needsUpdate = true;
       });
     });
+    const visibleIds = new Set((props.templates || []).map((item) => Number(item?.id)));
+    const painted = new Set<string>();
     (props.surfaces || []).forEach((surface) => {
       if (surface.role !== 'print' || surface.templateId == null) return;
+      if (painted.has(surface.materialName)) return;
+      const mates = (props.surfaces || []).filter((item) => (
+        item.role === 'print' && item.materialName === surface.materialName
+      ));
+      const chosen = mates.find((item) => visibleIds.has(Number(item.templateId))) || mates[0];
+      if (chosen !== surface) return;
+      painted.add(surface.materialName);
       const template = templateForSurface(
-        surface,
+        chosen,
         props.templates,
         catalog,
         props.activeTemplateId,
