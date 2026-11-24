@@ -23,6 +23,16 @@ function installFixture(cwd, dependencies) {
   execFileSync(npm, ['ci', ...installFlags], { cwd, stdio: 'inherit' });
 }
 
+function latestPublished(range) {
+  const output = execFileSync(npm, ['view', range, 'version', '--json'], { encoding: 'utf8' });
+  const parsed = JSON.parse(output);
+  const versions = (Array.isArray(parsed) ? parsed : [parsed]).filter(version => typeof version === 'string');
+  versions.sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+  const version = versions.at(-1);
+  if (!version) throw new Error(`No published version for ${range}`);
+  return version;
+}
+
 function pack(cwd, destination, specifier) {
   const args = ['pack', '--ignore-scripts', '--json', '--pack-destination', destination];
   if (specifier) args.push(specifier);
@@ -75,7 +85,11 @@ async function verifyHistoricalUpgrade(directory) {
   }
   assert.deepEqual(await captureOperations(directory), [], 'The split install should reproduce #234');
 
-  installFixture(directory, { ...upgrade, [reporter]: '0.1.13' });
+  // Cart and Checkout depend on ^0.1.13. A storefront pinned to the original
+  // 0.1.13 now resolves those packages to a newer release, so they stop sharing
+  // the configured reporter. Align to the version that range actually installs.
+  const alignedReporter = latestPublished(`${reporter}@^0.1.13`);
+  installFixture(directory, { ...upgrade, [reporter]: alignedReporter });
   assert.deepEqual(await captureOperations(directory), expectedOperations,
     'Cart and Checkout must share the configured storefront reporter after alignment');
 }
