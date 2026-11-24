@@ -305,6 +305,8 @@ export default function DraftDesignerSheet({
   const sheetDragRef = useRef<{ y: number; dy: number } | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
+  const faceCanvasesRef = useRef<Record<string, DraftCanvasState>>({});
+  const canvasOwnerRef = useRef<string | null>(null);
   const historyRef = useRef<CanvasHistory>(emptyHistory());
   const linkedFormSnapshot = useRef<{ path: string; value: string; quote: boolean }[]>([]);
 
@@ -330,6 +332,11 @@ export default function DraftDesignerSheet({
       if (item?.id == null) return;
       if (item.id === template?.id) {
         map[item.id] = state;
+        return;
+      }
+      const remembered = faceCanvasesRef.current[`${groupIndex}:${item.id}`];
+      if (remembered) {
+        map[item.id] = remembered;
         return;
       }
       const saved = savedPreview(drafts, groupIndex, item.id);
@@ -395,10 +402,13 @@ export default function DraftDesignerSheet({
 
   useEffect(() => {
     if (!open || !template) return;
+    const key = `${groupIndex}:${template.id}`;
+    canvasOwnerRef.current = key;
+    const remembered = faceCanvasesRef.current[key];
     const drafts = loadDrafts(product.id);
     const saved = savedPreview(drafts, groupIndex, template.id);
     const variations = variationsForGroup(formValues, groupIndex);
-    replaceState(seedOrSyncCanvas(saved?.canvasJson || null, template, variations));
+    replaceState(seedOrSyncCanvas(remembered || saved?.canvasJson || null, template, variations));
     historyRef.current = emptyHistory();
     refreshHistoryFlags();
     setSelectedId(null);
@@ -472,6 +482,7 @@ export default function DraftDesignerSheet({
 
   function replaceState(next: DraftCanvasState) {
     stateRef.current = next;
+    if (canvasOwnerRef.current) faceCanvasesRef.current[canvasOwnerRef.current] = next;
     setState(next);
   }
 
@@ -1220,6 +1231,7 @@ export default function DraftDesignerSheet({
                   modelUrl={previewModelUrl}
                   surfaces={previewSurfaces}
                   templates={templates}
+                  sizeTemplates={product?.draftTemplates || templates}
                   states={textureStates}
                   variations={variationsForGroup(formValues, groupIndex)}
                   activeTemplateId={template?.id}
