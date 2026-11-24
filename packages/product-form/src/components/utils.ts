@@ -161,6 +161,10 @@ VariationFieldClass.property({ type: Number })(
   VariationFieldClass.prototype,
   'layoutSpan',
 );
+VariationFieldClass.property({ type: Number })(
+  VariationFieldClass.prototype,
+  'optionColumns',
+);
 
 const merchi = new Merchi();
 
@@ -190,6 +194,13 @@ export function buildEmptyVariationFromField(field: any) {
     variationJson.variationField.layoutSpan == null
   ) {
     variationJson.variationField.layoutSpan = field.layoutSpan;
+  }
+  if (
+    variationJson?.variationField &&
+    field?.optionColumns != null &&
+    variationJson.variationField.optionColumns == null
+  ) {
+    variationJson.variationField.optionColumns = field.optionColumns;
   }
   ensureVariationOptionFlags(variationJson);
   return variationJson;

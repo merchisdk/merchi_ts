@@ -3325,3 +3325,19 @@
     right: 0.375rem !important;
   }
 }
+
+@media (min-width: 768px) {
+  .merchi-embed-form_image-select-option-container[data-option-columns] {
+    display: grid !important;
+    flex-wrap: unset !important;
+    grid-template-columns: repeat(var(--merchi-option-columns), minmax(0, 1fr)) !important;
+    gap: 0.625rem !important;
+  }
+
+  .merchi-embed-form_image-select-option-container[data-option-columns] > .merchi-embed-form_image-select-option-item-container {
+    flex: unset !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+}
