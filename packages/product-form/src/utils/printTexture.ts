@@ -2,6 +2,7 @@ import { cssFontFamily } from './draftFonts';
 import {
   bboxToPixels,
   isFullArtboardFill,
+  paintBodyFillTexture,
   regionsForRole,
   variationCanvasContent,
 } from './draftTemplates';
@@ -99,6 +100,14 @@ export function drawPrintTexture(
   ctx.clearRect(0, 0, destWidth, destHeight);
   ctx.fillStyle = background || bodyColourFromDesign(state);
   ctx.fillRect(0, 0, destWidth, destHeight);
+  const pattern = paintBodyFillTexture(state);
+  if (pattern) {
+    ctx.save();
+    ctx.scale(destWidth / Math.max(area.width, 1), destHeight / Math.max(area.height, 1));
+    ctx.translate(-area.x, -area.y);
+    ctx.drawImage(pattern, 0, 0, pattern.width, pattern.height);
+    ctx.restore();
+  }
   ctx.save();
   ctx.scale(destWidth / Math.max(area.width, 1), destHeight / Math.max(area.height, 1));
   ctx.translate(-area.x, -area.y);

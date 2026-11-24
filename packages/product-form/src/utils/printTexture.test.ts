@@ -1,6 +1,25 @@
 import { bodyColourFromDesign, drawPrintTexture, printAreaFrame, printObjects } from './printTexture';
 import type { DraftCanvasState } from './types';
 
+jest.mock('./draftTemplates', () => {
+  const actual = jest.requireActual('./draftTemplates');
+  return {
+    ...actual,
+    paintBodyFillTexture: (state?: DraftCanvasState | null) => {
+      const objects = state?.objects || [];
+      const swirls = objects.filter((obj) => obj.fillStyle === 'swirl' && (obj.fills || []).length > 1);
+      const slices = objects.filter((obj) => (
+        obj.type === 'rect'
+        && obj.artworkRole === 'body_colour_fill'
+        && obj.fill
+        && obj.fillStyle !== 'swirl'
+      ));
+      if (!state || (!swirls.length && slices.length < 2)) return null;
+      return { width: state.width, height: state.height };
+    },
+  };
+});
+
 function state(partial: Partial<DraftCanvasState> = {}): DraftCanvasState {
   return {
     width: 1000,
@@ -107,4 +126,54 @@ test('print texture background is the design colour, with text drawn on top', ()
   }), { x: 0, y: 300, width: 1000, height: 80 }, new Map(), 200, 16, '#22aa44');
   expect(calls).toContainEqual(['fillRect', '#22aa44']);
   expect(calls).toContainEqual(['fillText', 'Go']);
+});
+
+test('swirl and segmented base colours are drawn onto the print texture', () => {
+  const drawImage = jest.fn();
+  const ctx = {
+    font: '',
+    fillStyle: '',
+    textAlign: 'left',
+    textBaseline: 'alphabetic',
+    save: () => undefined,
+    restore: () => undefined,
+    scale: () => undefined,
+    translate: () => undefined,
+    rotate: () => undefined,
+    clearRect: () => undefined,
+    fillRect: () => undefined,
+    fillText: () => undefined,
+    drawImage,
+  };
+  const area = { x: 0, y: 0, width: 800, height: 200 };
+  drawPrintTexture(ctx, state({
+    width: 800,
+    height: 200,
+    objects: [{
+      id: 'swirl',
+      type: 'rect',
+      x: 0,
+      y: 0,
+      width: 800,
+      height: 200,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+      fill: '#112233',
+      fillStyle: 'swirl',
+      fills: ['#112233', '#abcdef'],
+    }],
+  }), area, new Map(), 800, 200);
+  expect(drawImage).toHaveBeenCalledWith(expect.objectContaining({ width: 800, height: 200 }), 0, 0, 800, 200);
+
+  drawImage.mockClear();
+  drawPrintTexture(ctx, state({
+    width: 800,
+    height: 200,
+    objects: [
+      { id: 'a', type: 'rect', artworkRole: 'body_colour_fill', x: 0, y: 0, width: 400, height: 200, rotation: 0, scaleX: 1, scaleY: 1, fill: '#ff0000' },
+      { id: 'b', type: 'rect', artworkRole: 'body_colour_fill', x: 400, y: 0, width: 400, height: 200, rotation: 0, scaleX: 1, scaleY: 1, fill: '#0000ff' },
+    ],
+  }), area, new Map(), 800, 200);
+  expect(drawImage).toHaveBeenCalledTimes(1);
 });
