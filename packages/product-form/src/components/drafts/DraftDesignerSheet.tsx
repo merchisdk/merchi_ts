@@ -327,6 +327,7 @@ export default function DraftDesignerSheet({
   );
   const textureStates = useMemo(() => {
     const drafts = open && product?.id ? loadDrafts(product.id) : [];
+    const variations = variationsForGroup(formValues, groupIndex);
     const map: Record<string, DraftCanvasState> = {};
     templates.forEach((item: any) => {
       if (item?.id == null) return;
@@ -334,16 +335,18 @@ export default function DraftDesignerSheet({
         map[item.id] = state;
         return;
       }
+      // The live canvas belongs to the open template. Other faces still need
+      // their linked background colour before anyone selects them.
       const remembered = faceCanvasesRef.current[`${groupIndex}:${item.id}`];
-      if (remembered) {
-        map[item.id] = remembered;
-        return;
-      }
       const saved = savedPreview(drafts, groupIndex, item.id);
-      if (saved?.canvasJson) map[item.id] = saved.canvasJson;
+      map[item.id] = seedOrSyncCanvas(
+        remembered || saved?.canvasJson || null,
+        item,
+        variations,
+      );
     });
     return map;
-  }, [open, product?.id, templates, template?.id, state, groupIndex]);
+  }, [open, product?.id, templates, template?.id, state, groupIndex, formValues]);
   const fixedSizeFieldIds = useMemo(
     () => variationsForGroup(formValues, groupIndex)
       .filter((item: any) => Number(item?.variationField?.fieldType) === EMBROIDERY)
