@@ -27,6 +27,10 @@ export class VariationField extends Entity {
   @VariationField.property({type: Number})
   public layoutSpan?: number | null;
 
+  /** Image Select cards per row on wide screens. */
+  @VariationField.property({type: Number})
+  public optionColumns?: number | null;
+
   @VariationField.property()
   public required?: boolean;
 
