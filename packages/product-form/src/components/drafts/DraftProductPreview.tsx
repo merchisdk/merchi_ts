@@ -9,6 +9,7 @@ import {
   printImageSources,
   textureSize,
 } from '../../utils/printTexture';
+import { previewScaleY, templateForSurface } from '../../utils/previewSize';
 import type { DraftCanvasState } from '../../utils/types';
 
 export interface PreviewSurfaceBinding {
@@ -22,6 +23,8 @@ interface Props {
   modelUrl: string;
   surfaces: PreviewSurfaceBinding[];
   templates: any[];
+  /** Every draft template, including sizes that are not selected. */
+  sizeTemplates?: any[];
   states: Record<string, DraftCanvasState | undefined>;
   variations?: any[];
   activeTemplateId?: number | null;
@@ -36,6 +39,7 @@ export default function DraftProductPreview({
   modelUrl,
   surfaces,
   templates,
+  sizeTemplates,
   states,
   variations,
   activeTemplateId,
@@ -44,9 +48,9 @@ export default function DraftProductPreview({
   const redrawRef = useRef<() => void>(() => {});
   const [error, setError] = React.useState<string | null>(null);
   const latest = useRef({
-    surfaces, templates, states, variations, activeTemplateId,
+    surfaces, templates, sizeTemplates, states, variations, activeTemplateId,
   });
-  latest.current = { surfaces, templates, states, variations, activeTemplateId };
+  latest.current = { surfaces, templates, sizeTemplates, states, variations, activeTemplateId };
 
   const signature = useMemo(() => JSON.stringify({
     surfaces,
@@ -138,6 +142,7 @@ async function mountPreview(
   const images = new Map<string, HTMLImageElement>();
   const pending = new Set<string>();
   let materials = new Map<string, any[]>();
+  let root: { scale: { y: number } } = { scale: { y: 1 } };
   let frameId = 0;
 
   function resize() {
@@ -182,6 +187,8 @@ async function mountPreview(
   function redraw() {
     if (disposed) return;
     const props = getProps();
+    const catalog = props.sizeTemplates?.length ? props.sizeTemplates : props.templates;
+    root.scale.y = previewScaleY(catalog, props.activeTemplateId, props.surfaces);
     const colour = bodyColourFromDesign(activeState(props), props.variations);
     materials.forEach((mats, name) => {
       if (surfaceNamed(name)?.role !== 'body') return;
@@ -192,8 +199,12 @@ async function mountPreview(
     });
     (props.surfaces || []).forEach((surface) => {
       if (surface.role !== 'print' || surface.templateId == null) return;
-      const template = (props.templates || []).find(
-        (item) => Number(item?.id) === Number(surface.templateId),
+      const template = templateForSurface(
+        surface,
+        props.templates,
+        catalog,
+        props.activeTemplateId,
+        props.surfaces,
       );
       const canvasState = template
         ? props.states?.[template.id] || props.states?.[String(template.id)]
@@ -259,6 +270,7 @@ async function mountPreview(
     });
     if (disposed) return { redraw, dispose };
     scene.add(gltf.scene);
+    root = gltf.scene;
     await nameMaterials(gltf);
     materials = collectMaterials(gltf.scene);
     fitCamera(THREE, gltf.scene, camera, controls);

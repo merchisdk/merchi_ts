@@ -1220,6 +1220,7 @@ export default function DraftDesignerSheet({
                   modelUrl={previewModelUrl}
                   surfaces={previewSurfaces}
                   templates={templates}
+                  sizeTemplates={product?.draftTemplates || templates}
                   states={textureStates}
                   variations={variationsForGroup(formValues, groupIndex)}
                   activeTemplateId={template?.id}
