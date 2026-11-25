@@ -1061,6 +1061,35 @@ export function canvasPatchFromTextStyle(style: any): Partial<DraftCanvasObject>
   return patch;
 }
 
+/** Every face that already has a design, using the live canvas for the open template. */
+export function confirmationCanvases(
+  templates: any[],
+  groupIndex: number,
+  activeTemplateId: number | null | undefined,
+  activeState: DraftCanvasState,
+  remembered: Record<string, DraftCanvasState | undefined>,
+  savedCanvas: (templateId: number) => DraftCanvasState | null | undefined,
+  variations: any[],
+): Array<{ template: any; state: DraftCanvasState; active: boolean }> {
+  const faces = [];
+  for (const template of templates || []) {
+    const id = template?.id;
+    if (id == null) continue;
+    const active = Number(id) === Number(activeTemplateId);
+    const memory = remembered[`${groupIndex}:${id}`];
+    const saved = savedCanvas(Number(id));
+    if (!active && !memory && !saved) continue;
+    faces.push({
+      template,
+      active,
+      state: active
+        ? activeState
+        : seedOrSyncCanvas(memory || saved || null, template, variations),
+    });
+  }
+  return faces;
+}
+
 export function seedOrSyncCanvas(
   existing: DraftCanvasState | null | undefined,
   template: any,

@@ -36,6 +36,7 @@ import {
   allowedColoursForText,
   colourChoiceFromFill,
   confineToRegion,
+  confirmationCanvases,
   createObjectId,
   editorAllows,
   editorPolicyForObject,
@@ -961,23 +962,32 @@ export default function DraftDesignerSheet({
     setSaving(true);
     setError(null);
     try {
-      const pngs = canvasRef.current
-        ? await canvasRef.current.exportPngs()
-        : await exportDraftPngs(
-          state,
-          templateImageSources(template, apiUrl),
-          apiUrl,
-        );
-      const drafts = pruneDrafts(
+      const variations = variationsForGroup(hookForm.getValues(), groupIndex);
+      let drafts = pruneDrafts(
         loadDrafts(product.id),
         designGroupCount(product, hookForm.getValues()),
       );
-      const next = upsertGroupTemplateDraft(drafts, product.id, groupIndex, {
-        templateId: template.id,
-        canvasJson: stateRef.current,
-        ...pngs,
-      });
-      saveDrafts(product.id, next);
+      const faces = confirmationCanvases(
+        templates,
+        groupIndex,
+        template.id,
+        stateRef.current,
+        faceCanvasesRef.current,
+        (templateId) => savedPreview(drafts, groupIndex, templateId)?.canvasJson,
+        variations,
+      );
+      for (const face of faces) {
+        const sources = templateImageSources(face.template, apiUrl);
+        const pngs = face.active && canvasRef.current
+          ? await canvasRef.current.exportPngs()
+          : await exportDraftPngs(face.state, sources, apiUrl);
+        drafts = upsertGroupTemplateDraft(drafts, product.id, groupIndex, {
+          templateId: face.template.id,
+          canvasJson: face.state,
+          ...pngs,
+        });
+      }
+      saveDrafts(product.id, drafts);
       onSaved();
     } catch (err: any) {
       setError(err?.message || 'Could not save draft');

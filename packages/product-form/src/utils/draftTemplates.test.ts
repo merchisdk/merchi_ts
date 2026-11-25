@@ -27,6 +27,7 @@ import {
   linkedVariationsForTemplate,
   productAllowsClientDesign,
   regionsForRole,
+  confirmationCanvases,
   seedOrSyncCanvas,
   splitBbox,
   selectedOptionIdsFromVariations,
@@ -554,6 +555,61 @@ test('seedOrSyncCanvas applies a linked colour to text instead of a rect', () =>
   expect(seeded.objects).toHaveLength(1);
   expect(seeded.objects[0].text).toBe('Hello');
   expect(seeded.objects[0].fill).toBe('#ff0000');
+});
+
+test('confirmation refreshes a side that is not currently open', () => {
+  const outside = { id: 1, width: 400, height: 80, editedByVariationFields: [{ id: 3 }] };
+  const inside = { id: 2, width: 400, height: 80, editedByVariationFields: [{ id: 3 }] };
+  const variations = [{
+    variationField: { id: 3, fieldType: FieldType.COLOUR_PICKER, name: 'Base colour' },
+    value: '#22aa44',
+  }];
+  const openInside = {
+    width: 400,
+    height: 80,
+    objects: [{
+      id: 'text',
+      type: 'text' as const,
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 40,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+      text: 'This is the inside the band?',
+    }],
+  };
+  const faces = confirmationCanvases(
+    [outside, inside, { id: 3, width: 10, height: 10 }],
+    0,
+    inside.id,
+    openInside,
+    {},
+    (templateId) => templateId === outside.id
+      ? {
+        width: 400,
+        height: 80,
+        objects: [{
+          id: 'old',
+          type: 'text' as const,
+          x: 0,
+          y: 0,
+          width: 80,
+          height: 20,
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+          text: 'Less gah',
+        }],
+      }
+      : null,
+    variations,
+  );
+  expect(faces.map((face) => face.template.id)).toEqual([1, 2]);
+  expect(faces[1].state).toBe(openInside);
+  expect(faces[0].state.objects.some((obj) => obj.text === 'Less gah')).toBe(true);
+  expect(faces[0].state.objects.some((obj) => obj.fill === '#22aa44')).toBe(true);
 });
 
 test('seedOrSyncCanvas paints base colour even without a mapped region', () => {
