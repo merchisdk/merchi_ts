@@ -36,6 +36,7 @@ import {
   allowedColoursForText,
   colourChoiceFromFill,
   confineToRegion,
+  confirmationCanvases,
   createObjectId,
   editorAllows,
   editorPolicyForObject,
@@ -72,7 +73,6 @@ import { exportDraftPngs, templateImageSources } from '../../utils/draftExport';
 import type { PreviewSurfaceBinding } from './DraftProductPreview';
 import { productAllowsAdditionalDesignObjects } from '../../utils/designerInputs';
 import {
-  DraftCanvasHandle,
   DraftCanvasObject,
   DraftCanvasState,
   FieldType,
@@ -298,8 +298,8 @@ export default function DraftDesignerSheet({
   const [confirmClose, setConfirmClose] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const designerMainRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<DraftCanvasHandle>(null);
   const layerRefs = useRef<Record<string, HTMLElement | null>>({});
   const touchDragRef = useRef<{ id: string; y: number; moved: boolean; hint: { id: string; place: LayerDropPlace } | null } | null>(null);
   const sheetDragRef = useRef<{ y: number; dy: number } | null>(null);
@@ -392,6 +392,10 @@ export default function DraftDesignerSheet({
   useEffect(() => {
     if (open) ensureDraftFonts();
   }, [open]);
+
+  useEffect(() => {
+    designerMainRef.current?.toggleAttribute('inert', saving);
+  }, [open, saving]);
 
   const variationSyncKey = JSON.stringify(
     variationsForGroup(formValues, groupIndex).map((variation: any) => ({
@@ -807,7 +811,7 @@ export default function DraftDesignerSheet({
   shortcutsRef.current = { undo, redo, duplicateSelected };
 
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || saving) return undefined;
     function handleKeyDown(event: KeyboardEvent) {
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const target = event.target as HTMLElement | null;
@@ -821,7 +825,7 @@ export default function DraftDesignerSheet({
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open]);
+  }, [open, saving]);
 
   function layerNeighbour(direction: 1 | -1): string | null {
     const order = canvasPaintOrder(state.objects);
@@ -948,36 +952,54 @@ export default function DraftDesignerSheet({
     if (quote) Promise.resolve().then(() => getQuote());
   }
 
+  function closeDesigner() {
+    discardLinkedFields();
+    faceCanvasesRef.current = {};
+    canvasOwnerRef.current = null;
+    onClose();
+  }
+
   function requestClose() {
     if (historyFlags.undo) {
       setConfirmClose(true);
       return;
     }
-    onClose();
+    closeDesigner();
   }
 
   async function handleDone() {
-    if (!template || !product?.id) return;
+    if (saving || !template || !product?.id) return;
     setSaving(true);
     setError(null);
     try {
-      const pngs = canvasRef.current
-        ? await canvasRef.current.exportPngs()
-        : await exportDraftPngs(
-          state,
-          templateImageSources(template, apiUrl),
-          apiUrl,
-        );
-      const drafts = pruneDrafts(
+      const values = hookForm.getValues();
+      const variations = variationsForGroup(values, groupIndex);
+      let drafts = pruneDrafts(
         loadDrafts(product.id),
-        designGroupCount(product, hookForm.getValues()),
+        designGroupCount(product, values),
       );
-      const next = upsertGroupTemplateDraft(drafts, product.id, groupIndex, {
-        templateId: template.id,
-        canvasJson: stateRef.current,
-        ...pngs,
-      });
-      saveDrafts(product.id, next);
+      const faces = confirmationCanvases(
+        templates,
+        groupIndex,
+        template.id,
+        stateRef.current,
+        faceCanvasesRef.current,
+        (templateId) => savedPreview(drafts, groupIndex, templateId)?.canvasJson,
+        variations,
+      );
+      for (const face of faces) {
+        const pngs = await exportDraftPngs(
+          face.state,
+          templateImageSources(face.template, apiUrl),
+          fixedSizeFieldIds,
+        );
+        drafts = upsertGroupTemplateDraft(drafts, product.id, groupIndex, {
+          templateId: face.template.id,
+          canvasJson: face.state,
+          ...pngs,
+        });
+      }
+      saveDrafts(product.id, drafts);
       onSaved();
     } catch (err: any) {
       setError(err?.message || 'Could not save draft');
@@ -1018,6 +1040,7 @@ export default function DraftDesignerSheet({
       role='dialog'
       aria-modal='true'
       aria-label='Design artwork'
+      aria-busy={saving}
       onMouseDown={stopBubble}
       onClick={stopBubble}
     >
@@ -1026,6 +1049,7 @@ export default function DraftDesignerSheet({
           type='button'
           className='merchi-product-draft-icon-btn'
           onClick={requestClose}
+          disabled={saving}
           aria-label='Close designer'
         >
           <FaTimes />
@@ -1039,7 +1063,7 @@ export default function DraftDesignerSheet({
             type='button'
             className='merchi-product-draft-icon-btn'
             onClick={undo}
-            disabled={!historyFlags.undo}
+            disabled={saving || !historyFlags.undo}
             aria-label='Undo'
             title='Undo (Ctrl+Z)'
           >
@@ -1049,7 +1073,7 @@ export default function DraftDesignerSheet({
             type='button'
             className='merchi-product-draft-icon-btn'
             onClick={redo}
-            disabled={!historyFlags.redo}
+            disabled={saving || !historyFlags.redo}
             aria-label='Redo'
             title='Redo (Ctrl+Shift+Z)'
           >
@@ -1075,6 +1099,7 @@ export default function DraftDesignerSheet({
               type='button'
               role='tab'
               aria-selected={index === groupIndex}
+              disabled={saving}
               className={`merchi-product-draft-chip${index === groupIndex ? ' is-active' : ''}`}
               onClick={() => {
                 setGroupIndex(index);
@@ -1095,6 +1120,7 @@ export default function DraftDesignerSheet({
               type='button'
               role='tab'
               aria-selected={item.id === template?.id}
+              disabled={saving}
               className={`merchi-product-draft-chip${item.id === template?.id ? ' is-active' : ''}`}
               onClick={() => setTemplateIndex(index)}
             >
@@ -1105,6 +1131,7 @@ export default function DraftDesignerSheet({
       ) : null}
 
       <div
+        ref={designerMainRef}
         className={[
           'merchi-product-draft-main',
           allowAdditionalObjects ? '' : 'is-no-tools',
@@ -1196,7 +1223,6 @@ export default function DraftDesignerSheet({
               }
             >
               <DraftCanvas
-                ref={canvasRef}
                 state={state}
                 template={template}
                 templateSrc={templateSrc(template, apiUrl)}
@@ -1704,10 +1730,7 @@ export default function DraftDesignerSheet({
               <button
                 type='button'
                 className='is-leave'
-                onClick={() => {
-                  discardLinkedFields();
-                  onClose();
-                }}
+                onClick={closeDesigner}
               >
                 Leave
               </button>
