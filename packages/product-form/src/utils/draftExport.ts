@@ -1,5 +1,5 @@
-import { cssFontFamily, ensureDraftFonts } from './draftFonts';
-import { isBackgroundFill, isFullArtboardFill, renderSwirlCanvas } from './draftTemplates';
+import { cssFontFamily, DEFAULT_DRAFT_FONT, loadDraftFonts } from './draftFonts';
+import { isBackgroundFill, isFullArtboardFill, renderSwirlCanvas, unclipTextBox } from './draftTemplates';
 import { DraftCanvasObject, DraftCanvasState } from './types';
 
 function resolveFileUrl(url: string, apiUrl?: string): string {
@@ -98,197 +98,94 @@ export async function loadHtmlImageFromSources(
   throw lastError instanceof Error ? lastError : new Error('Failed to load image');
 }
 
-export async function waitForDraftFonts(families: string[] = []): Promise<void> {
-  ensureDraftFonts();
-  if (typeof document === 'undefined' || !document.fonts) return;
-  const unique = [...new Set(families.filter(Boolean))];
-  await Promise.all([
-    document.fonts.ready.catch(() => undefined),
-    ...unique.flatMap((family) => ([
-      document.fonts.load(`400 48px ${cssFontFamily(family)}`).catch(() => undefined),
-      document.fonts.load(`700 48px ${cssFontFamily(family)}`).catch(() => undefined),
-    ])),
-  ]);
-}
-
-export function wrapLines(
-  text: string,
-  maxWidth: number,
-  measure: (value: string) => number,
-): string[] {
-  const words = String(text).split(/\s+/).filter(Boolean);
-  if (!words.length) return [];
-  const lines: string[] = [];
-  let line = '';
-  for (const word of words) {
-    const test = line ? `${line} ${word}` : word;
-    if (line && measure(test) > maxWidth) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = test;
-    }
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-
-function drawText(ctx: CanvasRenderingContext2D, obj: DraftCanvasObject) {
-  const fontSize = obj.fontSize || 48;
-  const align = (obj.align as CanvasTextAlign) || 'center';
-  ctx.fillStyle = obj.fill || '#111111';
-  ctx.font = `${fontSize}px ${cssFontFamily(obj.fontFamily)}`;
-  ctx.textBaseline = 'top';
-  ctx.textAlign = align;
-  const lineHeight = fontSize;
-  const lines = wrapLines(
-    obj.text || '',
-    obj.width,
-    (value) => ctx.measureText(value).width,
-  );
-  const blockHeight = lines.length * lineHeight;
-  let cursorY = Math.max(0, (obj.height - blockHeight) / 2);
-  const x = align === 'center' ? obj.width / 2 : align === 'right' ? obj.width : 0;
-  for (const line of lines) {
-    ctx.fillText(line, x, cursorY, obj.width);
-    cursorY += lineHeight;
-  }
-}
-
-export function applyKonvaObjectTransform(
-  ctx: Pick<CanvasRenderingContext2D, 'translate' | 'rotate' | 'scale'>,
-  obj: Pick<DraftCanvasObject, 'x' | 'y' | 'rotation' | 'scaleX' | 'scaleY'>,
-) {
-  // Konva rotates/scales around the node origin (top-left), not the centre.
-  ctx.translate(obj.x, obj.y);
-  ctx.rotate(((obj.rotation || 0) * Math.PI) / 180);
-  ctx.scale(obj.scaleX || 1, obj.scaleY || 1);
-}
-
-function drawObject(
-  ctx: CanvasRenderingContext2D,
-  obj: DraftCanvasObject,
-  image?: HTMLImageElement,
-) {
-  ctx.save();
-  applyKonvaObjectTransform(ctx, obj);
-
-  if (obj.type === 'rect') {
-    const swirl = obj.fillStyle === 'swirl' && (obj.fills || []).length > 1
-      ? renderSwirlCanvas(obj.width, obj.height, obj.fills || [])
-      : null;
-    if (swirl) ctx.drawImage(swirl, 0, 0, obj.width, obj.height);
-    else {
-      ctx.fillStyle = obj.fill || '#cccccc';
-      ctx.fillRect(0, 0, obj.width, obj.height);
-    }
-  } else if (obj.type === 'text') {
-    drawText(ctx, obj);
-  } else if (obj.type === 'image' && image) {
-    ctx.drawImage(image, 0, 0, obj.width, obj.height);
-  }
-  ctx.restore();
-}
-
-export function captureStageArtboard(
-  stage: { toDataURL: (config: Record<string, unknown>) => string },
-  view: { x: number; y: number; scale: number },
-  art: { width: number; height: number },
-): string {
-  const scale = Math.max(view.scale || 0, 0.01);
-  return stage.toDataURL({
-    mimeType: 'image/png',
-    pixelRatio: 1 / scale,
-    x: view.x,
-    y: view.y,
-    width: art.width * scale,
-    height: art.height * scale,
-  });
-}
-
-async function renderState(
-  state: DraftCanvasState,
-  templateSources: string[],
-  objectsOnly = false,
-): Promise<string> {
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(state.width));
-  canvas.height = Math.max(1, Math.round(state.height));
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return '';
-
-  const fills = state.objects.filter(isBackgroundFill);
-  const content = state.objects.filter((obj) => !isBackgroundFill(obj));
-
-  if (!objectsOnly) {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
-  const drawList = async (
-    objects: DraftCanvasObject[],
-    composite?: 'multiply' | 'source-over',
-  ) => {
-    for (const obj of objects) {
-      let image: HTMLImageElement | undefined;
-      if (obj.type === 'image' && obj.src) {
-        try {
-          image = await loadHtmlImage(obj.src);
-        } catch {
-          image = undefined;
-        }
-      }
-      ctx.save();
-      if (composite) ctx.globalCompositeOperation = composite;
-      drawObject(ctx, obj, image);
-      ctx.restore();
-    }
+export function draftTextStyle(obj: DraftCanvasObject) {
+  return {
+    text: obj.text || 'Text',
+    fontSize: obj.fontSize || 48,
+    fill: obj.fill || '#111111',
+    fontFamily: cssFontFamily(obj.fontFamily),
+    align: obj.align || 'left',
+    verticalAlign: 'middle',
+    lineHeight: 1,
+    wrap: 'none',
   };
+}
 
-  if (!objectsOnly && templateSources.length) {
-    try {
-      const template = await loadHtmlImageFromSources(templateSources);
-      ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
-    } catch {
-      // blank artboard if the template image cannot load
-    }
-  }
-  const sheetFills = fills.filter((obj) => (
-    obj.multiplyFill || isFullArtboardFill(obj, state.width, state.height)
-  ));
-  const regionFills = fills.filter((obj) => (
-    !obj.multiplyFill && !isFullArtboardFill(obj, state.width, state.height)
-  ));
-  await drawList(sheetFills, objectsOnly ? 'source-over' : 'multiply');
-  await drawList(regionFills);
-  await drawList(content);
-
-  return canvas.toDataURL('image/png');
+export function backgroundComposite(
+  obj: DraftCanvasObject,
+  artWidth: number,
+  artHeight: number,
+): GlobalCompositeOperation {
+  return obj.multiplyFill || isFullArtboardFill(obj, artWidth, artHeight)
+    ? 'multiply'
+    : 'source-over';
 }
 
 export async function exportDraftPngs(
   state: DraftCanvasState,
-  templateSrc?: string | string[] | null,
-  apiUrl?: string,
+  templateSources: string[],
+  fixedSizeFieldIds: number[],
 ): Promise<{ draft: string; canvasPreview: string }> {
-  const sources = Array.isArray(templateSrc)
-    ? templateSrc
-    : templateSrc
-      ? [templateSrc]
-      : [];
-  const resolved = sources.flatMap((src) => (
-    src.startsWith('http') || src.startsWith('data:') || src.startsWith('blob:')
-      ? [src]
-      : templateImageSources({ file: { viewUrl: src } }, apiUrl)
-  ));
-  await waitForDraftFonts(
-    state.objects
-      .filter((obj) => obj.type === 'text')
-      .map((obj) => obj.fontFamily || ''),
-  );
-  const [draft, canvasPreview] = await Promise.all([
-    renderState(state, resolved, true),
-    renderState(state, resolved, false),
+  const fonts = state.objects
+    .filter((obj) => obj.type === 'text')
+    .map((obj) => obj.fontFamily || DEFAULT_DRAFT_FONT);
+  const [{ default: Konva }, template, artworkImages] = await Promise.all([
+    import('konva'),
+    templateSources.length
+      ? loadHtmlImageFromSources(templateSources).catch(() => undefined)
+      : undefined,
+    Promise.all(state.objects.map((obj) => {
+      if (obj.type !== 'image' || !obj.src) return undefined;
+      return loadHtmlImage(obj.src).catch(() => {
+        throw new Error('Could not load an artwork image. Check the image and try again.');
+      });
+    })),
+    fonts.length ? loadDraftFonts(fonts) : undefined,
   ]);
-  return { draft, canvasPreview };
+  const width = Math.max(1, Math.round(state.width));
+  const height = Math.max(1, Math.round(state.height));
+  const artboard = new Konva.Group();
+  const background = new Konva.Group();
+  artboard.add(background);
+
+  try {
+    background.add(new Konva.Rect({ width, height, fill: '#ffffff' }));
+    if (template) background.add(new Konva.Image({ image: template, width, height }));
+
+    const fills = new Konva.Group();
+    const artwork = new Konva.Group();
+    artboard.add(fills, artwork);
+    state.objects.forEach((obj, index) => {
+      const image = artworkImages[index];
+      const fixedSize = obj.merchiFieldId != null
+        && fixedSizeFieldIds.includes(Number(obj.merchiFieldId));
+      const shown = obj.type === 'text' && !fixedSize ? unclipTextBox(obj) : obj;
+      const { x, y, width, height, rotation, scaleX, scaleY } = shown;
+      const geometry = { x, y, width, height, rotation, scaleX, scaleY };
+      if (isBackgroundFill(obj)) {
+        const globalCompositeOperation = backgroundComposite(obj, state.width, state.height);
+        const pattern = obj.fillStyle === 'swirl' && (obj.fills || []).length > 1
+          ? renderSwirlCanvas(width, height, obj.fills || [])
+          : null;
+        fills.add(pattern
+          ? new Konva.Image({ ...geometry, image: pattern, globalCompositeOperation })
+          : new Konva.Rect({ ...geometry, fill: obj.fill || '#cccccc', globalCompositeOperation }));
+      } else if (obj.type === 'text') {
+        artwork.add(new Konva.Text({ ...geometry, ...draftTextStyle(obj) }));
+      } else if (image) {
+        artwork.add(new Konva.Image({ ...geometry, image }));
+      }
+    });
+
+    const bounds = { x: 0, y: 0, width, height, mimeType: 'image/png' };
+    const canvasPreview = artboard.toDataURL(bounds);
+    background.hide();
+    const draft = artboard.toDataURL(bounds);
+    if (!draft.startsWith('data:image/png;') || !canvasPreview.startsWith('data:image/png;')) {
+      throw new Error('Could not render the artwork preview');
+    }
+    return { draft, canvasPreview };
+  } finally {
+    artboard.destroy();
+  }
 }

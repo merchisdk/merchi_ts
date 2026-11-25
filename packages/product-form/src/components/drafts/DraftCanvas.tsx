@@ -2,22 +2,12 @@
 import * as React from 'react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Group, Image as KonvaImage, Layer, Line, Rect, Stage, Text, Transformer } from 'react-konva';
-import type { DraftCanvasHandle, DraftCanvasObject, DraftCanvasState } from '../../utils/types';
+import type { DraftCanvasObject, DraftCanvasState } from '../../utils/types';
 import { cssFontFamily, DEFAULT_DRAFT_FONT, loadDraftFonts } from '../../utils/draftFonts';
-import { captureStageArtboard, exportDraftPngs } from '../../utils/draftExport';
+import { backgroundComposite, draftTextStyle } from '../../utils/draftExport';
 import { FaMinus, FaPlus } from 'react-icons/fa';
-import { clampOrigin, confineToRegion, fitInside, isBackgroundFill, isFullArtboardFill, movementLimitForObject, printAreaGuides, renderSwirlCanvas, unclipTextBox } from '../../utils/draftTemplates';
+import { clampOrigin, confineToRegion, fitInside, isBackgroundFill, movementLimitForObject, printAreaGuides, renderSwirlCanvas, unclipTextBox } from '../../utils/draftTemplates';
 import { useHtmlImage } from './useHtmlImage';
-
-function backgroundComposite(
-  obj: DraftCanvasObject,
-  artWidth: number,
-  artHeight: number,
-): GlobalCompositeOperation {
-  return obj.multiplyFill || isFullArtboardFill(obj, artWidth, artHeight)
-    ? 'multiply'
-    : 'source-over';
-}
 
 function SwirlFill({
   obj,
@@ -217,7 +207,7 @@ function caretIndexForPointer(
   return index;
 }
 
-const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCanvas({
+function DraftCanvas({
   state,
   templateSrc,
   template,
@@ -230,13 +220,10 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
   onFinishEdit,
   fixedSizeFieldIds,
   transformPolicy,
-}, ref) {
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<any>(null);
   const trRef = useRef<any>(null);
-  const whiteRectRef = useRef<any>(null);
-  const templateNodeRef = useRef<any>(null);
-  const guideRefs = useRef<any[]>([]);
   const nodeRefs = useRef<Record<string, any>>({});
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const caretRef = useRef<number | null>(null);
@@ -281,50 +268,6 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
     observer.observe(el);
     return () => observer.disconnect();
   }, [state.width, state.height]);
-
-  React.useImperativeHandle(ref, () => ({
-    async exportPngs() {
-      const fallback = () => exportDraftPngs(state, templateSrc);
-      const stage = stageRef.current;
-      const hasTemplate = Array.isArray(templateSrc)
-        ? templateSrc.length > 0
-        : Boolean(templateSrc);
-      if (!stage?.toDataURL || (hasTemplate && !templateNodeRef.current)) {
-        return fallback();
-      }
-
-      const hide = (nodes: any[]) => nodes.forEach((node) => {
-        try { node.visible(false); } catch { /* ignore */ }
-      });
-      const show = (nodes: any[]) => nodes.forEach((node) => {
-        try { node.visible(true); } catch { /* ignore */ }
-      });
-      const chrome = [trRef.current, ...guideRefs.current].filter(Boolean);
-      const hiddenText = Object.values(nodeRefs.current).filter(
-        (node) => node && typeof node.opacity === 'function' && node.opacity() < 1,
-      );
-      const artOnly = [whiteRectRef.current, templateNodeRef.current].filter(Boolean);
-
-      try {
-        hide(chrome);
-        hiddenText.forEach((node) => node.opacity(1));
-        stage.draw();
-        const canvasPreview = captureStageArtboard(stage, view, state);
-        hide(artOnly);
-        stage.draw();
-        const draft = captureStageArtboard(stage, view, state);
-        show([...artOnly, ...chrome]);
-        hiddenText.forEach((node) => node.opacity(0));
-        stage.draw();
-        if (draft && canvasPreview) return { draft, canvasPreview };
-      } catch {
-        show([...artOnly, ...chrome]);
-        hiddenText.forEach((node) => node.opacity(0));
-        try { stage.draw(); } catch { /* ignore */ }
-      }
-      return fallback();
-    },
-  }), [state, templateSrc, view]);
 
   useEffect(() => {
     const transformer = trRef.current;
@@ -508,7 +451,6 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
         <Layer>
           <Group x={view.x} y={view.y} scaleX={view.scale} scaleY={view.scale}>
             <Rect
-              ref={whiteRectRef}
               width={state.width}
               height={state.height}
               fill='#ffffff'
@@ -519,7 +461,6 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
             />
             {templateImage ? (
               <KonvaImage
-                ref={templateNodeRef}
                 image={templateImage}
                 width={state.width}
                 height={state.height}
@@ -550,10 +491,6 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
             {guides.map((guide, index) => (
               <Line
                 key={`guide-${index}`}
-                ref={(node) => {
-                  if (node) guideRefs.current[index] = node;
-                  else delete guideRefs.current[index];
-                }}
                 points={[
                   guide.x,
                   guide.y,
@@ -674,14 +611,7 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
                     y={shown.y}
                     width={shown.width}
                     height={shown.height}
-                    text={obj.text || 'Text'}
-                    fontSize={obj.fontSize || 48}
-                    fill={obj.fill || '#111111'}
-                    fontFamily={cssFontFamily(obj.fontFamily)}
-                    align={obj.align || 'left'}
-                    verticalAlign='middle'
-                    lineHeight={1}
-                    wrap='none'
+                    {...draftTextStyle(obj)}
                     opacity={obj.id === editingTextId ? 0 : 1}
                   />
                 );
@@ -772,6 +702,6 @@ const DraftCanvas = React.forwardRef<DraftCanvasHandle, Props>(function DraftCan
       ) : null}
     </div>
   );
-});
+}
 
 export default DraftCanvas;

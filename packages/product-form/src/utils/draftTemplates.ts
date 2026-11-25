@@ -1070,7 +1070,7 @@ export function confirmationCanvases(
   remembered: Record<string, DraftCanvasState | undefined>,
   savedCanvas: (templateId: number) => DraftCanvasState | null | undefined,
   variations: any[],
-): Array<{ template: any; state: DraftCanvasState; active: boolean }> {
+): Array<{ template: any; state: DraftCanvasState }> {
   const faces = [];
   for (const template of templates || []) {
     const id = template?.id;
@@ -1081,7 +1081,6 @@ export function confirmationCanvases(
     if (!active && !memory && !saved) continue;
     faces.push({
       template,
-      active,
       state: active
         ? activeState
         : seedOrSyncCanvas(memory || saved || null, template, variations),
