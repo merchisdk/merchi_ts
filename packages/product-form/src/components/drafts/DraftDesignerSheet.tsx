@@ -200,10 +200,13 @@ function ColourPicker({
   onChange: (colour: string) => void;
   choices?: { colour: string; label: string }[] | null;
 }) {
-  const swatches = choices?.length
+  const presets = choices?.length
     ? choices
     : QUICK_COLOURS.map((colour) => ({ colour, label: colour }));
-  const chosen = swatches.some((swatch) => sameColour(swatch.colour, value));
+  const known = presets.some((swatch) => sameColour(swatch.colour, value));
+  const swatches = !choices?.length && value && !known
+    ? [...presets, { colour: value, label: 'Selected colour' }]
+    : presets;
   return (
     <div className='merchi-product-draft-field'>
       <span className='merchi-product-draft-field-label'>{label}</span>
@@ -225,12 +228,9 @@ function ColourPicker({
           );
         })}
         {choices?.length ? null : (
-          <label
-            className={`merchi-product-draft-swatch is-custom${chosen ? '' : ' is-active'}`}
-            style={chosen ? undefined : { backgroundColor: value }}
-          >
+          <label className='merchi-product-draft-swatch is-custom' aria-label='Custom colour'>
             <span className='merchi-sr-only'>Custom colour</span>
-            {chosen ? <FaPlus /> : <FaCheck />}
+            <FaPlus />
             <input
               type='color'
               value={HEX_COLOUR.test(value) ? value : '#111111'}
