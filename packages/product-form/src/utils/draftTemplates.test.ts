@@ -27,6 +27,7 @@ import {
   linkedVariationsForTemplate,
   productAllowsClientDesign,
   regionsForRole,
+  bodyColourPanel,
   seedOrSyncCanvas,
   splitBbox,
   selectedOptionIdsFromVariations,
@@ -638,6 +639,62 @@ test('mix places one swirl fill for every background colour', () => {
     [0, 0, 0.5, 0.2],
     [0.5, 0, 0.5, 0.2],
   ]);
+});
+
+test('base colour panel lists every assigned colour and the styles that are on', () => {
+  const template = {
+    width: 800,
+    height: 200,
+    editedByVariationFields: [{ id: 1 }, { id: 2 }],
+    customisationMap: {
+      bodyColourStrategy: 'mix',
+      bodyColourModes: ['segmentation', 'mix'],
+      bodyColourFieldIds: [1, 2],
+    },
+  };
+  const variations = [
+    { variationField: { id: 1, fieldType: FieldType.COLOUR_PICKER, name: 'Band colour' }, value: '#112233' },
+    { variationField: { id: 2, fieldType: FieldType.COLOUR_PICKER, name: 'Tip colour' }, value: '#abcdef' },
+  ];
+  const panel = bodyColourPanel(template, variations, { width: 800, height: 200, objects: [] });
+  expect(panel?.colours.map((colour) => colour.name)).toEqual(['Band colour', 'Tip colour']);
+  expect(panel?.colours.map((colour) => colour.fill)).toEqual(['#112233', '#abcdef']);
+  expect(panel?.modes).toEqual(['segmentation', 'mix']);
+  expect(panel?.mode).toBe('mix');
+  expect(bodyColourPanel(template, variations, {
+    width: 800,
+    height: 200,
+    objects: [],
+    bodyColourMode: 'segmentation',
+  })?.mode).toBe('segmentation');
+  expect(bodyColourPanel({
+    ...template,
+    customisationMap: { bodyColourStrategy: 'mix', bodyColourFieldIds: [1, 2] },
+  }, variations, null)?.modes).toEqual(['mix']);
+});
+
+test('a customer style is kept when the template allows it', () => {
+  const template = {
+    width: 800,
+    height: 200,
+    editedByVariationFields: [{ id: 1 }, { id: 2 }],
+    customisationMap: {
+      bodyColourStrategy: 'mix',
+      bodyColourModes: ['segmentation', 'mix'],
+      bodyColourFieldIds: [1, 2],
+    },
+  };
+  const variations = [
+    { variationField: { id: 1, fieldType: FieldType.COLOUR_PICKER, name: 'Band colour' }, value: '#ff0000' },
+    { variationField: { id: 2, fieldType: FieldType.COLOUR_PICKER, name: 'Tip colour' }, value: '#0000ff' },
+  ];
+  const swirl = seedOrSyncCanvas(null, template, variations);
+  const again = seedOrSyncCanvas(swirl, template, variations);
+  expect(again.objects[0].id).toBe(swirl.objects[0].id);
+  const slices = seedOrSyncCanvas({ ...swirl, bodyColourMode: 'segmentation' }, template, variations);
+  expect(slices.bodyColourMode).toBe('segmentation');
+  expect(slices.objects.filter((obj) => obj.type === 'rect')).toHaveLength(2);
+  expect(slices.objects.some((obj) => obj.fillStyle === 'swirl')).toBe(false);
 });
 
 test('defaultPlacement stacks text and centres images', () => {

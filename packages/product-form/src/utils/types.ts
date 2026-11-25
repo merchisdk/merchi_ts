@@ -105,6 +105,8 @@ export interface DraftCanvasState {
   height: number;
   objects: DraftCanvasObject[];
   detachedFieldIds?: number[];
+  /** Customer choice when the template allows more than one base-colour style. */
+  bodyColourMode?: 'segmentation' | 'mix';
 }
 
 export interface DraftCanvasHandle {

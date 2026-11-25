@@ -2068,6 +2068,11 @@
   color: var(--merchi-draft-accent-text);
 }
 
+.merchi-product-draft-align button.is-text {
+  padding: 0 0.55rem;
+  font-size: 0.85rem;
+}
+
 .merchi-product-draft-swatches {
   display: flex;
   flex-wrap: wrap;
