@@ -109,10 +109,6 @@ export interface DraftCanvasState {
   bodyColourMode?: 'segmentation' | 'mix';
 }
 
-export interface DraftCanvasHandle {
-  exportPngs: () => Promise<{ draft: string; canvasPreview: string }>;
-}
-
 export interface RenderedDraftPreview {
   templateId: number;
   draft: string; // base64 string of the template artwork as a draft
