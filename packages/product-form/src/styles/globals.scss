@@ -2068,6 +2068,11 @@
   color: var(--merchi-draft-accent-text);
 }
 
+.merchi-product-draft-align button.is-text {
+  padding: 0 0.55rem;
+  font-size: 0.85rem;
+}
+
 .merchi-product-draft-swatches {
   display: flex;
   flex-wrap: wrap;
@@ -2099,8 +2104,16 @@
 }
 
 .merchi-product-draft-swatch.is-custom {
-  background: var(--merchi-draft-raised);
-  color: var(--merchi-draft-text);
+  background: #ffffff;
+  color: #18181b;
+  border-color: rgba(255, 255, 255, 0.92);
+}
+
+.merchi-product-draft-swatch.is-custom svg {
+  position: relative;
+  z-index: 1;
+  filter: none;
+  pointer-events: none;
 }
 
 .merchi-product-draft-swatch.is-custom input {

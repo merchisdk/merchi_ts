@@ -1,6 +1,7 @@
 import { cssFontFamily } from './draftFonts';
 import {
   bboxToPixels,
+  bodyColourBounds,
   isFullArtboardFill,
   paintBodyFillTexture,
   regionsForRole,
@@ -50,9 +51,17 @@ export function printAreaFrame(template: any, regionIndex = 0): PrintFrame {
   const height = Number(template?.height) || DEFAULT_ARTBOARD.height;
   const regions = regionsForRole(template?.customisationMap, 'print_area');
   const bbox = regions[regionIndex] || regions[0];
-  if (bbox) {
-    const frame = bboxToPixels(bbox, width, height);
-    if (frame.width > 0 && frame.height > 0) return frame;
+  const frameFor = (box: number[]) => {
+    const frame = bboxToPixels(box, width, height);
+    return frame.width > 0 && frame.height > 0 ? frame : null;
+  };
+  const print = bbox ? frameFor(bbox) : null;
+  if (print) return print;
+  // The model UV is the band. Without a print area, that band is the base-colour region,
+  // not the whole template page.
+  if (regionsForRole(template?.customisationMap, 'body_colour_fill').length) {
+    const body = frameFor(bodyColourBounds(template));
+    if (body) return body;
   }
   return { x: 0, y: 0, width, height };
 }

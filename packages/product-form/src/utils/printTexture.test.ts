@@ -55,6 +55,13 @@ test('print area frame uses the requested region, then the full artboard', () =>
     width: 200,
     height: 100,
   });
+  expect(printAreaFrame({
+    width: 1000,
+    height: 500,
+    customisationMap: {
+      regions: [{ role: 'body_colour_fill', bbox: [0.1, 0.6, 0.8, 0.2] }],
+    },
+  }, 0)).toEqual({ x: 100, y: 300, width: 800, height: 100 });
 });
 
 test('body colour prefers the artboard fill, then a colour variation', () => {

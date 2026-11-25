@@ -34,11 +34,13 @@ import { useMerchiFormContext } from '../../context/MerchiProductFormProvider';
 import {
   canvasPaintOrder,
   allowedColoursForText,
+  bodyColourPanel,
   colourChoiceFromFill,
   confineToRegion,
   confirmationCanvases,
   createObjectId,
   editorAllows,
+  editorPolicyForField,
   editorPolicyForObject,
   designGroupCount,
   detachField,
@@ -198,10 +200,13 @@ function ColourPicker({
   onChange: (colour: string) => void;
   choices?: { colour: string; label: string }[] | null;
 }) {
-  const swatches = choices?.length
+  const presets = choices?.length
     ? choices
     : QUICK_COLOURS.map((colour) => ({ colour, label: colour }));
-  const chosen = swatches.some((swatch) => sameColour(swatch.colour, value));
+  const known = presets.some((swatch) => sameColour(swatch.colour, value));
+  const swatches = !choices?.length && value && !known
+    ? [...presets, { colour: value, label: 'Selected colour' }]
+    : presets;
   return (
     <div className='merchi-product-draft-field'>
       <span className='merchi-product-draft-field-label'>{label}</span>
@@ -223,12 +228,9 @@ function ColourPicker({
           );
         })}
         {choices?.length ? null : (
-          <label
-            className={`merchi-product-draft-swatch is-custom${chosen ? '' : ' is-active'}`}
-            style={chosen ? undefined : { backgroundColor: value }}
-          >
+          <label className='merchi-product-draft-swatch is-custom' aria-label='Custom colour'>
             <span className='merchi-sr-only'>Custom colour</span>
-            {chosen ? <FaPlus /> : <FaCheck />}
+            <FaPlus />
             <input
               type='color'
               value={HEX_COLOUR.test(value) ? value : '#111111'}
@@ -441,10 +443,13 @@ export default function DraftDesignerSheet({
           && obj.text === other.text
           && obj.src === other.src
           && obj.fill === other.fill
+          && obj.fillStyle === other.fillStyle
+          && JSON.stringify(obj.fills || []) === JSON.stringify(other.fills || [])
           && obj.width === other.width
           && obj.height === other.height
           && obj.merchiFieldId === other.merchiFieldId;
-      });
+      })
+      && current.bodyColourMode === next.bodyColourMode;
     if (!same) replaceState(next);
   }, [open, variationSyncKey, template?.id, groupIndex]);
 
@@ -583,6 +588,11 @@ export default function DraftDesignerSheet({
   }
 
   const selected = state.objects.find((obj) => obj.id === selectedId) || null;
+  const bodyPanel = bodyColourPanel(
+    template,
+    variationsForGroup(formValues, groupIndex),
+    state,
+  );
   const layers = useMemo(() => canvasPaintOrder(state.objects).reverse(), [state.objects]);
   const imagePanelVisible = selected?.type === 'image' || (!selected && imagePanelOpen);
 
@@ -647,6 +657,32 @@ export default function DraftDesignerSheet({
   function layerKind(obj: DraftCanvasObject): string {
     if (obj.type === 'text') return 'Text';
     return obj.type === 'image' ? 'Image' : 'Colour';
+  }
+
+  function setBackgroundColour(fieldId: number, fill: string) {
+    const values = hookForm.getValues();
+    const variation = variationsForGroup(values, groupIndex).find(
+      (item: any) => Number(item?.variationField?.id) === Number(fieldId)
+    );
+    const choice = colourChoiceFromFill(variation, fill);
+    const path = variationValuePathForGroup(values, fieldId, groupIndex);
+    if (!choice || !path) return;
+    hookForm.setValue(path, choice.value, { shouldDirty: true });
+    Promise.resolve().then(() => getQuote());
+  }
+
+  function applyBodyColourMode(mode: 'segmentation' | 'mix') {
+    if (!template || bodyPanel?.mode === mode) return;
+    const variations = variationsForGroup(hookForm.getValues(), groupIndex);
+    const next = seedOrSyncCanvas(
+      { ...stateRef.current, bodyColourMode: mode },
+      template,
+      variations,
+    );
+    commit(next);
+    const keep = next.objects.find((obj) => obj.id === selectedId)
+      || next.objects.find((obj) => obj.type === 'rect');
+    if (keep) setSelectedId(keep.id);
   }
 
   function syncLinkedTextColour(colourFieldId: number, fill: string) {
@@ -1459,6 +1495,46 @@ export default function DraftDesignerSheet({
                     </div>
                   </div>
                 ) : null}
+              </>
+            ) : mobileSheetOpen && selected?.type === 'rect' && bodyPanel ? (
+              <>
+                <h3 className='merchi-product-draft-panel-title'>Base colour</h3>
+                {bodyPanel.modes.length ? (
+                  <div className='merchi-product-draft-field'>
+                    <span className='merchi-product-draft-field-label'>Style</span>
+                    <div className='merchi-product-draft-align' role='group' aria-label='Base colour style'>
+                      {bodyPanel.modes.map((mode) => {
+                        const active = bodyPanel.mode === mode;
+                        const label = mode === 'mix' ? 'Swirl' : 'Segmentation';
+                        return (
+                          <button
+                            key={mode}
+                            type='button'
+                            className={active ? 'is-active is-text' : 'is-text'}
+                            aria-pressed={active}
+                            onClick={() => applyBodyColourMode(mode)}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+                {bodyPanel.colours.map((colour) => (
+                  <ColourPicker
+                    key={colour.fieldId}
+                    label={colour.name}
+                    value={colour.fill}
+                    choices={restrictedColourSwatches(
+                      textColourSwatches(colour.variation),
+                      normaliseAllowedColours(
+                        editorPolicyForField(template, colour.fieldId).allowedColours,
+                      ),
+                    )}
+                    onChange={(fill) => setBackgroundColour(colour.fieldId, fill)}
+                  />
+                ))}
               </>
             ) : mobileSheetOpen && selected?.type === 'rect' ? (
               <>

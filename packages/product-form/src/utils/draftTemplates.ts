@@ -680,9 +680,104 @@ export function countsAsBackgroundColour(
   return inferArtworkRole(field, linkedFields) === 'body_colour_fill';
 }
 
-export function bodyColourStrategy(template: any): 'segmentation' | 'mix' | null {
+export type BodyColourMode = 'segmentation' | 'mix';
+
+export function bodyColourStrategy(template: any): BodyColourMode | null {
   const strategy = template?.customisationMap?.bodyColourStrategy;
   return strategy === 'segmentation' || strategy === 'mix' ? strategy : null;
+}
+
+function listedBodyColourModes(value: any): BodyColourMode[] {
+  if (!Array.isArray(value)) return [];
+  const modes: BodyColourMode[] = [];
+  value.forEach((item) => {
+    if ((item === 'segmentation' || item === 'mix') && !modes.includes(item)) {
+      modes.push(item);
+    }
+  });
+  return modes;
+}
+
+/** Styles the product builder turned on. A saved strategy counts when no list is stored. */
+export function allowedBodyColourModes(template: any): BodyColourMode[] {
+  const listed = listedBodyColourModes(template?.customisationMap?.bodyColourModes);
+  if (listed.length) return listed;
+  const strategy = bodyColourStrategy(template);
+  return strategy ? [strategy] : [];
+}
+
+export function activeBodyColourMode(
+  template: any,
+  state?: { bodyColourMode?: string | null } | null,
+): BodyColourMode | null {
+  const allowed = allowedBodyColourModes(template);
+  if (!allowed.length) return null;
+  const chosen = state?.bodyColourMode;
+  if ((chosen === 'segmentation' || chosen === 'mix') && allowed.includes(chosen)) {
+    return chosen;
+  }
+  const strategy = bodyColourStrategy(template);
+  if (strategy && allowed.includes(strategy)) return strategy;
+  return allowed[0];
+}
+
+export function backgroundColourVariations(
+  template: any,
+  variations: any[],
+  detached?: Set<number> | number[],
+): any[] {
+  const detachedIds = detached instanceof Set ? detached : new Set(detached || []);
+  const linked = linkedVariationsForTemplate(template, variations);
+  const linkedFields = linked.map((variation) => variation?.variationField).filter(Boolean);
+  const linkOrder = (template?.editedByVariationFields || [])
+    .map((field: any) => Number(field?.id))
+    .filter((id: number) => !Number.isNaN(id));
+  return linked
+    .filter((variation) => {
+      const field = variation?.variationField;
+      const fieldId = field?.id;
+      if (fieldId == null || detachedIds.has(fieldId)) return false;
+      return countsAsBackgroundColour(field, template, linkedFields);
+    })
+    .sort((a, b) => {
+      const aIndex = linkOrder.indexOf(Number(a?.variationField?.id));
+      const bIndex = linkOrder.indexOf(Number(b?.variationField?.id));
+      return (aIndex < 0 ? linkOrder.length : aIndex) - (bIndex < 0 ? linkOrder.length : bIndex);
+    });
+}
+
+export interface BodyColourPanel {
+  colours: Array<{ fieldId: number; name: string; fill: string; variation: any }>;
+  modes: BodyColourMode[];
+  mode: BodyColourMode | null;
+}
+
+/** One entry per assigned base colour, plus the styles the builder allows. */
+export function bodyColourPanel(
+  template: any,
+  variations: any[],
+  state?: DraftCanvasState | null,
+): BodyColourPanel | null {
+  if (!template) return null;
+  const colours = backgroundColourVariations(template, variations, state?.detachedFieldIds)
+    .map((variation) => {
+      const field = variation?.variationField;
+      const fill = variationCanvasContent(variation).fill;
+      if (!fill || field?.id == null) return null;
+      return {
+        fieldId: Number(field.id),
+        name: String(field.name || 'Base colour'),
+        fill,
+        variation,
+      };
+    })
+    .filter((item): item is BodyColourPanel['colours'][number] => Boolean(item));
+  if (colours.length < 2) return null;
+  return {
+    colours,
+    modes: allowedBodyColourModes(template),
+    mode: activeBodyColourMode(template, state),
+  };
 }
 
 export function splitBbox(bbox: number[], count: number): number[][] {
@@ -1099,23 +1194,9 @@ export function seedOrSyncCanvas(
   const detached = new Set(existing?.detachedFieldIds || []);
   const linked = linkedVariationsForTemplate(template, variations);
   const linkedFields = linked.map((variation) => variation?.variationField).filter(Boolean);
-  const strategy = bodyColourStrategy(template);
-  const linkOrder = (template?.editedByVariationFields || [])
-    .map((field: any) => Number(field?.id))
-    .filter((id: number) => !Number.isNaN(id));
-  const backgroundVariations = linked
-    .filter((variation) => {
-      const field = variation?.variationField;
-      const fieldId = field?.id;
-      if (fieldId == null || detached.has(fieldId)) return false;
-      return countsAsBackgroundColour(field, template, linkedFields);
-    })
-    .sort((a, b) => {
-      const aIndex = linkOrder.indexOf(Number(a?.variationField?.id));
-      const bIndex = linkOrder.indexOf(Number(b?.variationField?.id));
-      return (aIndex < 0 ? linkOrder.length : aIndex) - (bIndex < 0 ? linkOrder.length : bIndex);
-    });
-  const multiBackground = Boolean(strategy) && backgroundVariations.length >= 2;
+  const backgroundVariations = backgroundColourVariations(template, variations, detached);
+  const mode = activeBodyColourMode(template, existing);
+  const multiBackground = Boolean(mode) && backgroundVariations.length >= 2;
   const multiIds = new Set(
     multiBackground
       ? backgroundVariations.map((variation) => Number(variation?.variationField?.id))
@@ -1312,9 +1393,11 @@ export function seedOrSyncCanvas(
     const bounds = bodyColourBounds(template);
     const boundsPx = bboxToPixels(bounds, width, height);
     const multiplyFill = isFullArtboardFill(boundsPx, width, height);
-    if (strategy === 'mix' && paints.length >= 2) {
+    const previousObjects = existing?.objects || [];
+    if (mode === 'mix' && paints.length >= 2) {
+      const previous = previousObjects.find((obj) => obj.fillStyle === 'swirl');
       objects.unshift({
-        id: createObjectId(),
+        id: previous?.id || createObjectId(),
         type: 'rect',
         artworkRole: 'body_colour_fill',
         fillStyle: 'swirl',
@@ -1327,12 +1410,15 @@ export function seedOrSyncCanvas(
         scaleY: 1,
         ...boundsPx,
       });
-    } else if (strategy === 'segmentation' && paints.length >= 2) {
+    } else if (mode === 'segmentation' && paints.length >= 2) {
       const boxes = bodyColourSliceBoxes(template, paints.length);
       const slices = paints.map((item, index) => {
         const box = boxes[index] || boxes[0];
+        const previous = previousObjects.find((obj) => (
+          obj.type === 'rect' && Number(obj.merchiFieldId) === item.fieldId
+        ));
         return {
-          id: createObjectId(),
+          id: previous?.id || createObjectId(),
           type: 'rect' as const,
           merchiFieldId: item.fieldId,
           artworkRole: 'body_colour_fill' as const,
@@ -1354,6 +1440,7 @@ export function seedOrSyncCanvas(
     height,
     objects,
     detachedFieldIds: Array.from(detached),
+    bodyColourMode: multiBackground ? mode || undefined : undefined,
   };
 }
 
