@@ -34,7 +34,10 @@ import { useMerchiFormContext } from '../../context/MerchiProductFormProvider';
 import {
   canvasPaintOrder,
   allowedColoursForText,
+  allowedBodyColourModes,
+  backgroundColourVariations,
   bodyColourPanel,
+  bodyColourStyleChoice,
   colourChoiceFromFill,
   confineToRegion,
   confirmationCanvases,
@@ -673,15 +676,39 @@ export default function DraftDesignerSheet({
 
   function applyBodyColourMode(mode: 'segmentation' | 'mix') {
     if (!template || bodyPanel?.mode === mode) return;
+    const values = hookForm.getValues();
+    const choice = bodyColourStyleChoice(variationsForGroup(values, groupIndex), mode);
+    if (choice) {
+      const path = variationValuePathForGroup(values, choice.fieldId, groupIndex);
+      if (path && String(hookForm.getValues(path) ?? '') !== choice.value) {
+        hookForm.setValue(path, choice.value, { shouldDirty: true });
+        Promise.resolve().then(() => getQuote());
+      }
+    }
     const variations = variationsForGroup(hookForm.getValues(), groupIndex);
-    const next = seedOrSyncCanvas(
-      { ...stateRef.current, bodyColourMode: mode },
-      template,
-      variations,
-    );
-    commit(next);
-    const keep = next.objects.find((obj) => obj.id === selectedId)
-      || next.objects.find((obj) => obj.type === 'rect');
+    const drafts = product?.id ? loadDrafts(product.id) : [];
+    let activeNext: DraftCanvasState | null = null;
+    templates.forEach((item: any) => {
+      if (item?.id == null) return;
+      if (backgroundColourVariations(item, variations).length < 2) return;
+      if (!allowedBodyColourModes(item).includes(mode)) return;
+      const key = `${groupIndex}:${item.id}`;
+      const saved = savedPreview(drafts, groupIndex, item.id)?.canvasJson;
+      const base = Number(item.id) === Number(template.id)
+        ? stateRef.current
+        : faceCanvasesRef.current[key] || saved || null;
+      const next = seedOrSyncCanvas(
+        { ...(base || { width: 1, height: 1, objects: [] }), bodyColourMode: mode },
+        item,
+        variations,
+      );
+      if (Number(item.id) === Number(template.id)) activeNext = next;
+      else faceCanvasesRef.current[key] = next;
+    });
+    if (!activeNext) return;
+    commit(activeNext);
+    const keep = activeNext.objects.find((obj) => obj.id === selectedId)
+      || activeNext.objects.find((obj) => obj.type === 'rect');
     if (keep) setSelectedId(keep.id);
   }
 

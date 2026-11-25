@@ -706,12 +706,56 @@ export function allowedBodyColourModes(template: any): BodyColourMode[] {
   return strategy ? [strategy] : [];
 }
 
+function styleModeFromOptionValue(value: any): BodyColourMode | null {
+  const text = String(value || '').toLowerCase();
+  if (text.includes('segment')) return 'segmentation';
+  if (text.includes('swirl') || /\bmix\b/.test(text)) return 'mix';
+  return null;
+}
+
+/** A select whose options include both Segmentation and Swirl, such as Band style. */
+export function bodyColourStyleChoice(
+  variations: any[],
+  mode: BodyColourMode,
+): { fieldId: number; value: string } | null {
+  for (const variation of variations || []) {
+    const options = colourOptions(variation);
+    const match = options.find((option: any) => styleModeFromOptionValue(option?.value) === mode);
+    const fieldId = Number(variation?.variationField?.id);
+    const id = match?.optionId ?? match?.id;
+    const hasBoth = options.some((option: any) => styleModeFromOptionValue(option?.value) === 'segmentation')
+      && options.some((option: any) => styleModeFromOptionValue(option?.value) === 'mix');
+    if (!hasBoth || !match || id == null || !Number.isFinite(fieldId)) continue;
+    return { fieldId, value: String(id) };
+  }
+  return null;
+}
+
+/** The style selected on the product form, when that field offers both styles. */
+export function bodyColourModeFromVariations(variations: any[]): BodyColourMode | null {
+  for (const variation of variations || []) {
+    if (!bodyColourStyleChoice([variation], 'segmentation')) continue;
+    const options = colourOptions(variation);
+    const ids = parseSelectedOptionIds(variation?.value);
+    const selected = options.find((option: any) => (
+      ids.includes(Number(option?.optionId ?? option?.id))
+    )) || options.find((option: any) => (
+      String(option?.value || '').trim().toLowerCase() === String(variation?.value || '').trim().toLowerCase()
+    ));
+    return styleModeFromOptionValue(selected?.value);
+  }
+  return null;
+}
+
 export function activeBodyColourMode(
   template: any,
   state?: { bodyColourMode?: string | null } | null,
+  variations?: any[] | null,
 ): BodyColourMode | null {
   const allowed = allowedBodyColourModes(template);
   if (!allowed.length) return null;
+  const fromForm = bodyColourModeFromVariations(variations || []);
+  if (fromForm && allowed.includes(fromForm)) return fromForm;
   const chosen = state?.bodyColourMode;
   if ((chosen === 'segmentation' || chosen === 'mix') && allowed.includes(chosen)) {
     return chosen;
@@ -776,7 +820,7 @@ export function bodyColourPanel(
   return {
     colours,
     modes: allowedBodyColourModes(template),
-    mode: activeBodyColourMode(template, state),
+    mode: activeBodyColourMode(template, state, variations),
   };
 }
 
@@ -1195,7 +1239,7 @@ export function seedOrSyncCanvas(
   const linked = linkedVariationsForTemplate(template, variations);
   const linkedFields = linked.map((variation) => variation?.variationField).filter(Boolean);
   const backgroundVariations = backgroundColourVariations(template, variations, detached);
-  const mode = activeBodyColourMode(template, existing);
+  const mode = activeBodyColourMode(template, existing, variations);
   const multiBackground = Boolean(mode) && backgroundVariations.length >= 2;
   const multiIds = new Set(
     multiBackground
