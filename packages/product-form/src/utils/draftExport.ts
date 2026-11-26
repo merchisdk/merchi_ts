@@ -1,11 +1,5 @@
 import { cssFontFamily, DEFAULT_DRAFT_FONT, loadDraftFonts } from './draftFonts';
-import {
-  approvalPreviewFrame,
-  isBackgroundFill,
-  isFullArtboardFill,
-  renderSwirlCanvas,
-  unclipTextBox,
-} from './draftTemplates';
+import { isBackgroundFill, isFullArtboardFill, renderSwirlCanvas, unclipTextBox } from './draftTemplates';
 import { DraftCanvasObject, DraftCanvasState } from './types';
 
 function resolveFileUrl(url: string, apiUrl?: string): string {
@@ -131,7 +125,6 @@ export async function exportDraftPngs(
   state: DraftCanvasState,
   templateSources: string[],
   fixedSizeFieldIds: number[],
-  sourceTemplate?: any,
 ): Promise<{ draft: string; canvasPreview: string }> {
   const fonts = state.objects
     .filter((obj) => obj.type === 'text')
@@ -184,12 +177,11 @@ export async function exportDraftPngs(
       }
     });
 
-    const frame = approvalPreviewFrame(sourceTemplate, state);
     const canvasPreview = artboard.toDataURL({
-      x: frame.x,
-      y: frame.y,
-      width: Math.max(1, Math.round(frame.width)),
-      height: Math.max(1, Math.round(frame.height)),
+      x: 0,
+      y: 0,
+      width,
+      height,
       mimeType: 'image/png',
     });
     background.hide();

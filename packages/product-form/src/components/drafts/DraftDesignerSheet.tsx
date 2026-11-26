@@ -1035,33 +1035,41 @@ export default function DraftDesignerSheet({
     setSaving(true);
     setError(null);
     try {
+      if (template.id != null) {
+        faceCanvasesRef.current[`${groupIndex}:${template.id}`] = stateRef.current;
+      }
       const values = hookForm.getValues();
-      const variations = variationsForGroup(values, groupIndex);
-      let drafts = pruneDrafts(
-        loadDrafts(product.id),
-        designGroupCount(product, values),
-      );
-      const faces = confirmationCanvases(
-        templates,
-        groupIndex,
-        template.id,
-        stateRef.current,
-        faceCanvasesRef.current,
-        (templateId) => savedPreview(drafts, groupIndex, templateId)?.canvasJson,
-        variations,
-      );
-      for (const face of faces) {
-        const pngs = await exportDraftPngs(
-          face.state,
-          templateImageSources(face.template, apiUrl),
-          fixedSizeFieldIds,
-          face.template,
+      const count = designGroupCount(product, values);
+      let drafts = pruneDrafts(loadDrafts(product.id), count);
+      const independent = values?.variations || [];
+      for (let index = 0; index < count; index += 1) {
+        const groupTemplates = templatesForGroup(
+          product,
+          independent,
+          values?.variationsGroups?.[index]?.variations || [],
         );
-        drafts = upsertGroupTemplateDraft(drafts, product.id, groupIndex, {
-          templateId: face.template.id,
-          canvasJson: face.state,
-          ...pngs,
-        });
+        const variations = variationsForGroup(values, index);
+        const faces = confirmationCanvases(
+          groupTemplates,
+          index,
+          index === groupIndex ? template.id : null,
+          stateRef.current,
+          faceCanvasesRef.current,
+          (templateId) => savedPreview(drafts, index, templateId)?.canvasJson,
+          variations,
+        );
+        for (const face of faces) {
+          const pngs = await exportDraftPngs(
+            face.state,
+            templateImageSources(face.template, apiUrl),
+            fixedSizeFieldIds,
+          );
+          drafts = upsertGroupTemplateDraft(drafts, product.id, index, {
+            templateId: face.template.id,
+            canvasJson: face.state,
+            ...pngs,
+          });
+        }
       }
       saveDrafts(product.id, drafts);
       onSaved();
@@ -1166,6 +1174,9 @@ export default function DraftDesignerSheet({
               disabled={saving}
               className={`merchi-product-draft-chip${index === groupIndex ? ' is-active' : ''}`}
               onClick={() => {
+                if (template?.id != null) {
+                  faceCanvasesRef.current[`${groupIndex}:${template.id}`] = stateRef.current;
+                }
                 setGroupIndex(index);
                 setTemplateIndex(0);
               }}

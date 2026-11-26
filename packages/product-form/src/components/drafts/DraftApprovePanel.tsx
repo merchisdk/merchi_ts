@@ -235,9 +235,9 @@ export default function DraftApprovePanel({
         </p>
       </div>
       <div className='merchi-product-draft-approve-body'>
-        {draftData.map((draft, index) => (
-          <div key={index} className={classNameDraftGroupContainer}>
-            <h3 className={classNameDraftGroupTitle}>Group {index + 1}</h3>
+        {[...draftData].sort((a, b) => a.groupIndex - b.groupIndex).map((draft) => (
+          <div key={draft.groupIndex} className={classNameDraftGroupContainer}>
+            <h3 className={classNameDraftGroupTitle}>Group {draft.groupIndex + 1}</h3>
             {draft.templateData.map((tD: RenderedDraftPreview, tDIndex: number) => (
               <DraftPreview
                 key={tDIndex}
