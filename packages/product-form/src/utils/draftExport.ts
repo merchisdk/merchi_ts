@@ -1,5 +1,11 @@
 import { cssFontFamily, DEFAULT_DRAFT_FONT, loadDraftFonts } from './draftFonts';
-import { isBackgroundFill, isFullArtboardFill, renderSwirlCanvas, unclipTextBox } from './draftTemplates';
+import {
+  approvalPreviewFrame,
+  isBackgroundFill,
+  isFullArtboardFill,
+  renderSwirlCanvas,
+  unclipTextBox,
+} from './draftTemplates';
 import { DraftCanvasObject, DraftCanvasState } from './types';
 
 function resolveFileUrl(url: string, apiUrl?: string): string {
@@ -125,6 +131,7 @@ export async function exportDraftPngs(
   state: DraftCanvasState,
   templateSources: string[],
   fixedSizeFieldIds: number[],
+  template?: any,
 ): Promise<{ draft: string; canvasPreview: string }> {
   const fonts = state.objects
     .filter((obj) => obj.type === 'text')
@@ -177,10 +184,16 @@ export async function exportDraftPngs(
       }
     });
 
-    const bounds = { x: 0, y: 0, width, height, mimeType: 'image/png' };
-    const canvasPreview = artboard.toDataURL(bounds);
+    const frame = approvalPreviewFrame(template, state);
+    const canvasPreview = artboard.toDataURL({
+      x: frame.x,
+      y: frame.y,
+      width: Math.max(1, Math.round(frame.width)),
+      height: Math.max(1, Math.round(frame.height)),
+      mimeType: 'image/png',
+    });
     background.hide();
-    const draft = artboard.toDataURL(bounds);
+    const draft = artboard.toDataURL({ x: 0, y: 0, width, height, mimeType: 'image/png' });
     if (!draft.startsWith('data:image/png;') || !canvasPreview.startsWith('data:image/png;')) {
       throw new Error('Could not render the artwork preview');
     }

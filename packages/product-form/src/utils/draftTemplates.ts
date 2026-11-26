@@ -861,6 +861,62 @@ export function bodyColourBounds(template: any): number[] {
   return [x0, y0, x1 - x0, y1 - y0];
 }
 
+/** The part of the template the customer should approve: the band, plus any artwork on it. */
+export function approvalPreviewFrame(
+  template: any,
+  state?: { width?: number; height?: number; objects?: Array<{
+    type?: string;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    rotation?: number;
+    scaleX?: number;
+    scaleY?: number;
+  }> } | null,
+): PixelBox {
+  const width = Math.max(1, Number(state?.width) || Number(template?.width) || DEFAULT_ARTBOARD.width);
+  const height = Math.max(1, Number(state?.height) || Number(template?.height) || DEFAULT_ARTBOARD.height);
+  const full = { x: 0, y: 0, width, height };
+  const regions = [
+    ...regionsForRole(template?.customisationMap, 'body_colour_fill'),
+    ...regionsForRole(template?.customisationMap, 'print_area'),
+  ];
+  const boxes = regions
+    .map((bbox) => bboxToPixels(bbox, width, height))
+    .filter((box) => box.width > 1 && box.height > 1);
+  for (const obj of state?.objects || []) {
+    if (!obj || obj.type === 'rect') continue;
+    const bounds = objectBounds({
+      x: Number(obj.x) || 0,
+      y: Number(obj.y) || 0,
+      width: Number(obj.width) || 0,
+      height: Number(obj.height) || 0,
+      rotation: obj.rotation,
+      scaleX: obj.scaleX,
+      scaleY: obj.scaleY,
+    });
+    if (bounds.width > 1 && bounds.height > 1) boxes.push(bounds);
+  }
+  if (!boxes.length) return full;
+  let x0 = Infinity;
+  let y0 = Infinity;
+  let x1 = -Infinity;
+  let y1 = -Infinity;
+  boxes.forEach((box) => {
+    x0 = Math.min(x0, box.x);
+    y0 = Math.min(y0, box.y);
+    x1 = Math.max(x1, box.x + box.width);
+    y1 = Math.max(y1, box.y + box.height);
+  });
+  x0 = Math.max(0, Math.floor(x0));
+  y0 = Math.max(0, Math.floor(y0));
+  x1 = Math.min(width, Math.ceil(x1));
+  y1 = Math.min(height, Math.ceil(y1));
+  if (x1 - x0 < 2 || y1 - y0 < 2) return full;
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+}
+
 export function bodyColourSliceBoxes(template: any, count: number): number[][] {
   const body = regionsForRole(template?.customisationMap, 'body_colour_fill');
   if (body.length === count && count > 1) return body;

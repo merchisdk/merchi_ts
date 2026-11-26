@@ -9,14 +9,36 @@ import {
 import { clearDraftWork } from '../../utils/draftStorage';
 import { DraftTemplateData, RenderedDraftPreview, MerchiFile } from '../../utils/types';
 
-function DraftPreview({ templateData }: { templateData: RenderedDraftPreview }) {
-  const {
-    canvasPreview,
-  } = templateData;
+function draftTemplateName(product: any, templateId: number): string {
+  const match = (product?.draftTemplates || []).find(
+    (item: any) => Number(item?.id) === Number(templateId),
+  );
+  return String(match?.name || '').trim();
+}
+
+function DraftPreview({
+  templateData,
+  name,
+}: {
+  templateData: RenderedDraftPreview;
+  name?: string;
+}) {
+  const { canvasPreview } = templateData;
+  const [band, setBand] = useState(false);
   return (
-    <div>
-      <img src={canvasPreview} alt="Draft Preview" />
-    </div>
+    <figure className='merchi-product-draft-approve-preview'>
+      {name ? <figcaption>{name}</figcaption> : null}
+      <div className={`merchi-product-draft-approve-preview-scroll${band ? ' is-band' : ''}`}>
+        <img
+          src={canvasPreview}
+          alt={name ? `${name} draft` : 'Draft preview'}
+          onLoad={(event) => {
+            const img = event.currentTarget;
+            setBand(img.naturalWidth / Math.max(img.naturalHeight, 1) > 4);
+          }}
+        />
+      </div>
+    </figure>
   );
 }
 
@@ -217,7 +239,11 @@ export default function DraftApprovePanel({
           <div key={index} className={classNameDraftGroupContainer}>
             <h3 className={classNameDraftGroupTitle}>Group {index + 1}</h3>
             {draft.templateData.map((tD: RenderedDraftPreview, tDIndex: number) => (
-              <DraftPreview key={tDIndex} templateData={tD} />
+              <DraftPreview
+                key={tDIndex}
+                templateData={tD}
+                name={draftTemplateName(product, tD.templateId)}
+              />
             ))}
           </div>
         ))}

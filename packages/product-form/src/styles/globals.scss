@@ -2651,12 +2651,33 @@
   color: var(--primary-foreground, #fff);
 }
 
-.merchi-product-draft-approve-panel img {
+.merchi-product-draft-approve-preview {
+  margin: 0 0 1rem;
+}
+
+.merchi-product-draft-approve-preview figcaption {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.merchi-product-draft-approve-preview-scroll {
+  overflow-x: auto;
+}
+
+.merchi-product-draft-approve-panel img,
+.merchi-product-draft-approve-preview-scroll img {
   display: block;
   width: 100%;
   height: auto;
   border-radius: 0.65rem;
   background: #f4f4f5;
+}
+
+.merchi-product-draft-approve-preview-scroll.is-band img {
+  width: auto;
+  height: 140px;
+  max-width: none;
 }
 
 .merchi-product-draft-group-container {

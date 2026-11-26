@@ -1055,6 +1055,7 @@ export default function DraftDesignerSheet({
           face.state,
           templateImageSources(face.template, apiUrl),
           fixedSizeFieldIds,
+          face.template,
         );
         drafts = upsertGroupTemplateDraft(drafts, product.id, groupIndex, {
           templateId: face.template.id,

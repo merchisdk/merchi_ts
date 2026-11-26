@@ -27,6 +27,7 @@ import {
   linkedVariationsForTemplate,
   productAllowsClientDesign,
   regionsForRole,
+  approvalPreviewFrame,
   bodyColourPanel,
   confirmationCanvases,
   seedOrSyncCanvas,
@@ -751,6 +752,44 @@ test('a customer style is kept when the template allows it', () => {
   expect(slices.bodyColourMode).toBe('segmentation');
   expect(slices.objects.filter((obj) => obj.type === 'rect')).toHaveLength(2);
   expect(slices.objects.some((obj) => obj.fillStyle === 'swirl')).toBe(false);
+});
+
+test('the approval preview shows the band instead of the template sheet', () => {
+  const template = {
+    width: 3840,
+    height: 287,
+    customisationMap: {
+      regions: [
+        { bbox: [0.0094, 0.3484, 0.9609, 0.4042], role: 'body_colour_fill' },
+        { bbox: [0.0112, 0.3728, 0.9505, 0.3519], role: 'print_area' },
+      ],
+    },
+  };
+  const frame = approvalPreviewFrame(template, {
+    width: 3840,
+    height: 287,
+    objects: [
+      { type: 'rect', x: 36, y: 100, width: 3690, height: 116 },
+      { type: 'text', x: 200, y: 120, width: 800, height: 60, text: 'Lets go' },
+    ],
+  });
+  expect(frame.y).toBeGreaterThan(80);
+  expect(frame.y + frame.height).toBeLessThan(230);
+  expect(frame.width).toBeGreaterThan(3000);
+  expect(frame.height).toBeGreaterThan(90);
+  expect(frame.height).toBeLessThan(160);
+
+  const withMarginText = approvalPreviewFrame(template, {
+    width: 3840,
+    height: 287,
+    objects: [{ type: 'text', x: 10, y: 4, width: 200, height: 30, text: 'Hi' }],
+  });
+  expect(withMarginText.y).toBe(4);
+
+  expect(approvalPreviewFrame(
+    { width: 400, height: 400 },
+    { width: 400, height: 400, objects: [] },
+  )).toEqual({ x: 0, y: 0, width: 400, height: 400 });
 });
 
 test('the product form style is used for every linked template', () => {
