@@ -7,6 +7,7 @@ import {
   packDesignInputNotes,
 } from '../../utils/designerInputs';
 import { clearDraftWork } from '../../utils/draftStorage';
+import { designGroupCount } from '../../utils/draftTemplates';
 import { DraftTemplateData, RenderedDraftPreview, MerchiFile } from '../../utils/types';
 
 function draftTemplateName(product: any, templateId: number): string {
@@ -132,8 +133,7 @@ export default function DraftApprovePanel({
   if (!raw) return null;
 
   const allDrafts: DraftTemplateData[] = JSON.parse(raw);
-  const groupVariationFields: any[] = hookForm.getValues('variationsGroups') || [];
-  const currentCount = groupVariationFields.length;
+  const currentCount = designGroupCount(product, hookForm.getValues());
 
   const draftData = allDrafts.filter(d => d.groupIndex < currentCount);
   if (draftData.length !== allDrafts.length) {
