@@ -131,7 +131,7 @@ export async function exportDraftPngs(
   state: DraftCanvasState,
   templateSources: string[],
   fixedSizeFieldIds: number[],
-  template?: any,
+  sourceTemplate?: any,
 ): Promise<{ draft: string; canvasPreview: string }> {
   const fonts = state.objects
     .filter((obj) => obj.type === 'text')
@@ -184,7 +184,7 @@ export async function exportDraftPngs(
       }
     });
 
-    const frame = approvalPreviewFrame(template, state);
+    const frame = approvalPreviewFrame(sourceTemplate, state);
     const canvasPreview = artboard.toDataURL({
       x: frame.x,
       y: frame.y,
