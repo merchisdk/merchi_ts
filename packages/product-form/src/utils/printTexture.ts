@@ -105,6 +105,7 @@ export function drawPrintTexture(
   destWidth: number,
   destHeight: number,
   background?: string,
+  options?: { mirrorBodyFill?: boolean },
 ): void {
   ctx.clearRect(0, 0, destWidth, destHeight);
   ctx.fillStyle = background || bodyColourFromDesign(state);
@@ -112,7 +113,16 @@ export function drawPrintTexture(
   const pattern = paintBodyFillTexture(state);
   if (pattern) {
     ctx.save();
-    ctx.scale(destWidth / Math.max(area.width, 1), destHeight / Math.max(area.height, 1));
+    const scaleX = destWidth / Math.max(area.width, 1);
+    const scaleY = destHeight / Math.max(area.height, 1);
+    // The inside UV is mirrored so text reads correctly. Flip only the band
+    // colour so a segment sits on the same side of the band as the outside.
+    if (options?.mirrorBodyFill) {
+      ctx.translate(destWidth, 0);
+      ctx.scale(-scaleX, scaleY);
+    } else {
+      ctx.scale(scaleX, scaleY);
+    }
     ctx.translate(-area.x, -area.y);
     ctx.drawImage(pattern, 0, 0, pattern.width, pattern.height);
     ctx.restore();

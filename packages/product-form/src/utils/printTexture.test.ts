@@ -184,3 +184,38 @@ test('swirl and segmented base colours are drawn onto the print texture', () => 
   }), area, new Map(), 800, 200);
   expect(drawImage).toHaveBeenCalledTimes(1);
 });
+
+test('inside body colour is flipped and the lettering is not', () => {
+  const calls: unknown[][] = [];
+  const ctx = {
+    font: '',
+    fillStyle: '',
+    textAlign: 'left',
+    textBaseline: 'alphabetic',
+    save: () => calls.push(['save']),
+    restore: () => calls.push(['restore']),
+    scale: (x: number, y: number) => calls.push(['scale', x, y]),
+    translate: (x: number, y: number) => calls.push(['translate', x, y]),
+    rotate: () => calls.push(['rotate']),
+    clearRect: () => calls.push(['clear']),
+    fillRect: () => calls.push(['fillRect']),
+    fillText: (text: string) => calls.push(['fillText', text]),
+    drawImage: () => calls.push(['drawImage']),
+  };
+  const area = { x: 10, y: 20, width: 100, height: 40 };
+  drawPrintTexture(ctx, state({
+    width: 200,
+    height: 80,
+    objects: [
+      { id: 'a', type: 'rect', artworkRole: 'body_colour_fill', x: 0, y: 0, width: 100, height: 80, rotation: 0, scaleX: 1, scaleY: 1, fill: '#ff0000' },
+      { id: 'b', type: 'rect', artworkRole: 'body_colour_fill', x: 100, y: 0, width: 100, height: 80, rotation: 0, scaleX: 1, scaleY: 1, fill: '#00ff00' },
+      { id: 't', type: 'text', x: 40, y: 30, width: 20, height: 10, rotation: 0, scaleX: 1, scaleY: 1, text: 'Hi', fontSize: 12 },
+    ],
+  }), area, new Map(), 50, 20, '#00ff00', { mirrorBodyFill: true });
+  const body = calls.findIndex((call) => call[0] === 'drawImage');
+  expect(calls.slice(0, body)).toContainEqual(['translate', 50, 0]);
+  expect(calls.slice(0, body)).toContainEqual(['scale', -0.5, 0.5]);
+  const letter = calls.findIndex((call) => call[0] === 'fillText');
+  expect(calls.slice(body + 1, letter)).toContainEqual(['scale', 0.5, 0.5]);
+  expect(calls.slice(body + 1, letter)).not.toContainEqual(['scale', -0.5, 0.5]);
+});

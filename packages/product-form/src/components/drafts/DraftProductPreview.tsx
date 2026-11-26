@@ -9,7 +9,7 @@ import {
   printImageSources,
   textureSize,
 } from '../../utils/printTexture';
-import { previewScaleY, templateForSurface } from '../../utils/previewSize';
+import { mirrorBodyFillOnSurface, previewScaleY, templateForSurface } from '../../utils/previewSize';
 import type { DraftCanvasState } from '../../utils/types';
 
 export interface PreviewSurfaceBinding {
@@ -233,6 +233,7 @@ async function mountPreview(
         size.width,
         size.height,
         bodyColourFromDesign(canvasState, props.variations),
+        { mirrorBodyFill: mirrorBodyFillOnSurface(surface.materialName) },
       );
       entry.texture.needsUpdate = true;
       mats.forEach((mat) => {

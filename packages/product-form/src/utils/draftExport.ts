@@ -177,10 +177,15 @@ export async function exportDraftPngs(
       }
     });
 
-    const bounds = { x: 0, y: 0, width, height, mimeType: 'image/png' };
-    const canvasPreview = artboard.toDataURL(bounds);
+    const canvasPreview = artboard.toDataURL({
+      x: 0,
+      y: 0,
+      width,
+      height,
+      mimeType: 'image/png',
+    });
     background.hide();
-    const draft = artboard.toDataURL(bounds);
+    const draft = artboard.toDataURL({ x: 0, y: 0, width, height, mimeType: 'image/png' });
     if (!draft.startsWith('data:image/png;') || !canvasPreview.startsWith('data:image/png;')) {
       throw new Error('Could not render the artwork preview');
     }
