@@ -1,4 +1,9 @@
-import { previewScaleY, templateForSurface, templateMillimetres } from './previewSize';
+import {
+  mirrorBodyFillOnSurface,
+  previewScaleY,
+  templateForSurface,
+  templateMillimetres,
+} from './previewSize';
 
 const widths = [
   { id: 1, name: 'Outside 1/4 inch', selectedByVariationFieldOptions: [{ value: '1/4 inch' }] },
@@ -6,6 +11,14 @@ const widths = [
   { id: 3, name: 'Outside 1 inch', selectedByVariationFieldOptions: [{ value: '1 inch (25 mm)' }] },
   { id: 4, name: 'Inside 1 inch', selectedByVariationFieldOptions: [{ value: '1 inch (25 mm)' }] },
 ];
+
+test('mirrors body colour on the inside face only', () => {
+  expect(mirrorBodyFillOnSurface('Print_inside')).toBe(true);
+  expect(mirrorBodyFillOnSurface('Print_insides')).toBe(true);
+  expect(mirrorBodyFillOnSurface('Print_outside')).toBe(false);
+  expect(mirrorBodyFillOnSurface('Print_back')).toBe(false);
+  expect(mirrorBodyFillOnSurface('Print_front')).toBe(false);
+});
 
 test('reads an explicit millimetre width ahead of the inch in the name', () => {
   expect(templateMillimetres(widths[2])).toBe(25);
