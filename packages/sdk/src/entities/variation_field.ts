@@ -131,6 +131,12 @@ export class VariationField extends Entity {
   public allowFileAi?: boolean;
 
   @VariationField.property()
+  public colourRepeatMin?: number | null;
+
+  @VariationField.property()
+  public colourRepeatMax?: number | null;
+
+  @VariationField.property()
   public maxColours?: number;
 
   @VariationField.property()

@@ -36,6 +36,7 @@ import {
   allowedColoursForText,
   bodyColourPanel,
   colourChoiceFromFill,
+  normaliseCssColour,
   confineToRegion,
   confirmationCanvases,
   createObjectId,
@@ -71,6 +72,7 @@ import {
   savedPreview,
   upsertGroupTemplateDraft,
 } from '../../utils/draftStorage';
+import { colourPickerList } from '../../utils/colourRepeat';
 import { exportDraftPngs, templateImageSources } from '../../utils/draftExport';
 import type { PreviewSurfaceBinding } from './DraftProductPreview';
 import { productAllowsAdditionalDesignObjects } from '../../utils/designerInputs';
@@ -659,14 +661,25 @@ export default function DraftDesignerSheet({
     return obj.type === 'image' ? 'Image' : 'Colour';
   }
 
-  function setBackgroundColour(fieldId: number, fill: string) {
+  function setBackgroundColour(fieldId: number, fill: string, index = 0) {
     const values = hookForm.getValues();
     const variation = variationsForGroup(values, groupIndex).find(
       (item: any) => Number(item?.variationField?.id) === Number(fieldId)
     );
-    const choice = colourChoiceFromFill(variation, fill);
     const path = variationValuePathForGroup(values, fieldId, groupIndex);
-    if (!choice || !path) return;
+    if (!path) return;
+    const list = colourPickerList(variation?.value);
+    if (list && list.length > 1) {
+      const colour = (normaliseCssColour(fill) || '').toUpperCase();
+      if (!colour || list[index] === colour) return;
+      const next = list.slice();
+      next[index] = colour;
+      hookForm.setValue(path, JSON.stringify(next), { shouldDirty: true });
+      Promise.resolve().then(() => getQuote());
+      return;
+    }
+    const choice = colourChoiceFromFill(variation, fill);
+    if (!choice) return;
     hookForm.setValue(path, choice.value, { shouldDirty: true });
     Promise.resolve().then(() => getQuote());
   }
@@ -1523,7 +1536,7 @@ export default function DraftDesignerSheet({
                 ) : null}
                 {bodyPanel.colours.map((colour) => (
                   <ColourPicker
-                    key={colour.fieldId}
+                    key={`${colour.fieldId}-${colour.index}`}
                     label={colour.name}
                     value={colour.fill}
                     choices={restrictedColourSwatches(
@@ -1532,7 +1545,7 @@ export default function DraftDesignerSheet({
                         editorPolicyForField(template, colour.fieldId).allowedColours,
                       ),
                     )}
-                    onChange={(fill) => setBackgroundColour(colour.fieldId, fill)}
+                    onChange={(fill) => setBackgroundColour(colour.fieldId, fill, colour.index)}
                   />
                 ))}
               </>

@@ -13,6 +13,7 @@ import { DEFAULT_DRAFT_FONT, cssFontFamily } from './draftFonts';
 import { embroideryPixels, parseEmbroideryValue } from './embroidery';
 import { productHasGroups } from './products';
 import { pantoneByCode } from './pantoneColours';
+import { colourPickerList } from './colourRepeat';
 
 export function productHasDraftTemplates(product: any): boolean {
   return Array.isArray(product?.draftTemplates) && product.draftTemplates.length > 0;
@@ -252,6 +253,8 @@ export function variationCanvasContent(variation: any): {
   }
 
   if (type === FieldType.COLOUR_PICKER) {
+    const list = colourPickerList(variation?.value);
+    if (list) return { kind, fill: list[0] || '#000000' };
     return { kind, fill: normaliseCssColour(variation?.value) || '#000000' };
   }
   if (type === FieldType.PANTONE_COLOUR_SELECT && field?.allowAllPantones) {
@@ -375,6 +378,7 @@ export function colourChoiceFromFill(variation: any, fill: string): { value: str
   if (!field || !colour) return null;
 
   if (type === FieldType.COLOUR_PICKER) {
+    if (colourPickerList(variation?.value)) return null;
     if (colourKey(variation?.value) === colour) return null;
     return { value: colour };
   }
@@ -746,8 +750,51 @@ export function backgroundColourVariations(
     });
 }
 
+export interface BodyColourPaint {
+  fieldId: number;
+  index: number;
+  name: string;
+  fill: string;
+  variation: any;
+}
+
+export function backgroundPaints(variations: any[]): BodyColourPaint[] {
+  const paints: BodyColourPaint[] = [];
+  (variations || []).forEach((variation) => {
+    const field = variation?.variationField;
+    const fieldId = Number(field?.id);
+    if (!Number.isFinite(fieldId)) return;
+    const type = parseInt(String(field?.fieldType), 10);
+    const list = type === FieldType.COLOUR_PICKER ? colourPickerList(variation?.value) : null;
+    if (list && list.length) {
+      list.forEach((fill, index) => {
+        paints.push({
+          fieldId,
+          index,
+          name: list.length > 1
+            ? `${field?.name || 'Base colour'} ${index + 1}`
+            : String(field?.name || 'Base colour'),
+          fill,
+          variation,
+        });
+      });
+      return;
+    }
+    const fill = variationCanvasContent(variation).fill;
+    if (!fill) return;
+    paints.push({
+      fieldId,
+      index: 0,
+      name: String(field?.name || 'Base colour'),
+      fill,
+      variation,
+    });
+  });
+  return paints;
+}
+
 export interface BodyColourPanel {
-  colours: Array<{ fieldId: number; name: string; fill: string; variation: any }>;
+  colours: BodyColourPaint[];
   modes: BodyColourMode[];
   mode: BodyColourMode | null;
 }
@@ -759,19 +806,9 @@ export function bodyColourPanel(
   state?: DraftCanvasState | null,
 ): BodyColourPanel | null {
   if (!template) return null;
-  const colours = backgroundColourVariations(template, variations, state?.detachedFieldIds)
-    .map((variation) => {
-      const field = variation?.variationField;
-      const fill = variationCanvasContent(variation).fill;
-      if (!fill || field?.id == null) return null;
-      return {
-        fieldId: Number(field.id),
-        name: String(field.name || 'Base colour'),
-        fill,
-        variation,
-      };
-    })
-    .filter((item): item is BodyColourPanel['colours'][number] => Boolean(item));
+  const colours = backgroundPaints(
+    backgroundColourVariations(template, variations, state?.detachedFieldIds),
+  );
   if (colours.length < 2) return null;
   return {
     colours,
@@ -1195,12 +1232,11 @@ export function seedOrSyncCanvas(
   const linked = linkedVariationsForTemplate(template, variations);
   const linkedFields = linked.map((variation) => variation?.variationField).filter(Boolean);
   const backgroundVariations = backgroundColourVariations(template, variations, detached);
+  const paints = backgroundPaints(backgroundVariations);
   const mode = activeBodyColourMode(template, existing);
-  const multiBackground = Boolean(mode) && backgroundVariations.length >= 2;
+  const multiBackground = Boolean(mode) && paints.length >= 2;
   const multiIds = new Set(
-    multiBackground
-      ? backgroundVariations.map((variation) => Number(variation?.variationField?.id))
-      : [],
+    multiBackground ? paints.map((paint) => paint.fieldId) : [],
   );
   const objects: DraftCanvasObject[] = (existing?.objects || [])
     .filter((obj) => obj.fillStyle !== 'swirl')
@@ -1381,15 +1417,6 @@ export function seedOrSyncCanvas(
   }
 
   if (multiBackground) {
-    const paints = backgroundVariations
-      .map((variation) => {
-        const content = variationCanvasContent(variation);
-        return {
-          fieldId: Number(variation?.variationField?.id),
-          fill: content.fill,
-        };
-      })
-      .filter((item) => item.fill);
     const bounds = bodyColourBounds(template);
     const boundsPx = bboxToPixels(bounds, width, height);
     const multiplyFill = isFullArtboardFill(boundsPx, width, height);
@@ -1414,8 +1441,11 @@ export function seedOrSyncCanvas(
       const boxes = bodyColourSliceBoxes(template, paints.length);
       const slices = paints.map((item, index) => {
         const box = boxes[index] || boxes[0];
+        const sharedField = paints.filter((paint) => paint.fieldId === item.fieldId).length > 1;
         const previous = previousObjects.find((obj) => (
-          obj.type === 'rect' && Number(obj.merchiFieldId) === item.fieldId
+          obj.type === 'rect'
+          && Number(obj.merchiFieldId) === item.fieldId
+          && (!sharedField || obj.fill === item.fill)
         ));
         return {
           id: previous?.id || createObjectId(),
