@@ -6,6 +6,14 @@ test('can make VariationField', () => {
   expect(variationField).toBeTruthy();
 });
 
+test('colour repeat limits stay numeric', () => {
+  const merchi = new Merchi();
+  const variationField = new merchi.VariationField();
+  variationField.fromJson({id: 42, colourRepeatMin: 1, colourRepeatMax: 3});
+  expect(variationField.colourRepeatMin).toBe(1);
+  expect(variationField.colourRepeatMax).toBe(3);
+});
+
 test('isSelectable', () => {
   const merchi = new Merchi();
   const vf = new merchi.VariationField();

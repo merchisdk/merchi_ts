@@ -130,10 +130,10 @@ export class VariationField extends Entity {
   @VariationField.property()
   public allowFileAi?: boolean;
 
-  @VariationField.property()
+  @VariationField.property({type: Number})
   public colourRepeatMin?: number | null;
 
-  @VariationField.property()
+  @VariationField.property({type: Number})
   public colourRepeatMax?: number | null;
 
   @VariationField.property()
