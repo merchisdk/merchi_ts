@@ -87,7 +87,7 @@ interface InputProps {
   variation: any;
 }
 
-export const VariationInputCoulourPicker = (props: InputProps) => <VariationInput inputType='color' {...props} />;
+export { default as VariationInputCoulourPicker } from './VariationColourPickerInput';
 export const VariationInputText = (props: InputProps) => <VariationInput inputType='text' {...props} />;
 export const VariationInputNumber = (props: InputProps) => <VariationInput inputType='number' {...props} />;
 export const VariationInputTextarea = (props: InputProps) => <VariationInput inputType='textarea' {...props} />;

@@ -675,6 +675,31 @@ test('segmentation places one non-overlapping slice per background colour', () =
   expect(fills.map((obj) => obj.fill).sort()).toEqual(['#0000ff', '#ff0000']);
 });
 
+test('one repeatable colour picker splits into a segment per colour', () => {
+  const template = {
+    width: 900,
+    height: 300,
+    editedByVariationFields: [{ id: 7 }],
+    customisationMap: {
+      bodyColourStrategy: 'segmentation',
+      fieldBindings: [{ fieldId: 7, role: 'body_colour_fill' }],
+    },
+  };
+  const seeded = seedOrSyncCanvas(null, template, [{
+    variationField: {
+      id: 7,
+      fieldType: FieldType.COLOUR_PICKER,
+      name: 'Band colors',
+      colourRepeatMax: 3,
+    },
+    value: '["#FF0000","#00FF00","#0000FF"]',
+  }]);
+  const fills = seeded.objects.filter((obj) => obj.type === 'rect');
+  expect(fills).toHaveLength(3);
+  expect(fills.map((obj) => obj.fill)).toEqual(['#FF0000', '#00FF00', '#0000FF']);
+  expect(fills[0].width).toBeCloseTo(300);
+});
+
 test('mix places one swirl fill for every background colour', () => {
   const template = {
     width: 800,
