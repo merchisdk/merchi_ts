@@ -36,6 +36,12 @@ export function templateMillimetres(template: any): number | null {
   return millimetresIn(template?.name);
 }
 
+/** Inside unwraps run the other way so lettering still reads. Body colour must not. */
+export function mirrorBodyFillOnSurface(materialName?: string): boolean {
+  const parts = (materialName || '').toLowerCase().split(/[^a-z]+/);
+  return parts.some((part) => part === 'inside' || part === 'insides');
+}
+
 function faceRole(name: string): 'front' | 'back' | 'other' {
   const parts = name.toLowerCase().split(/[^a-z]+/);
   if (parts.some((part) => ['back', 'backs', 'inside', 'insides', 'rear', 'rears', 'reverse', 'reverses'].includes(part))) {
