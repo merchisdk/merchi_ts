@@ -2,7 +2,9 @@ import {
   colourPickerList,
   colourRepeatBounds,
   colourRepeatError,
+  colourRepeatUnlocked,
   coloursFromPickerValue,
+  effectiveColourRepeatBounds,
   pickerValueFromColours,
 } from './colourRepeat';
 
@@ -33,6 +35,23 @@ test('a list is stored without empty slots', () => {
     '#1E4FA3',
   ]);
   expect(colourPickerList('#E23D3D')).toBeNull();
+});
+
+test('extra colours unlock only for the named options', () => {
+  const field = {
+    colourRepeatMax: 3,
+    colourRepeatSelectedBy: [{ id: 1184574 }, { id: 1184575 }],
+  };
+  const segmented = new Set([1184574]);
+  const solid = new Set([1184573]);
+  expect(colourRepeatUnlocked(field, solid)).toBe(false);
+  expect(colourRepeatUnlocked(field, segmented)).toBe(true);
+  expect(effectiveColourRepeatBounds(field, solid)).toEqual({ min: 1, max: 1 });
+  expect(effectiveColourRepeatBounds(field, segmented)).toEqual({ min: 1, max: 3 });
+  expect(colourRepeatUnlocked({ colourRepeatMax: 3 }, solid)).toBe(true);
+  expect(colourRepeatError('["#112233","#445566"]', field, solid)).toBeNull();
+  expect(colourRepeatError('["#112233"]', { ...field, colourRepeatMin: 2 }, segmented))
+    .toBe('Choose at least 2 colours');
 });
 
 test('a short list is invalid once the customer has started choosing', () => {

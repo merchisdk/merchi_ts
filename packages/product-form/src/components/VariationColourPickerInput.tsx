@@ -9,13 +9,16 @@ import { useMerchiFormContext } from '../context/MerchiProductFormProvider';
 import {
   colourRepeatBounds,
   colourRepeatError,
+  colourRepeatUnlocked,
   coloursFromPickerValue,
+  effectiveColourRepeatBounds,
   pickerValueFromColours,
 } from '../utils/colourRepeat';
 
 interface Props {
   disabled?: boolean;
   name: string;
+  selectedOptionIds?: Set<number>;
   variation: any;
 }
 
@@ -26,14 +29,21 @@ function slotsFor(value: unknown, min: number): string[] {
   return slots.length ? slots : [''];
 }
 
-function VariationColourPickerInput({ disabled, name, variation }: Props) {
+function VariationColourPickerInput({
+  disabled,
+  name,
+  selectedOptionIds,
+  variation,
+}: Props) {
   const {
     classNameInputContainer,
     classNameInput,
     control,
   } = useMerchiFormContext();
   const field = variation?.variationField || {};
-  const { min, max } = colourRepeatBounds(field);
+  const unlocked = colourRepeatUnlocked(field, selectedOptionIds);
+  const { min, max } = effectiveColourRepeatBounds(field, selectedOptionIds);
+  const storedMax = colourRepeatBounds(field).max;
   const {
     field: formField,
     fieldState: { invalid },
@@ -41,7 +51,7 @@ function VariationColourPickerInput({ disabled, name, variation }: Props) {
     name: `${name}.value`,
     control,
     rules: {
-      validate: (value) => colourRepeatError(value, field) || true,
+      validate: (value) => colourRepeatError(value, field, selectedOptionIds) || true,
     },
   });
   const [slots, setSlots] = useState(() => slotsFor(formField.value, min));
@@ -53,6 +63,11 @@ function VariationColourPickerInput({ disabled, name, variation }: Props) {
       return slotsFor(stored, min);
     });
   }, [stored, min, max]);
+  useEffect(() => {
+    if (unlocked || storedMax <= 1) return;
+    const first = coloursFromPickerValue(stored)[0] || '';
+    if (stored !== first) formField.onChange(first);
+  }, [unlocked, storedMax, stored, formField]);
   const validationClass = invalid ? 'is-invalid' : '';
 
   const write = (next: string[]) => {
@@ -61,7 +76,7 @@ function VariationColourPickerInput({ disabled, name, variation }: Props) {
   };
 
   if (max <= 1) {
-    const shown = formField.value || '#000000';
+    const shown = coloursFromPickerValue(formField.value)[0] || formField.value || '#000000';
     return (
       <div className={`${classNameInputContainer} merchi-input-color-container`}>
         <VariationLabel

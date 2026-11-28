@@ -36,11 +36,13 @@ export const embedProduct = {
   groupVariationFields: {
     options: { linkedFile: {}, linkedProductImage: {}, selectedBy: {} },
     selectedBy: {},
+    colourRepeatSelectedBy: {},
   },
   images: {},
   independentVariationFields: {
     options: { linkedFile: {}, linkedProductImage: {}, selectedBy: {} },
     selectedBy: {},
+    colourRepeatSelectedBy: {},
   },
   publicFiles: {},
 };
