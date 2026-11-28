@@ -49,6 +49,7 @@ interface Props {
   disabled?: boolean;
   index: number;
   name: string;
+  selectedOptionIds?: Set<number>;
   variation: any;
 }
 
@@ -56,6 +57,7 @@ function DynamicVariationInput({
   disabled,
   index,
   name,
+  selectedOptionIds,
   variation,
 }: Props) {
   const { hookForm, showAlert } = useMerchiFormContext();
@@ -80,6 +82,7 @@ function DynamicVariationInput({
             alertErrorCallback={showAlert}
             disabled={disabled}
             name={`${name}[${index}]`}
+            selectedOptionIds={Variation === VariationInputCoulourPicker ? selectedOptionIds : undefined}
             variation={variation}
           />
         </>

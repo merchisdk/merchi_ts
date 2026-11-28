@@ -16,6 +16,47 @@ export function normaliseHex(value: unknown): string | null {
   return text.toUpperCase();
 }
 
+export function colourRepeatTriggers(field: any): number[] {
+  const triggers = field?.colourRepeatSelectedBy;
+  if (!Array.isArray(triggers)) return [];
+  return triggers
+    .map((option: any) => Number(option?.id))
+    .filter((id: number) => Number.isFinite(id) && id > 0);
+}
+
+/** Extra colours stay available when no options are named, or one of them is chosen. */
+export function colourRepeatUnlocked(
+  field: any,
+  selectedOptionIds?: Set<number>,
+): boolean {
+  const triggers = colourRepeatTriggers(field);
+  if (!triggers.length) return true;
+  if (!selectedOptionIds) return false;
+  return triggers.some((id) => selectedOptionIds.has(id));
+}
+
+export function effectiveColourRepeatBounds(
+  field: any,
+  selectedOptionIds?: Set<number>,
+): { min: number; max: number } {
+  const bounds = colourRepeatBounds(field);
+  if (!colourRepeatUnlocked(field, selectedOptionIds)) return { min: 1, max: 1 };
+  return bounds;
+}
+
+export function selectedOptionIdsFromVariations(variations: any[]): Set<number> {
+  const ids = new Set<number>();
+  for (const variation of variations || []) {
+    const value = variation?.value;
+    if (value == null || value === '') continue;
+    String(value).split(',').forEach((token) => {
+      const parsed = parseInt(token.trim(), 10);
+      if (!Number.isNaN(parsed)) ids.add(parsed);
+    });
+  }
+  return ids;
+}
+
 export function colourRepeatBounds(field: any): { min: number; max: number } {
   const rawMax = Number(field?.colourRepeatMax);
   const max = Number.isFinite(rawMax) && rawMax > 1
@@ -58,8 +99,12 @@ export function pickerValueFromColours(colours: string[]): string {
   return JSON.stringify(filled);
 }
 
-export function colourRepeatError(value: unknown, field: any): string | null {
-  const { min, max } = colourRepeatBounds(field);
+export function colourRepeatError(
+  value: unknown,
+  field: any,
+  selectedOptionIds?: Set<number>,
+): string | null {
+  const { min, max } = effectiveColourRepeatBounds(field, selectedOptionIds);
   const name = field?.name || 'Colour';
   if (max <= 1) {
     if (field?.required && !String(value ?? '').trim()) return `${name} is required`;

@@ -167,6 +167,7 @@ function Variations({
               disabled={disabled}
               index={index}
               name={name}
+              selectedOptionIds={selectedOptionIds}
               variation={pricedVariation}
             />
           </fieldset>

@@ -19,6 +19,7 @@ export interface VariationFieldJson {
   options?: OptionJson[];
   colourRepeatMin?: number | null;
   colourRepeatMax?: number | null;
+  colourRepeatSelectedBy?: Array<{ id?: number }>;
   maxColours?: number;
   simplifyColours?: boolean;
   colourVariationCost?: number;

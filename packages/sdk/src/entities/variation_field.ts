@@ -232,6 +232,10 @@ export class VariationField extends Entity {
   @VariationField.property({arrayType: 'VariationFieldsOption'})
   public selectedBy?: VariationFieldsOption[];
 
+  /** Options that unlock colourRepeatMax. Empty means the limit always applies. */
+  @VariationField.property({arrayType: 'VariationFieldsOption'})
+  public colourRepeatSelectedBy?: VariationFieldsOption[];
+
   @VariationField.property({type: 'InventoryGroup'})
   public inventoryGroup?: InventoryGroup;
 
